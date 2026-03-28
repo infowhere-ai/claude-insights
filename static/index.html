@@ -4,13 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Roboto+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@latest/index.css" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html { font-size: var(--fs, 13px); }
   :root {
     --bg: #1e1e2e;
     --bg-card: #27273a;
     --bg-card-hover: #313145;
+    --bg-hover: #2d2d43;
     --bg-diff: #1a1a2a;
     --border: #3d3d55;
     --border-working: #4ade80;
@@ -30,7 +36,7 @@
     --diff-del-border: rgba(243,139,168,0.5);
     --diff-hunk-bg: rgba(137,180,250,0.08);
     --diff-hunk-color: #89b4fa;
-    --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+    --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
   }
 
   html, body {
@@ -42,7 +48,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 15px;
+    font-size: 1.15rem;
     display: flex;
     flex-direction: column;
   }
@@ -60,7 +66,7 @@
   }
 
   .header-title {
-    font-size: 16px;
+    font-size: 1.23rem;
     font-weight: 600;
     color: var(--text);
     font-family: var(--font-mono);
@@ -74,7 +80,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 13px;
+    font-size: 1rem;
     color: var(--text-muted);
     font-family: var(--font-mono);
   }
@@ -85,7 +91,7 @@
     gap: 5px;
     padding: 2px 8px;
     border-radius: 20px;
-    font-size: 13px;
+    font-size: 1rem;
     font-weight: 500;
     background: rgba(63, 185, 80, 0.12);
     color: var(--green);
@@ -174,7 +180,7 @@
 
   .diff-header-filename {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 1rem;
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -198,7 +204,7 @@
 
   .diff-stat {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 1rem;
     padding: 1px 7px;
     border-radius: 10px;
   }
@@ -228,15 +234,15 @@
   }
 
   .diff-placeholder svg { opacity: 0.2; }
-  .diff-placeholder p { font-size: 13px; color: var(--text-muted); }
-  .diff-placeholder .hint { font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); }
+  .diff-placeholder p { font-size: 1rem; color: var(--text-muted); }
+  .diff-placeholder .hint { font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-dim); }
 
   /* ── Diff renderer ── */
   .diff-table {
     width: 100%;
     border-collapse: collapse;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 1rem;
     line-height: 1.55;
   }
 
@@ -316,7 +322,7 @@
 
   .project-name {
     font-family: var(--font-mono);
-    font-size: 14px;
+    font-size: 1.08rem;
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;
@@ -327,7 +333,7 @@
   .state-badge {
     padding: 2px 8px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 0.92rem;
     font-weight: 600;
     font-family: var(--font-mono);
     letter-spacing: 0.04em;
@@ -340,7 +346,7 @@
 
   .card-action {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 1rem;
     color: var(--text-muted);
     padding: 0 12px 8px;
     white-space: nowrap;
@@ -358,7 +364,7 @@
   .section:last-child { border-bottom: none; }
 
   .section-label {
-    font-size: 11px;
+    font-size: 0.85rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -374,7 +380,7 @@
     margin-bottom: 6px;
   }
   .files-count {
-    font-size: 10px;
+    font-size: 0.77rem;
     color: var(--text-dim);
     background: var(--bg-hover);
     padding: 1px 5px;
@@ -394,7 +400,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text);
-    font-size: 11px;
+    font-size: 0.85rem;
     padding: 3px 8px;
     outline: none;
   }
@@ -405,7 +411,7 @@
     flex-wrap: wrap;
   }
   .file-type-btn {
-    font-size: 10px;
+    font-size: 0.77rem;
     font-family: var(--font-mono);
     background: var(--bg-hover);
     border: 1px solid var(--border);
@@ -416,7 +422,7 @@
     transition: all 0.12s;
   }
   .file-type-btn:hover { color: var(--text); border-color: var(--text-muted); }
-  .file-type-btn.active { background: rgba(137,180,250,.15); border-color: var(--blue); color: var(--blue); }
+  .file-type-btn.active { background: rgba(251,191,36,.15); border-color: var(--yellow); color: var(--yellow); }
 
   /* ── File items (clickable) ── */
   .file-item {
@@ -424,7 +430,7 @@
     align-items: center;
     gap: 6px;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 1rem;
     color: var(--text-muted);
     padding: 3px 6px;
     border-radius: 4px;
@@ -448,7 +454,7 @@
     width: 14px;
     flex-shrink: 0;
     text-align: center;
-    font-size: 11px;
+    font-size: 0.85rem;
   }
 
   .file-path {
@@ -460,7 +466,7 @@
 
   .file-time {
     color: var(--text-dim);
-    font-size: 12px;
+    font-size: 0.92rem;
     white-space: nowrap;
   }
 
@@ -470,12 +476,12 @@
     align-items: center;
     gap: 6px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 0.92rem;
     color: var(--text-muted);
     line-height: 1.5;
     padding: 2px 0;
   }
-  .event-icon { flex-shrink: 0; font-size: 12px; width: 14px; text-align: center; }
+  .event-icon { flex-shrink: 0; font-size: 0.92rem; width: 14px; text-align: center; }
   .event-time { color: var(--text-dim); white-space: nowrap; }
   .event-tool { color: var(--blue); white-space: nowrap; font-weight: 600; }
   .event-msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -487,16 +493,16 @@
     border: 1px solid rgba(210,153,34,.3);
     border-radius: 5px;
     padding: 6px 10px;
-    font-size: 11px;
+    font-size: 0.85rem;
     color: var(--yellow);
     display: flex;
     align-items: flex-start;
     gap: 6px;
   }
 
-  .chevron { color: var(--text-dim); transition: transform 0.15s; flex-shrink: 0; font-size: 11px; }
+  .chevron { color: var(--text-dim); transition: transform 0.15s; flex-shrink: 0; font-size: 0.85rem; }
   .chevron.open { transform: rotate(90deg); }
-  .updated-at { font-size: 12px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+  .updated-at { font-size: 0.92rem; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
 
   .empty-state {
     display: flex;
@@ -509,7 +515,7 @@
     text-align: center;
   }
   .empty-state svg { opacity: 0.2; }
-  .empty-state p { font-size: 14px; }
+  .empty-state p { font-size: 1.08rem; }
 
   .diff-loading {
     display: flex;
@@ -519,7 +525,7 @@
     gap: 10px;
     color: var(--text-muted);
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 0.92rem;
   }
 
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -576,7 +582,7 @@
     gap: 5px;
     padding: 0 14px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 0.92rem;
     font-weight: 600;
     color: var(--text-dim);
     border: none;
@@ -610,7 +616,7 @@
     align-items: center;
     justify-content: center;
     transition: background 0.12s, color 0.12s;
-    font-size: 14px;
+    font-size: 1.08rem;
     line-height: 1;
   }
   .btn-icon:hover { background: var(--bg-card-hover); color: var(--text); }
@@ -629,7 +635,7 @@
   .dash-empty {
     display: flex; align-items: center; justify-content: center;
     height: 100%; color: var(--text-dim);
-    font-size: 12px; font-family: var(--font-mono);
+    font-size: 0.92rem; font-family: var(--font-mono);
   }
   .dash-project {
     padding: 9px 14px 8px;
@@ -641,21 +647,21 @@
     margin-bottom: 5px;
   }
   .dash-project-name {
-    font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+    font-family: var(--font-mono); font-size: 0.92rem; font-weight: 700;
     color: var(--text);
   }
   .dash-model {
-    font-size: 10px; padding: 1px 7px; border-radius: 8px;
+    font-size: 0.77rem; padding: 1px 7px; border-radius: 8px;
     background: rgba(137,180,250,0.1); color: var(--blue);
     border: 1px solid rgba(137,180,250,0.2); font-family: var(--font-mono);
   }
   .dash-rate-limit {
-    font-size: 10px; padding: 1px 7px; border-radius: 8px;
+    font-size: 0.77rem; padding: 1px 7px; border-radius: 8px;
     background: rgba(243,139,168,0.12); color: var(--red);
     border: 1px solid rgba(243,139,168,0.3); font-family: var(--font-mono);
   }
   .dash-next-session {
-    margin-top: 4px; font-size: 11px; color: var(--red);
+    margin-top: 4px; font-size: 0.85rem; color: var(--red);
     font-family: var(--font-mono);
   }
   .dash-ctx-row {
@@ -674,33 +680,33 @@
   .dash-ctx-bar.crit { background: var(--red); }
   .dash-ctx-meta {
     display: flex; align-items: baseline; justify-content: space-between;
-    font-family: var(--font-mono); font-size: 10px; margin-bottom: 3px;
+    font-family: var(--font-mono); font-size: 0.77rem; margin-bottom: 3px;
   }
   .dash-ctx-pct {
-    font-size: 11px; font-weight: 700; color: var(--text-dim);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
   }
   .dash-ctx-label { color: var(--text-dim); }
   .dash-tok-inline {
     display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+    font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);
     margin-top: 2px;
   }
   .dash-tok-inline-item { display: flex; align-items: baseline; gap: 3px; }
-  .dash-tok-inline-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; }
+  .dash-tok-inline-label { font-size: 0.69rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; }
   .dash-tok-inline-val { font-weight: 600; }
   .dash-tok-inline-val.warn { color: #f9e2af; }
   .dash-tok-inline-val.crit { color: var(--red); }
   .dash-compact {
-    margin-top: 4px; font-size: 10px; color: var(--text-dim);
+    margin-top: 4px; font-size: 0.77rem; color: var(--text-dim);
     font-family: var(--font-mono);
   }
   .dash-action {
-    font-size: 11px; color: var(--text-muted);
+    font-size: 0.85rem; color: var(--text-muted);
     margin-bottom: 5px; font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .dash-agents {
-    font-size: 10px; padding: 1px 7px; border-radius: 8px;
+    font-size: 0.77rem; padding: 1px 7px; border-radius: 8px;
     background: rgba(203,166,247,0.1); color: #cba6f7;
     border: 1px solid rgba(203,166,247,0.2); font-family: var(--font-mono);
   }
@@ -718,12 +724,12 @@
     flex: 1; padding: 4px 10px;
     background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 5px; color: var(--text);
-    font-family: var(--font-mono); font-size: 12px;
+    font-family: var(--font-mono); font-size: 0.92rem;
   }
   .events-filter-input:focus { outline: none; border-color: var(--blue); }
   .events-list-global { overflow-y: auto; }
   .ev-project-label {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    font-family: var(--font-mono); font-size: 0.77rem; font-weight: 600;
     color: var(--blue); white-space: nowrap;
     letter-spacing: .03em;
   }
@@ -740,13 +746,13 @@
     width: 100%; padding: 4px 10px;
     background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 5px; color: var(--text);
-    font-family: var(--font-mono); font-size: 12px;
+    font-family: var(--font-mono); font-size: 0.92rem;
     outline: none;
   }
   .skills-search:focus { border-color: var(--blue); }
 
   .skills-group-label {
-    font-size: 10px; font-weight: 600;
+    font-size: 0.77rem; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--text-dim); padding: 6px 14px 3px;
     background: var(--bg);
@@ -766,20 +772,20 @@
     display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
   }
   .skill-name {
-    font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+    font-family: var(--font-mono); font-size: 0.92rem; font-weight: 700;
     color: var(--blue); white-space: nowrap;
   }
   .skill-title {
-    font-size: 11px; color: var(--text); font-weight: 500;
+    font-size: 0.85rem; color: var(--text); font-weight: 500;
   }
   .skill-hint {
-    font-family: var(--font-mono); font-size: 10px;
+    font-family: var(--font-mono); font-size: 0.77rem;
     color: var(--text-dim); background: rgba(100,100,140,0.15);
     border: 1px solid rgba(100,100,140,0.25);
     border-radius: 3px; padding: 1px 6px; white-space: nowrap;
   }
   .skill-desc {
-    font-size: 11px; color: var(--text-muted);
+    font-size: 0.85rem; color: var(--text-muted);
     margin-top: 3px; line-height: 1.4;
   }
   .skill-body {
@@ -789,14 +795,14 @@
   }
   .skill-item.expanded .skill-body { display: block; }
   .skill-expand-btn {
-    font-size: 10px; color: var(--text-dim); background: none;
+    font-size: 0.77rem; color: var(--text-dim); background: none;
     border: none; cursor: pointer; padding: 0; margin-top: 3px;
     display: inline-flex; align-items: center; gap: 3px;
   }
   .skill-expand-btn:hover { color: var(--text-muted); }
 
   .skill-source {
-    font-size: 10px; padding: 0px 5px; border-radius: 8px;
+    font-size: 0.77rem; padding: 0px 5px; border-radius: 8px;
     color: var(--text-dim); border: 1px solid var(--border);
     white-space: nowrap; flex-shrink: 0;
   }
@@ -804,14 +810,14 @@
   /* ── Contexto tab ── */
   .ctx-focused { padding: 8px 12px; overflow-y: auto; }
   .ctx-header { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
-  .ctx-project-name { font-size: 13px; font-weight: 700; font-family: var(--font-mono); color: var(--text); }
-  .ctx-updated { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
+  .ctx-project-name { font-size: 1rem; font-weight: 700; font-family: var(--font-mono); color: var(--text); }
+  .ctx-updated { font-size: 0.85rem; color: var(--text-dim); font-family: var(--font-mono); }
   .ctx-action {
-    font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);
+    font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono);
     margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .ctx-action-tool { color: var(--blue); font-weight: 700; margin-right: 3px; }
-  .ctx-rate-limit { font-size: 11px; color: #f9e2af; margin-bottom: 6px; font-family: var(--font-mono); }
+  .ctx-rate-limit { font-size: 0.85rem; color: #f9e2af; margin-bottom: 6px; font-family: var(--font-mono); }
   .ctx-ctx-section { margin-bottom: 8px; }
   .ctx-ctx-bar-wrap {
     height: 10px; background: var(--border); border-radius: 5px; overflow: hidden;
@@ -821,8 +827,8 @@
   .ctx-ctx-bar.ok   { background: var(--green); }
   .ctx-ctx-bar.warn { background: #f9e2af; }
   .ctx-ctx-bar.crit { background: var(--red); }
-  .ctx-ctx-stats { display: flex; align-items: baseline; gap: 6px; font-size: 11px; font-family: var(--font-mono); }
-  .ctx-ctx-pct { font-weight: 700; font-size: 14px; }
+  .ctx-ctx-stats { display: flex; align-items: baseline; gap: 6px; font-size: 0.85rem; font-family: var(--font-mono); }
+  .ctx-ctx-pct { font-weight: 700; font-size: 1.08rem; }
   .ctx-ctx-pct.ok   { color: var(--green); }
   .ctx-ctx-pct.warn { color: #f9e2af; }
   .ctx-ctx-pct.crit { color: var(--red); }
@@ -830,14 +836,14 @@
   .ctx-tok-sep { color: var(--text-dim); }
   .ctx-tok { color: var(--text-muted); }
   .ctx-section-title {
-    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 0.77rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--text-dim); margin: 8px 0 4px;
   }
   /* Token detail grid */
   .ctx-tok-grid { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
   .ctx-tok-row {
     display: flex; align-items: center; gap: 6px;
-    font-size: 11px; font-family: var(--font-mono);
+    font-size: 0.85rem; font-family: var(--font-mono);
   }
   .ctx-tok-row-label { width: 54px; flex-shrink: 0; color: var(--text-dim); }
   .ctx-tok-row-val { width: 52px; flex-shrink: 0; text-align: right; color: var(--text); font-weight: 600; }
@@ -850,23 +856,23 @@
   /* Week summary row */
   .ctx-week-row {
     display: flex; align-items: baseline; gap: 8px; margin-top: 2px;
-    font-size: 11px; font-family: var(--font-mono); color: var(--text-dim);
+    font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-dim);
   }
   .ctx-week-val { color: var(--text-muted); font-weight: 600; }
   .ctx-compact-row {
-    font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); margin-top: 3px;
+    font-size: 0.77rem; font-family: var(--font-mono); color: var(--text-dim); margin-top: 3px;
   }
   .ctx-other-projects {
     display: flex; gap: 4px; flex-wrap: wrap;
     margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
   }
   .ctx-other-badge {
-    font-size: 10px; padding: 1px 7px; border-radius: 8px; font-family: var(--font-mono); cursor: default;
+    font-size: 0.77rem; padding: 1px 7px; border-radius: 8px; font-family: var(--font-mono); cursor: default;
   }
   .ctx-other-badge.working { background: rgba(74,222,128,0.1); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
   .ctx-other-badge.waiting { background: rgba(251,191,36,0.1); color: #f9e2af; border: 1px solid rgba(251,191,36,0.3); }
   .ctx-other-badge.idle    { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-  .ctx-empty { color: var(--text-dim); padding: 12px; font-size: 12px; font-family: var(--font-mono); }
+  .ctx-empty { color: var(--text-dim); padding: 12px; font-size: 0.92rem; font-family: var(--font-mono); }
 
   /* ── Event magnifier button ── */
   .event-zoom {
@@ -933,7 +939,7 @@
     align-items: center;
     gap: 10px;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 1rem;
     min-width: 0;
   }
 
@@ -945,7 +951,7 @@
     border: none;
     background: transparent;
     color: var(--text-muted);
-    font-size: 18px;
+    font-size: 1.38rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -965,7 +971,7 @@
 
   .modal-message {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 1rem;
     line-height: 1.75;
     color: var(--text);
     white-space: pre-wrap;
@@ -981,7 +987,7 @@
     display: flex;
     gap: 16px;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 0.92rem;
     color: var(--text-dim);
   }
   .modal-meta span { display: flex; align-items: center; gap: 5px; }
@@ -991,6 +997,7 @@
     --bg: #eff1f5;
     --bg-card: #e6e9ef;
     --bg-card-hover: #dce0e8;
+    --bg-hover: #d4d7e3;
     --bg-diff: #dce0e8;
     --border: #ccd0da;
     --border-working: #40a02b;
@@ -1021,7 +1028,7 @@
     border-radius: 6px;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 15px;
+    font-size: 1.15rem;
     transition: background 0.12s, color 0.12s;
     line-height: 1;
     padding: 0;
@@ -1054,13 +1061,13 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 16px;
     border-bottom: 1px solid var(--border);
-    font-weight: 600; font-size: 14px;
+    font-weight: 600; font-size: 1.08rem;
   }
 
   .prefs-close {
     width: 28px; height: 28px;
     border: none; background: transparent;
-    color: var(--text-muted); font-size: 20px;
+    color: var(--text-muted); font-size: 1.54rem;
     cursor: pointer; border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
     line-height: 1; transition: background 0.12s;
@@ -1074,7 +1081,7 @@
   }
 
   .prefs-section-title {
-    font-size: 11px; font-weight: 600;
+    font-size: 0.85rem; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--text-dim); margin-bottom: 8px;
   }
@@ -1083,7 +1090,7 @@
     width: 100%; padding: 6px 10px;
     background: var(--bg); border: 1px solid var(--border);
     border-radius: 6px; color: var(--text);
-    font-family: var(--font-mono); font-size: 12px;
+    font-family: var(--font-mono); font-size: 0.92rem;
     cursor: pointer; outline: none;
   }
   .prefs-select:focus { border-color: var(--blue); }
@@ -1094,7 +1101,7 @@
 
   .prefs-range-val {
     min-width: 34px; text-align: right;
-    font-family: var(--font-mono); font-size: 12px;
+    font-family: var(--font-mono); font-size: 0.92rem;
     color: var(--text-muted);
   }
 
@@ -1104,7 +1111,7 @@
     flex: 1; padding: 7px;
     border: 1px solid var(--border); border-radius: 6px;
     background: var(--bg); color: var(--text-muted);
-    font-size: 13px; cursor: pointer;
+    font-size: 1rem; cursor: pointer;
     transition: all 0.12s;
     display: flex; align-items: center; justify-content: center; gap: 5px;
   }
@@ -1120,21 +1127,21 @@
 
   .stat-model {
     display: inline-block; padding: 1px 7px; border-radius: 10px;
-    font-size: 11px; font-family: var(--font-mono);
+    font-size: 0.85rem; font-family: var(--font-mono);
     background: rgba(203,166,247,0.15); color: var(--purple);
     border: 1px solid rgba(203,166,247,0.3);
   }
 
   .stat-tokens {
     display: inline-block; padding: 1px 7px; border-radius: 10px;
-    font-size: 11px; font-family: var(--font-mono);
+    font-size: 0.85rem; font-family: var(--font-mono);
     background: rgba(137,180,250,0.1); color: var(--blue);
     border: 1px solid rgba(137,180,250,0.25);
   }
 
   .stat-agents {
     display: inline-block; padding: 1px 7px; border-radius: 10px;
-    font-size: 11px; font-family: var(--font-mono);
+    font-size: 0.85rem; font-family: var(--font-mono);
     background: rgba(125,133,144,0.1); color: var(--text-muted);
     border: 1px solid rgba(125,133,144,0.2);
   }
@@ -1144,16 +1151,12 @@
   }
 
   .stats-weekly, .stats-compact {
-    font-size: 11px; font-family: var(--font-mono);
+    font-size: 0.85rem; font-family: var(--font-mono);
     color: var(--text-dim); margin-top: 3px;
   }
   .stats-compact { cursor: default; }
 
-  /* apply mono font-size pref to content areas */
-  .diff-table, .event-item, .file-item, .card-action,
-  .modal-message, .notification-box {
-    font-size: var(--font-size-mono, 13px);
-  }
+
 </style>
 </head>
 <body>
@@ -1203,7 +1206,7 @@
           <path d="M4.285 9.567a.5.5 0 0 1 .683.183A3.498 3.498 0 0 0 8 11.5a3.498 3.498 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.498 4.498 0 0 1 8 12.5a4.498 4.498 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683z"/>
         </svg>
         <p>Aguardando projectos activos…</p>
-        <p style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim)">hooks escrevem em .claude/status.json</p>
+        <p style="font-family:var(--font-mono);font-size:0.77rem;color:var(--text-dim)">hooks escrevem em .claude/status.json</p>
       </div>
     </div>
   </div>
@@ -1321,16 +1324,18 @@
     <div>
       <div class="prefs-section-title">Fonte Mono</div>
       <select class="prefs-select" id="pref-font-family" onchange="applyPrefs()">
-        <option value="">Auto (SF Mono / Fira Code)</option>
+        <option value="">Auto (SF Mono / JetBrains Mono)</option>
         <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
         <option value="'Fira Code', monospace">Fira Code</option>
         <option value="'Cascadia Code', monospace">Cascadia Code</option>
-        <option value="'Menlo', monospace">Menlo</option>
+        <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+        <option value="'Roboto Mono', monospace">Roboto Mono</option>
+        <option value="'Source Code Pro', monospace">Source Code Pro</option>
         <option value="monospace">monospace (sistema)</option>
       </select>
     </div>
     <div>
-      <div class="prefs-section-title">Tamanho do Código</div>
+      <div class="prefs-section-title">Tamanho do Texto</div>
       <div class="prefs-range-row">
         <input class="prefs-range" id="pref-font-size" type="range" min="10" max="18" step="1" oninput="applyPrefs(); document.getElementById('pref-font-size-val').textContent = this.value + 'px'">
         <span class="prefs-range-val" id="pref-font-size-val">13px</span>
@@ -1407,7 +1412,7 @@ function parse_hunk_header(line) {
 
 function render_diff(diffText) {
   if (!diffText || !diffText.trim()) {
-    return '<div class="diff-placeholder"><p style="color:var(--text-dim);font-family:var(--font-mono);font-size:12px;padding:40px">Sem alterações detectadas</p></div>';
+    return '<div class="diff-placeholder"><p style="color:var(--text-dim);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Sem alterações detectadas</p></div>';
   }
 
   const lines = diffText.split('\n');
@@ -1497,7 +1502,7 @@ async function loadDiff(project, filePath, fileEl) {
     const data = await resp.json();
 
     if (data.error) {
-      bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:12px;padding:40px">Erro: ${escHtml(data.error)}</p></div>`;
+      bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Erro: ${escHtml(data.error)}</p></div>`;
       return;
     }
 
@@ -1512,14 +1517,14 @@ async function loadDiff(project, filePath, fileEl) {
         ${result.dels > 0 ? `<span class="diff-stat del">-${result.dels}</span>` : ''}`;
     }
   } catch (e) {
-    bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:12px;padding:40px">Falha na ligação</p></div>`;
+    bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Falha na ligação</p></div>`;
   }
 }
 
 // ── Card rendering ─────────────────────────────────────────────────────────────
 
 function render_files(files, projectName) {
-  if (!files || files.length === 0) return '<span style="color:var(--text-dim);font-size:11px;padding:2px 6px">—</span>';
+  if (!files || files.length === 0) return '<span style="color:var(--text-dim);font-size:0.85rem;padding:2px 6px">—</span>';
   return files.slice(0, 20).map(f => {
     const isActive = activeFile && activeFile.project === projectName && activeFile.path === f.path;
     return `<div class="file-item ${isActive ? 'active' : ''}"
@@ -1533,7 +1538,7 @@ function render_files(files, projectName) {
 }
 
 function render_events(events, projectName) {
-  if (!events || events.length === 0) return '<span style="color:var(--text-dim);font-size:11px">—</span>';
+  if (!events || events.length === 0) return '<span style="color:var(--text-dim);font-size:0.85rem">—</span>';
   return events.slice(0, 15).map((e) => {
     const encoded = escAttr(JSON.stringify(e));
     return `
@@ -1570,7 +1575,7 @@ function showEventDetail(event) {
   const time = fmt_time(event.timestamp);
 
   titleEl.innerHTML = `
-    <span style="font-size:16px">${icon}</span>
+    <span style="font-size:1.23rem">${icon}</span>
     <span style="color:var(--text-muted)">${escHtml(time)}</span>
     ${event.tool ? `<span style="color:var(--blue);font-weight:600">${escHtml(event.tool)}</span>` : ''}`;
   statsEl.innerHTML = '';
@@ -1583,13 +1588,13 @@ function showEventDetail(event) {
         border-radius:8px;
         padding:20px 24px;
         font-family:var(--font-mono);
-        font-size:14px;
+        font-size:1.08rem;
         line-height:1.7;
         color:var(--text);
         white-space:pre-wrap;
         word-break:break-word;
       ">${escHtml(event.message)}</div>
-      ${event.tool ? `<div style="margin-top:12px;font-size:12px;color:var(--text-dim)">tool: <span style="color:var(--blue)">${escHtml(event.tool)}</span> &nbsp;·&nbsp; status: <span style="color:var(--${event.status === 'success' ? 'green' : event.status === 'error' ? 'red' : 'text-muted'})">${escHtml(event.status || '—')}</span></div>` : ''}
+      ${event.tool ? `<div style="margin-top:12px;font-size:0.92rem;color:var(--text-dim)">tool: <span style="color:var(--blue)">${escHtml(event.tool)}</span> &nbsp;·&nbsp; status: <span style="color:var(--${event.status === 'success' ? 'green' : event.status === 'error' ? 'red' : 'text-muted'})">${escHtml(event.status || '—')}</span></div>` : ''}
     </div>`;
 }
 
@@ -1635,28 +1640,30 @@ function filterFiles(name, files) {
   const f = fileFilters[name] || {};
   let result = files || [];
   if (f.query) result = result.filter(fi => fi.path.toLowerCase().includes(f.query.toLowerCase()));
-  if (f.type)  result = result.filter(fi => fileExt(fi.path) === f.type);
+  if (f.types && f.types.size) result = result.filter(fi => f.types.has(fileExt(fi.path)));
   return result;
 }
 
 function renderTypeFilters(name, allFiles) {
   const exts = [...new Set((allFiles || []).map(f => fileExt(f.path)).filter(Boolean))].sort();
-  const active = (fileFilters[name] || {}).type || '';
+  const active = (fileFilters[name] || {}).types || new Set();
   return exts.map(ext =>
-    `<button class="file-type-btn${active === ext ? ' active' : ''}" onclick="setFileTypeFilter(${JSON.stringify(name)}, '${ext}')">.${ext}</button>`
+    `<button class="file-type-btn${active.has(ext) ? ' active' : ''}" onclick="setFileTypeFilter('${name}', '${ext}')">.${ext}</button>`
   ).join('');
 }
 
 function filterFilesInCard(input) {
   const name = input.dataset.project;
-  if (!fileFilters[name]) fileFilters[name] = { query: '', type: '' };
+  if (!fileFilters[name]) fileFilters[name] = { query: '', types: new Set() };
   fileFilters[name].query = input.value;
   refreshFileList(name);
 }
 
 function setFileTypeFilter(name, ext) {
-  if (!fileFilters[name]) fileFilters[name] = { query: '', type: '' };
-  fileFilters[name].type = fileFilters[name].type === ext ? '' : ext;
+  if (!fileFilters[name]) fileFilters[name] = { query: '', types: new Set() };
+  if (!fileFilters[name].types) fileFilters[name].types = new Set();
+  if (fileFilters[name].types.has(ext)) fileFilters[name].types.delete(ext);
+  else fileFilters[name].types.add(ext);
   refreshFileList(name);
 }
 
@@ -1712,7 +1719,7 @@ function render_card(name, data) {
         <div class="file-list" id="file-list-${CSS.escape(name)}">${render_files(filterFiles(name, data.files_touched), name)}</div>
       </div>` : ''}
       ${(!data.files_touched?.length) ? `
-      <div class="section" style="color:var(--text-dim);font-size:11px">Sem actividade registada</div>` : ''}
+      <div class="section" style="color:var(--text-dim);font-size:0.85rem">Sem actividade registada</div>` : ''}
       ${render_stats(data.stats)}
     </div>
   </div>`;
@@ -1827,7 +1834,7 @@ function openEventModal(evt) {
   const statusColor = evt.status === 'success' ? 'var(--green)' : evt.status === 'error' ? 'var(--red)' : 'var(--text-muted)';
 
   titleEl.innerHTML = `
-    <span style="font-size:15px">${icon}</span>
+    <span style="font-size:1.15rem">${icon}</span>
     ${evt.tool ? `<span style="color:var(--blue);font-weight:600">${escHtml(evt.tool)}</span>` : ''}
     <span style="color:var(--text-dim)">${fmt_time(evt.timestamp)}</span>`;
 
@@ -2259,7 +2266,7 @@ document.addEventListener('keydown', (e) => {
     ) : all;
 
     if (filtered.length === 0) {
-      listEl.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:12px">Sem eventos registados</div>';
+      listEl.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:0.92rem">Sem eventos registados</div>';
       return;
     }
 
@@ -2296,7 +2303,7 @@ document.addEventListener('keydown', (e) => {
       renderSkills(allSkills, '');
     } catch (_) {
       const list = document.getElementById('skills-list');
-      if (list) list.innerHTML = '<div style="color:var(--red);padding:8px 12px;font-size:12px">Erro ao carregar skills</div>';
+      if (list) list.innerHTML = '<div style="color:var(--red);padding:8px 12px;font-size:0.92rem">Erro ao carregar skills</div>';
     }
   }
 
@@ -2315,14 +2322,14 @@ document.addEventListener('keydown', (e) => {
     ) : skills;
 
     if (filtered.length === 0) {
-      list.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:12px">Nenhum skill encontrado</div>';
+      list.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:0.92rem">Nenhum skill encontrado</div>';
       return;
     }
     const srcLabel = { user: '👤 Pessoal', common: '🌐 Common', private: '🔒 Private', work: '💼 Work' };
     const groups = {};
     for (const s of filtered) { if (!groups[s.source]) groups[s.source] = []; groups[s.source].push(s); }
     list.innerHTML = Object.entries(groups).map(([src, items]) => `
-      <div class="skills-group-label">${srcLabel[src] || src} <span style="font-size:10px;font-weight:400;opacity:.6">(${items.length})</span></div>
+      <div class="skills-group-label">${srcLabel[src] || src} <span style="font-size:0.77rem;font-weight:400;opacity:.6">(${items.length})</span></div>
       ${items.map(s => {
         const hasBody = !!(s.body_intro && s.body_intro.trim());
         const hint = s.argument_hint ? `<span class="skill-hint">${escHtml(s.argument_hint)}</span>` : '';
@@ -2359,13 +2366,17 @@ document.addEventListener('keydown', (e) => {
   // ── Theme & Prefs ──────────────────────────────────────────────────────────
   function loadPrefs() {
     const theme      = localStorage.getItem('cm-theme') || 'dark';
-    const fontFamily = localStorage.getItem('cm-font-family') || '';
+    let fontFamily = localStorage.getItem('cm-font-family') || '';
     const fontSize   = parseInt(localStorage.getItem('cm-font-size') || '13', 10);
     setTheme(theme, true);
     const selFont  = document.getElementById('pref-font-family');
     const rngSize  = document.getElementById('pref-font-size');
     const rngVal   = document.getElementById('pref-font-size-val');
-    if (selFont) selFont.value = fontFamily;
+    // Validate stored value matches a known option; clear if corrupted
+    if (selFont) {
+      selFont.value = fontFamily;
+      if (selFont.value !== fontFamily) { fontFamily = ''; selFont.value = ''; localStorage.removeItem('cm-font-family'); }
+    }
     if (rngSize) rngSize.value = fontSize;
     if (rngVal)  rngVal.textContent = fontSize + 'px';
     applyPrefs(true);
@@ -2404,8 +2415,8 @@ document.addEventListener('keydown', (e) => {
       localStorage.setItem('cm-font-size', String(fontSize));
     }
     document.documentElement.style.setProperty('--font-mono',
-      fontFamily ? `'${fontFamily}', 'SF Mono', monospace` : "'SF Mono', 'Fira Code', monospace");
-    document.documentElement.style.setProperty('--font-size-code', fontSize + 'px');
+      fontFamily || "'SF Mono', 'JetBrains Mono', 'Fira Code', monospace");
+    document.documentElement.style.setProperty('--fs', fontSize + 'px');
   };
 
   // Initial state
