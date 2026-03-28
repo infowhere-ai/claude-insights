@@ -1,5 +1,16 @@
-.claude/logs/.session-*
-node_modules/
+# Python
 __pycache__/
+*.py[cod]
 .venv/
 .env
+
+# Claude
+.claude/status.json
+.claude/logs/.session-*
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store

@@ -1,0 +1,19 @@
+services:
+  claude-monitor:
+    build: .
+    container_name: claude-monitor
+    ports:
+      - "19001:19001"
+    environment:
+      - PROJECTS_ROOT=/projects
+      - POLL_INTERVAL=1.0
+      - DISCOVERY_INTERVAL=60.0
+    volumes:
+      - ${HOME}/desenvolvimento/github-infowhere:/projects:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:19001/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3

@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>claude-monitor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1e1e2e;
+    --bg-card: #27273a;
+    --bg-card-hover: #313145;
+    --bg-diff: #1a1a2a;
+    --border: #3d3d55;
+    --border-working: #4ade80;
+    --border-waiting: #fbbf24;
+    --border-idle: #3d3d55;
+    --text: #cdd6f4;
+    --text-muted: #a6adc8;
+    --text-dim: #6c7086;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f38ba8;
+    --blue: #89b4fa;
+    --purple: #cba6f7;
+    --diff-add-bg: rgba(74,222,128,0.12);
+    --diff-add-border: rgba(74,222,128,0.5);
+    --diff-del-bg: rgba(243,139,168,0.12);
+    --diff-del-border: rgba(243,139,168,0.5);
+    --diff-hunk-bg: rgba(137,180,250,0.08);
+    --diff-hunk-color: #89b4fa;
+    --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    flex-shrink: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.9;
+  }
+
+  .header-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .badge-conn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    background: rgba(63, 185, 80, 0.12);
+    color: var(--green);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+  }
+  .badge-conn.disconnected { background: rgba(248,81,73,.12); color: var(--red); border-color: rgba(248,81,73,.3); }
+  .badge-conn.reconnecting { background: rgba(210,153,34,.12); color: var(--yellow); border-color: rgba(210,153,34,.3); }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .dot.pulse { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── Split layout ── */
+  .workspace {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── Left panel ── */
+  .left-panel {
+    width: 420px;
+    min-width: 200px;
+    max-width: 80vw;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Resizer ── */
+  .resizer {
+    width: 5px;
+    flex-shrink: 0;
+    background: var(--border);
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.15s;
+    z-index: 5;
+  }
+
+  .resizer:hover,
+  .resizer.dragging {
+    background: var(--blue);
+  }
+
+  .resizer::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    left: -4px; right: -4px;
+  }
+
+  .left-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .left-panel-body::-webkit-scrollbar { width: 4px; }
+  .left-panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Right panel ── */
+  .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .diff-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-card);
+    min-height: 36px;
+  }
+
+  .diff-header-filename {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .diff-header-filename .fname {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .diff-header-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .diff-stat {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+
+  .diff-stat.add { background: rgba(63,185,80,.15); color: var(--green); }
+  .diff-stat.del { background: rgba(248,81,73,.15); color: var(--red); }
+
+  .diff-body {
+    flex: 1;
+    overflow: auto;
+    background: var(--bg-diff);
+  }
+
+  .diff-body::-webkit-scrollbar { width: 6px; height: 6px; }
+  .diff-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .diff-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 40px;
+  }
+
+  .diff-placeholder svg { opacity: 0.2; }
+  .diff-placeholder p { font-size: 13px; color: var(--text-muted); }
+  .diff-placeholder .hint { font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); }
+
+  /* ── Diff renderer ── */
+  .diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .diff-table tr { vertical-align: top; }
+
+  .diff-ln {
+    width: 44px;
+    min-width: 44px;
+    padding: 0 10px;
+    text-align: right;
+    color: var(--text-dim);
+    user-select: none;
+    border-right: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+
+  .diff-ln-old { border-right-color: transparent; }
+
+  .diff-code {
+    padding: 0 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    width: 100%;
+  }
+
+  .diff-add .diff-ln,
+  .diff-add .diff-code { background: var(--diff-add-bg); }
+  .diff-add .diff-ln { border-right-color: var(--diff-add-border); color: var(--green); }
+  .diff-add .diff-code { color: var(--text); }
+
+  .diff-del .diff-ln,
+  .diff-del .diff-code { background: var(--diff-del-bg); }
+  .diff-del .diff-ln { border-right-color: var(--diff-del-border); color: var(--red); }
+  .diff-del .diff-code { color: var(--text); }
+
+  .diff-hunk .diff-ln,
+  .diff-hunk .diff-code { background: var(--diff-hunk-bg); color: var(--diff-hunk-color); }
+
+  .diff-file-header .diff-ln,
+  .diff-file-header .diff-code { background: rgba(88,166,255,.06); color: var(--text-muted); }
+
+  /* ── Project cards (left panel) ── */
+  .project-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-idle);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .project-card.working {
+    border-color: var(--border-working);
+    box-shadow: 0 0 14px rgba(63,185,80,.07);
+  }
+  .project-card.waiting {
+    border-color: var(--border-waiting);
+    box-shadow: 0 0 14px rgba(210,153,34,.07);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card-header:hover { background: var(--bg-card-hover); }
+
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .project-name {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .state-badge {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .state-badge.working { background: rgba(63,185,80,.15); color: var(--green); }
+  .state-badge.waiting { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .state-badge.idle, .state-badge.stopped { background: rgba(125,133,144,.1); color: var(--text-muted); }
+
+  .card-action {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 0 12px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-body {
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+  .card-body.open { display: block; }
+
+  .section { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  /* ── File items (clickable) ── */
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1px solid transparent;
+  }
+
+  .file-item:hover {
+    background: var(--bg-card-hover);
+    color: var(--text);
+  }
+
+  .file-item.active {
+    background: rgba(88,166,255,.1);
+    border-color: rgba(88,166,255,.3);
+    color: var(--blue);
+  }
+
+  .file-op {
+    width: 14px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 11px;
+  }
+
+  .file-path {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-time {
+    color: var(--text-dim);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* ── Events ── */
+  .event-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    padding: 2px 0;
+  }
+  .event-icon { flex-shrink: 0; font-size: 12px; width: 14px; text-align: center; }
+  .event-time { color: var(--text-dim); white-space: nowrap; font-size: 12px; }
+  .event-tool { color: var(--blue); white-space: nowrap; }
+  .event-msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .event-clickable { border-radius: 4px; padding: 2px 4px; margin: 0 -4px; transition: background 0.12s; }
+  .event-clickable:hover { background: var(--bg-card-hover); }
+
+  .notification-box {
+    background: rgba(210,153,34,.08);
+    border: 1px solid rgba(210,153,34,.3);
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--yellow);
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .chevron { color: var(--text-dim); transition: transform 0.15s; flex-shrink: 0; font-size: 11px; }
+  .chevron.open { transform: rotate(90deg); }
+  .updated-at { font-size: 12px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .empty-state svg { opacity: 0.2; }
+  .empty-state p { font-size: 14px; }
+
+  .diff-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .6s linear infinite; }
+
+  /* ── Event magnifier button ── */
+  .event-zoom {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    color: var(--text-dim);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s, background 0.12s, color 0.12s;
+  }
+  .event-item:hover .event-zoom {
+    opacity: 1;
+  }
+  .event-zoom:hover {
+    background: rgba(137,180,250,0.15);
+    color: var(--blue);
+  }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 780px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    animation: slideUp 0.15s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(12px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+
+  .modal-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+
+  .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-width: 0;
+  }
+
+  .modal-close {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+    line-height: 1;
+  }
+  .modal-close:hover { background: var(--bg-card-hover); color: var(--text); }
+
+  .modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 20px 18px;
+  }
+  .modal-body::-webkit-scrollbar { width: 6px; }
+  .modal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .modal-message {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-diff);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+
+  .modal-meta {
+    margin-top: 12px;
+    display: flex;
+    gap: 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .modal-meta span { display: flex; align-items: center; gap: 5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" opacity="0.7">
+      <path d="M2 1.5A1.5 1.5 0 0 1 3.5 0h9A1.5 1.5 0 0 1 14 1.5v13a.5.5 0 0 1-.777.416L8 11.101l-5.223 3.815A.5.5 0 0 1 2 14.5z"/>
+    </svg>
+    claude-monitor
+  </div>
+  <div class="header-meta">
+    <span id="projects-count">0 projectos</span>
+    <div id="conn-badge" class="badge-conn disconnected">
+      <div class="dot"></div>
+      <span id="conn-label">offline</span>
+    </div>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ── Left panel ── -->
+  <div class="left-panel">
+    <div class="left-panel-body" id="left-body">
+      <div class="empty-state" id="empty-state">
+        <svg width="28" height="28" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+          <path d="M4.285 9.567a.5.5 0 0 1 .683.183A3.498 3.498 0 0 0 8 11.5a3.498 3.498 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.498 4.498 0 0 1 8 12.5a4.498 4.498 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683z"/>
+        </svg>
+        <p>Aguardando projectos activos…</p>
+        <p style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim)">hooks escrevem em .claude/status.json</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Resizer ── -->
+  <div class="resizer" id="resizer"></div>
+
+  <!-- ── Right panel (diff viewer) ── -->
+  <div class="right-panel">
+    <div class="diff-header" id="diff-header">
+      <div class="diff-header-filename" id="diff-title">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" opacity="0.4">
+          <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 4.5z"/>
+        </svg>
+        <span style="color:var(--text-dim)">clique num ficheiro para ver o diff</span>
+      </div>
+      <div class="diff-header-badges" id="diff-stats"></div>
+    </div>
+    <div class="diff-body" id="diff-body">
+      <div class="diff-placeholder" id="diff-placeholder">
+        <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 4.5zM8.5 6.5a.5.5 0 0 0-1 0v3.793L6.354 9.146a.5.5 0 1 0-.708.708l2 2a.5.5 0 0 0 .708 0l2-2a.5.5 0 0 0-.708-.708L8.5 10.293z"/>
+        </svg>
+        <p>Diff viewer</p>
+        <span class="hint">Clique num ficheiro no painel esquerdo<br>para ver as alterações — como no IntelliJ Local Changes</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Event modal ── -->
+<div class="modal-backdrop" id="event-modal" style="display:none" onclick="closeEventModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title"></div>
+      <button class="modal-close" onclick="closeEventModal()" title="Fechar (Esc)">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-message" id="modal-message"></div>
+      <div class="modal-meta" id="modal-meta"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STATE_ORDER = { working: 0, waiting: 1, idle: 2, stopped: 3 };
+const FILE_OP_ICONS = { write: '✏', edit: '✏', read: '👁', create: '＋' };
+const EVENT_ICONS = { success: '✅', error: '❌', info: 'ℹ️' };
+
+let allProjects = {};
+let expandedCards = new Set();
+let activeFile = null;  // { project, path, element }
+let es = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt_time(ts) {
+  if (!ts) return '';
+  try {
+    const d = new Date(ts);
+    return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch { return ''; }
+}
+
+function state_label(state) {
+  const labels = { working: '● WORKING', waiting: '⏳ WAITING', idle: 'IDLE', stopped: 'STOPPED' };
+  return labels[state] || state?.toUpperCase() || 'UNKNOWN';
+}
+
+function short_path(p) {
+  if (!p) return '';
+  const parts = p.replace(/\\/g, '/').split('/');
+  // Mostra últimos 2-3 segmentos
+  return parts.slice(-3).join('/');
+}
+
+function basename(p) {
+  if (!p) return '';
+  return p.replace(/\\/g, '/').split('/').pop();
+}
+
+// ── Diff renderer ─────────────────────────────────────────────────────────────
+
+function parse_hunk_header(line) {
+  // @@ -old_start,old_count +new_start,new_count @@
+  const m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+  return m ? { old: parseInt(m[1]), new: parseInt(m[2]) } : { old: 0, new: 0 };
+}
+
+function render_diff(diffText) {
+  if (!diffText || !diffText.trim()) {
+    return '<div class="diff-placeholder"><p style="color:var(--text-dim);font-family:var(--font-mono);font-size:12px;padding:40px">Sem alterações detectadas</p></div>';
+  }
+
+  const lines = diffText.split('\n');
+  let rows = '';
+  let oldLn = 0, newLn = 0;
+  let addCount = 0, delCount = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line && i === lines.length - 1) continue;
+
+    let cls = 'diff-ctx';
+    let oldNum = '', newNum = '';
+    let code = escHtml(line);
+
+    if (line.startsWith('diff --git') || line.startsWith('--- ') || line.startsWith('+++ ') || line.startsWith('index ') || line.startsWith('new file') || line.startsWith('deleted file')) {
+      cls = 'diff-file-header';
+    } else if (line.startsWith('@@')) {
+      cls = 'diff-hunk';
+      const h = parse_hunk_header(line);
+      oldLn = h.old - 1;
+      newLn = h.new - 1;
+    } else if (line.startsWith('+')) {
+      cls = 'diff-add';
+      newLn++;
+      newNum = newLn;
+      addCount++;
+    } else if (line.startsWith('-')) {
+      cls = 'diff-del';
+      oldLn++;
+      oldNum = oldLn;
+      delCount++;
+    } else {
+      oldLn++;
+      newLn++;
+      oldNum = oldLn;
+      newNum = newLn;
+    }
+
+    rows += `<tr class="${cls}">
+      <td class="diff-ln diff-ln-old">${oldNum}</td>
+      <td class="diff-ln">${newNum}</td>
+      <td class="diff-code">${code}</td>
+    </tr>`;
+  }
+
+  return { html: `<table class="diff-table"><tbody>${rows}</tbody></table>`, adds: addCount, dels: delCount };
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Diff loader ───────────────────────────────────────────────────────────────
+
+async function loadDiff(project, filePath, fileEl) {
+  // Marca activo
+  if (activeFile && activeFile.element) {
+    activeFile.element.classList.remove('active');
+  }
+  activeFile = { project, path: filePath, element: fileEl };
+  fileEl.classList.add('active');
+
+  // Atualiza header
+  const titleEl = document.getElementById('diff-title');
+  const statsEl = document.getElementById('diff-stats');
+  const bodyEl = document.getElementById('diff-body');
+  const placeholderEl = document.getElementById('diff-placeholder');
+
+  titleEl.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" opacity="0.5">
+      <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 4.5z"/>
+    </svg>
+    <span style="color:var(--text-muted)">${escHtml(short_path(filePath))}</span>
+    &nbsp;/&nbsp;
+    <span class="fname">${escHtml(basename(filePath))}</span>`;
+
+  statsEl.innerHTML = '';
+
+  // Loading
+  if (placeholderEl) placeholderEl.remove();
+  bodyEl.innerHTML = '<div class="diff-loading"><div class="spinner"></div> A carregar diff…</div>';
+
+  try {
+    const params = new URLSearchParams({ project, file: filePath });
+    const resp = await fetch(`/api/diff?${params}`);
+    const data = await resp.json();
+
+    if (data.error) {
+      bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:12px;padding:40px">Erro: ${escHtml(data.error)}</p></div>`;
+      return;
+    }
+
+    const result = render_diff(data.diff);
+    if (typeof result === 'string') {
+      bodyEl.innerHTML = result;
+      statsEl.innerHTML = '';
+    } else {
+      bodyEl.innerHTML = result.html;
+      statsEl.innerHTML = `
+        ${result.adds > 0 ? `<span class="diff-stat add">+${result.adds}</span>` : ''}
+        ${result.dels > 0 ? `<span class="diff-stat del">-${result.dels}</span>` : ''}`;
+    }
+  } catch (e) {
+    bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:12px;padding:40px">Falha na ligação</p></div>`;
+  }
+}
+
+// ── Card rendering ─────────────────────────────────────────────────────────────
+
+function render_files(files, projectName) {
+  if (!files || files.length === 0) return '<span style="color:var(--text-dim);font-size:11px;padding:2px 6px">—</span>';
+  return files.slice(0, 20).map(f => {
+    const isActive = activeFile && activeFile.project === projectName && activeFile.path === f.path;
+    return `<div class="file-item ${isActive ? 'active' : ''}"
+      onclick="onFileClick('${CSS.escape(projectName)}', '${escAttr(f.path)}', this)"
+      title="${escAttr(f.path)}">
+      <span class="file-op">${FILE_OP_ICONS[f.operation] || '·'}</span>
+      <span class="file-path">${escHtml(short_path(f.path))}</span>
+      <span class="file-time">${fmt_time(f.timestamp)}</span>
+    </div>`;
+  }).join('');
+}
+
+function render_events(events, projectName) {
+  if (!events || events.length === 0) return '<span style="color:var(--text-dim);font-size:11px">—</span>';
+  return events.slice(0, 15).map((e) => {
+    const encoded = escAttr(JSON.stringify(e));
+    return `
+    <div class="event-item event-clickable"
+         data-event="${encoded}"
+         onclick="showEventDetail(JSON.parse(this.dataset.event))"
+         title="Clique para ver no painel direito">
+      <span class="event-icon">${EVENT_ICONS[e.status] || '·'}</span>
+      <span class="event-time">${fmt_time(e.timestamp)}</span>
+      ${e.tool ? `<span class="event-tool">${escHtml(e.tool)}</span>` : ''}
+      <span class="event-msg">${escHtml(e.message)}</span>
+      <span class="event-zoom"
+            data-event="${encoded}"
+            onclick="event.stopPropagation(); openEventModal(JSON.parse(this.dataset.event))"
+            title="Ver evento completo">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+        </svg>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+function showEventDetail(event) {
+  const titleEl = document.getElementById('diff-title');
+  const statsEl = document.getElementById('diff-stats');
+  const bodyEl = document.getElementById('diff-body');
+
+  // Limpa ficheiro activo
+  if (activeFile && activeFile.element) activeFile.element.classList.remove('active');
+  activeFile = null;
+
+  const icon = EVENT_ICONS[event.status] || '·';
+  const time = fmt_time(event.timestamp);
+
+  titleEl.innerHTML = `
+    <span style="font-size:16px">${icon}</span>
+    <span style="color:var(--text-muted)">${escHtml(time)}</span>
+    ${event.tool ? `<span style="color:var(--blue);font-weight:600">${escHtml(event.tool)}</span>` : ''}`;
+  statsEl.innerHTML = '';
+
+  bodyEl.innerHTML = `
+    <div style="padding:24px;max-width:900px">
+      <div style="
+        background:var(--bg-card);
+        border:1px solid var(--border);
+        border-radius:8px;
+        padding:20px 24px;
+        font-family:var(--font-mono);
+        font-size:14px;
+        line-height:1.7;
+        color:var(--text);
+        white-space:pre-wrap;
+        word-break:break-word;
+      ">${escHtml(event.message)}</div>
+      ${event.tool ? `<div style="margin-top:12px;font-size:12px;color:var(--text-dim)">tool: <span style="color:var(--blue)">${escHtml(event.tool)}</span> &nbsp;·&nbsp; status: <span style="color:var(--${event.status === 'success' ? 'green' : event.status === 'error' ? 'red' : 'text-muted'})">${escHtml(event.status || '—')}</span></div>` : ''}
+    </div>`;
+}
+
+function render_card(name, data) {
+  const state = data.state || 'idle';
+  const isExpanded = !expandedCards.has('collapsed:' + name);
+  const action = data.current_action;
+  const notif = data.notification;
+
+  return `
+  <div class="project-card ${state}" id="card-${CSS.escape(name)}" data-name="${name}">
+    <div class="card-header" onclick="toggleCard('${name}')">
+      <div class="card-title">
+        <span class="chevron ${isExpanded ? 'open' : ''}">›</span>
+        <span class="project-name">${escHtml(name)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="updated-at">${fmt_time(data.updated_at)}</span>
+        <span class="state-badge ${state}">${state_label(state)}</span>
+      </div>
+    </div>
+    ${action ? `<div class="card-action">${escHtml(action.description)}</div>` : ''}
+    <div class="card-body ${isExpanded ? 'open' : ''}">
+      ${notif ? `
+      <div class="section">
+        <div class="notification-box">
+          <span>⏳</span>
+          <span>${escHtml(notif.message)}</span>
+        </div>
+      </div>` : ''}
+      ${data.files_touched && data.files_touched.length ? `
+      <div class="section">
+        <div class="section-label">Ficheiros tocados</div>
+        <div class="file-list">${render_files(data.files_touched, name)}</div>
+      </div>` : ''}
+      ${data.events && data.events.length ? `
+      <div class="section">
+        <div class="section-label">Eventos</div>
+        <div class="event-list">${render_events(data.events, name)}</div>
+      </div>` : ''}
+      ${(!data.files_touched?.length) && (!data.events?.length) ? `
+      <div class="section" style="color:var(--text-dim);font-size:11px">Sem actividade registada</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function onFileClick(projectEscaped, filePath, el) {
+  // CSS.escape inverte-se com a lookup pelo data-name
+  const card = el.closest('.project-card');
+  const projectName = card ? card.dataset.name : projectEscaped;
+  loadDiff(projectName, filePath, el);
+}
+
+function escAttr(s) {
+  return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toggleCard(name) {
+  const key = 'collapsed:' + name;
+  if (expandedCards.has(key)) expandedCards.delete(key);
+  else expandedCards.add(key);
+  renderAll();
+}
+
+function sorted_projects(projects) {
+  return Object.entries(projects).sort(([, a], [, b]) => {
+    const ao = STATE_ORDER[a.state] ?? 99;
+    const bo = STATE_ORDER[b.state] ?? 99;
+    if (ao !== bo) return ao - bo;
+    return (a.project || '').localeCompare(b.project || '');
+  });
+}
+
+function renderAll() {
+  const body = document.getElementById('left-body');
+  const empty = document.getElementById('empty-state');
+  const count = document.getElementById('projects-count');
+
+  const sorted = sorted_projects(allProjects);
+  const active = sorted.filter(([, d]) => d.state === 'working' || d.state === 'waiting').length;
+
+  count.textContent = `${sorted.length} projecto${sorted.length !== 1 ? 's' : ''}${active ? ` · ${active} activo${active !== 1 ? 's' : ''}` : ''}`;
+
+  if (sorted.length === 0) {
+    if (empty) empty.style.display = 'flex';
+    body.querySelectorAll('.project-card').forEach(el => el.remove());
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+
+  body.querySelectorAll('.project-card').forEach(el => el.remove());
+  const frag = document.createDocumentFragment();
+  for (const [name, data] of sorted) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = render_card(name, data);
+    frag.appendChild(tmp.firstElementChild);
+  }
+  body.appendChild(frag);
+}
+
+// ── SSE ───────────────────────────────────────────────────────────────────────
+
+function set_conn(state) {
+  const badge = document.getElementById('conn-badge');
+  const label = document.getElementById('conn-label');
+  const dot = badge.querySelector('.dot');
+  badge.className = 'badge-conn ' + state;
+  dot.className = 'dot' + (state === 'connected' ? ' pulse' : '');
+  label.textContent = state === 'connected' ? 'live' : state === 'reconnecting' ? 'reconnecting…' : 'offline';
+}
+
+function connect() {
+  if (es) es.close();
+  es = new EventSource('/events');
+  es.onopen = () => set_conn('connected');
+  es.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'init') {
+        allProjects = msg.projects || {};
+        renderAll();
+      } else if (msg.type === 'update') {
+        allProjects[msg.project_name] = msg.data;
+        renderAll();
+        // Se o ficheiro activo é deste projecto, refresca o diff
+        if (activeFile && activeFile.project === msg.project_name && activeFile.element) {
+          const el = activeFile.element;
+          loadDiff(activeFile.project, activeFile.path, el);
+        }
+      }
+    } catch { /* ignorar */ }
+  };
+  es.onerror = () => set_conn('reconnecting');
+}
+
+connect();
+
+// ── Event modal ───────────────────────────────────────────────────────────────
+function openEventModal(evt) {
+  const modal = document.getElementById('event-modal');
+  const titleEl = document.getElementById('modal-title');
+  const msgEl = document.getElementById('modal-message');
+  const metaEl = document.getElementById('modal-meta');
+
+  const icon = EVENT_ICONS[evt.status] || '·';
+  const statusColor = evt.status === 'success' ? 'var(--green)' : evt.status === 'error' ? 'var(--red)' : 'var(--text-muted)';
+
+  titleEl.innerHTML = `
+    <span style="font-size:15px">${icon}</span>
+    ${evt.tool ? `<span style="color:var(--blue);font-weight:600">${escHtml(evt.tool)}</span>` : ''}
+    <span style="color:var(--text-dim)">${fmt_time(evt.timestamp)}</span>`;
+
+  msgEl.textContent = evt.message || '(sem mensagem)';
+
+  metaEl.innerHTML = `
+    ${evt.status ? `<span><span style="color:var(--text-dim)">status</span> <span style="color:${statusColor}">${escHtml(evt.status)}</span></span>` : ''}
+    ${evt.tool ? `<span><span style="color:var(--text-dim)">tool</span> <span style="color:var(--blue)">${escHtml(evt.tool)}</span></span>` : ''}
+    ${evt.timestamp ? `<span><span style="color:var(--text-dim)">hora</span> ${fmt_time(evt.timestamp)}</span>` : ''}`;
+
+  modal.style.display = 'flex';
+  // Foca o modal para capturar Esc
+  modal.focus && modal.focus();
+}
+
+function closeEventModal(e) {
+  if (e && e.target !== document.getElementById('event-modal')) return;
+  document.getElementById('event-modal').style.display = 'none';
+}
+
+// Fix: garante que o backdrop fecha ao clicar fora do modal (não no conteúdo)
+document.getElementById('event-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.getElementById('event-modal').style.display = 'none';
+});
+
+// ── Resizer drag ──────────────────────────────────────────────────────────────
+(function() {
+  const resizer = document.getElementById('resizer');
+  const leftPanel = document.querySelector('.left-panel');
+  let startX = 0, startW = 0, dragging = false;
+
+  resizer.addEventListener('mousedown', (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startW = leftPanel.getBoundingClientRect().width;
+    resizer.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const delta = e.clientX - startX;
+    const newW = Math.max(200, Math.min(window.innerWidth * 0.8, startW + delta));
+    leftPanel.style.width = newW + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+</script>
+</body>
+</html>
