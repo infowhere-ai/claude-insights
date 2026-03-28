@@ -330,6 +330,66 @@ async def terminal_ws(websocket: WebSocket):
             pass
 
 
+@app.get("/api/pending")
+async def get_pending_files(project: str = Query(...)):
+    """Returns files with uncommitted git changes for the given project."""
+    # Resolve project path from known roots
+    project_path: Path | None = None
+    if project in _status_paths:
+        project_path = _status_paths[project].parents[1]
+    else:
+        for candidate in [PROJECTS_ROOT / project] + [r / project for r in _extra_roots]:
+            if candidate.is_dir():
+                project_path = candidate
+                break
+
+    if project_path is None or not project_path.is_dir():
+        return JSONResponse({"error": "project not found"}, status_code=404)
+
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(project_path),
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode != 0:
+            return JSONResponse({"files": [], "error": result.stderr.strip()})
+
+        STATUS_LABELS = {
+            "M": "modified", "A": "added", "D": "deleted",
+            "R": "renamed", "C": "copied", "U": "unmerged",
+            "?": "untracked", "!": "ignored",
+        }
+
+        files = []
+        for line in result.stdout.splitlines():
+            if not line.strip():
+                continue
+            xy = line[:2]
+            rel = line[3:]
+            # For renames: "old -> new" → take the new path
+            if " -> " in rel:
+                rel = rel.split(" -> ", 1)[1]
+            rel = rel.strip().strip('"')
+            # Combine XY: prefer index status (X), fall back to worktree (Y)
+            code = xy[0].strip() or xy[1].strip() or "?"
+            if code == "?":
+                code = "?"  # untracked
+            abs_path = str(project_path / rel)
+            files.append({
+                "path": abs_path,
+                "rel_path": rel,
+                "status_code": code,
+                "label": STATUS_LABELS.get(code, "changed"),
+            })
+
+        return {"files": files, "project_path": str(project_path)}
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"error": "timeout"}, status_code=504)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.get("/api/weekly-stats")
 async def get_weekly_stats():
     """Returns weekly token totals across all monitored projects."""

@@ -429,6 +429,13 @@
     margin-bottom: 6px;
   }
 
+  .pending-clean {
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    padding: 4px 2px;
+    font-family: var(--font-mono);
+  }
+
   /* ── Files section header & toolbar ── */
   .files-header {
     display: flex;
@@ -1802,14 +1809,7 @@
 <div class="bottom-panel collapsed" id="bottom-panel">
   <div class="bottom-panel-header">
     <div class="tab-list">
-      <button class="tab-btn active" id="tab-btn-activity" onclick="switchTab('activity')">
-        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
-          <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
-          <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
-        </svg>
-        Actividade
-      </button>
-      <button class="tab-btn" id="tab-btn-context" onclick="switchTab('context')">
+      <button class="tab-btn active" id="tab-btn-context" onclick="switchTab('context')">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
           <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9M3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708z"/>
           <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/>
@@ -1843,13 +1843,8 @@
     </div>
   </div>
 
-  <!-- Tab: Actividade -->
-  <div class="tab-content active" id="tab-activity">
-    <div id="activity-list"></div>
-  </div>
-
   <!-- Tab: Contexto -->
-  <div class="tab-content" id="tab-context">
+  <div class="tab-content active" id="tab-context">
     <div id="ctx-tab-content"></div>
   </div>
 
@@ -2138,6 +2133,55 @@ function render_files(files, projectName, projectPath) {
   }).join('');
 }
 
+const PENDING_STATUS_ICONS = {
+  'M': '<span style="color:#f0a500" title="modified">M</span>',
+  'A': '<span style="color:#4caf82" title="added">A</span>',
+  'D': '<span style="color:#e05c5c" title="deleted">D</span>',
+  'R': '<span style="color:#7eb8f7" title="renamed">R</span>',
+  'C': '<span style="color:#b47ef7" title="copied">C</span>',
+  'U': '<span style="color:#ff6b6b" title="unmerged">U</span>',
+  '?': '<span style="color:#7eb8f7" title="untracked">?</span>',
+};
+
+function render_pending_files(files, projectName) {
+  if (!files || files.length === 0) {
+    return `<div class="pending-clean">✓ working tree clean</div>`;
+  }
+  return files.map(f => {
+    const isActive = activeFile && activeFile.project === projectName && activeFile.path === f.path;
+    const icon = PENDING_STATUS_ICONS[f.status_code] || `<span style="color:var(--text-dim)">${escHtml(f.status_code)}</span>`;
+    return `<div class="file-item ${isActive ? 'active' : ''}"
+      onclick="onFileClick('${CSS.escape(projectName)}', '${escAttr(f.path)}', this)"
+      title="${escAttr(f.path)}">
+      <span class="file-op">${icon}</span>
+      <span class="file-path">${escHtml(f.rel_path)}</span>
+    </div>`;
+  }).join('');
+}
+
+// Pending files state: projectName -> [{path, rel_path, status_code, label}]
+const pendingFiles = {};
+
+async function loadPendingFiles(projectName) {
+  try {
+    const res = await fetch(`/api/pending?project=${encodeURIComponent(projectName)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    pendingFiles[projectName] = data.files || [];
+    const listEl = document.getElementById('pending-list-' + CSS.escape(projectName));
+    const countEl = document.getElementById('pending-count-' + CSS.escape(projectName));
+    if (listEl) listEl.innerHTML = render_pending_files(pendingFiles[projectName], projectName);
+    if (countEl) countEl.textContent = pendingFiles[projectName].length || '';
+  } catch (e) { /* ignore network errors */ }
+}
+
+function loadAllPendingFiles() {
+  Object.keys(allProjects).forEach(name => loadPendingFiles(name));
+}
+
+// Refresh pending files every 10s
+setInterval(loadAllPendingFiles, 10000);
+
 function render_events(events, projectName) {
   if (!events || events.length === 0) return '<span style="color:var(--text-dim);font-size:0.85rem">—</span>';
   return events.slice(0, 15).map((e) => {
@@ -2301,17 +2345,8 @@ function setFolderFilter(name, folder) {
 }
 
 function refreshFileList(name) {
-  const data = allProjects[name];
-  if (!data) return;
-  const card = document.getElementById('card-' + CSS.escape(name));
-  if (!card) return;
-  const listEl   = document.getElementById('file-list-'   + CSS.escape(name));
-  const typesEl  = document.getElementById('files-types-' + CSS.escape(name));
-  const countEl  = document.getElementById('files-count-' + CSS.escape(name));
-  const filtered = filterFiles(name, data.files_touched);
-  if (listEl)  listEl.innerHTML  = render_files(filtered, name, data.project_path);
-  if (typesEl) typesEl.innerHTML = renderTypeFilters(name, filtered);
-  if (countEl) countEl.textContent = filtered.length;
+  // Pending files are now loaded async via loadPendingFiles()
+  loadPendingFiles(name);
 }
 
 function render_card(name, data) {
@@ -2341,21 +2376,13 @@ function render_card(name, data) {
           <span>${escHtml(notif.message)}</span>
         </div>
       </div>` : ''}
-      ${data.files_touched && data.files_touched.length ? `
       <div class="section" id="files-section-${CSS.escape(name)}">
         <div class="files-header">
-          <span class="section-label">Arquivos Tocados</span>
-          <span class="files-count" id="files-count-${CSS.escape(name)}">${filterFiles(name, data.files_touched).length}</span>
+          <span class="section-label">Para Commitar</span>
+          <span class="files-count" id="pending-count-${CSS.escape(name)}">${(pendingFiles[name] || []).length || ''}</span>
         </div>
-        <div class="files-toolbar">
-          <input class="files-search" placeholder="Filtrar arquivos…" data-project="${name}"
-            oninput="filterFilesInCard(this)" value="${escAttr((fileFilters[name]||{}).query||'')}">
-          <div class="files-type-filters" id="files-types-${CSS.escape(name)}">${renderTypeFilters(name, filterFiles(name, data.files_touched))}</div>
-        </div>
-        <div class="file-list" id="file-list-${CSS.escape(name)}">${render_files(filterFiles(name, data.files_touched), name, data.project_path)}</div>
-      </div>` : ''}
-      ${(!data.files_touched?.length) ? `
-      <div class="section" style="color:var(--text-dim);font-size:0.85rem">Sem actividade registada</div>` : ''}
+        <div class="file-list" id="pending-list-${CSS.escape(name)}">${render_pending_files(pendingFiles[name] || null, name)}</div>
+      </div>
       ${render_stats(data.stats)}
     </div>
   </div>`;
@@ -2698,14 +2725,14 @@ function connect() {
       if (msg.type === 'init') {
         allProjects = msg.projects || {};
         renderAll();
-        if (window.renderActivity) window.renderActivity();
+        loadAllPendingFiles();
         if (window.renderContextTab) window.renderContextTab();
         if (window.renderEventsTab) window.renderEventsTab();
         if (window.renderDebugTab) window.renderDebugTab();
       } else if (msg.type === 'update') {
         allProjects[msg.project_name] = msg.data;
         renderAll();
-        if (window.renderActivity) window.renderActivity();
+        loadPendingFiles(msg.project_name);
         if (window.renderContextTab) window.renderContextTab();
         if (window.renderEventsTab) window.renderEventsTab();
         if (window.renderDebugTab) window.renderDebugTab();
@@ -2815,9 +2842,8 @@ document.addEventListener('keydown', (e) => {
       icon.textContent = '▼';
       hres.style.display = '';
       const activeTab = document.querySelector('.tab-btn.active');
-      const tabName = activeTab ? activeTab.id.replace('tab-btn-', '') : 'activity';
+      const tabName = activeTab ? activeTab.id.replace('tab-btn-', '') : 'context';
       if (tabName === 'skills' && allSkills.length === 0) loadSkills();
-      if (tabName === 'activity') window.renderActivity();
       if (tabName === 'context') window.renderContextTab && window.renderContextTab();
       if (tabName === 'events') renderEventsTab();
       if (tabName === 'debug') renderDebugTab();
@@ -2843,7 +2869,6 @@ document.addEventListener('keydown', (e) => {
     if (btn) btn.classList.add('active');
     if (content) content.classList.add('active');
     if (tabName === 'skills' && allSkills.length === 0) loadSkills();
-    if (tabName === 'activity') window.renderActivity();
     if (tabName === 'context') window.renderContextTab && window.renderContextTab();
     if (tabName === 'events') renderEventsTab();
     if (tabName === 'debug') renderDebugTab();
@@ -3356,18 +3381,10 @@ document.addEventListener('keydown', (e) => {
   };
 
   window._debugJumpFile = function(filePath, project) {
-    // Find the file in the left panel and open its diff
+    // Open diff for the file directly
     if (!filePath || !project) return;
-    const relPath = filePath.includes('/') ? filePath.split('/').pop() : filePath;
-    // Try to find matching file element in the project panel
-    const projData = allProjects[project];
-    if (!projData) return;
-    const files = projData.files_touched || [];
-    const match = files.find(f => f.path === filePath || f.path === relPath || filePath.endsWith(f.path));
-    if (match) {
-      // Switch to activity tab and scroll to file
-      switchTab('activity');
-    }
+    // loadDiff needs an element; pass null and it will still load
+    loadDiff(project, filePath, null);
   };
 
   // ── Skills tab ─────────────────────────────────────────────────────────────
