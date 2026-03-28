@@ -174,18 +174,26 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
             )
             diff = result2.stdout.strip()
 
-        # 3. Para ficheiros untracked ou sem alterações vs HEAD,
-        #    usa --no-index para mostrar o ficheiro completo como novo
+        # 3. Apenas para ficheiros UNTRACKED (não conhecidos pelo git) mostra o
+        #    ficheiro completo como novo. Ficheiros tracked sem alterações
+        #    retornam diff vazio — não devem cair neste fallback.
+        is_untracked = False
         if not diff:
-            result3 = subprocess.run(
-                ["git", "diff", "--no-index", "/dev/null", str(file_path)],
+            ls_result = subprocess.run(
+                ["git", "ls-files", "--error-unmatch", str(file_path)],
                 cwd=str(project_path),
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, text=True, timeout=5,
             )
-            # git diff --no-index retorna exit code 1 quando há diferenças (normal)
-            diff = result3.stdout.strip()
+            is_untracked = ls_result.returncode != 0
+            if is_untracked:
+                result3 = subprocess.run(
+                    ["git", "diff", "--no-index", "/dev/null", str(file_path)],
+                    cwd=str(project_path),
+                    capture_output=True, text=True, timeout=10,
+                )
+                diff = result3.stdout.strip()
 
-        return JSONResponse({"diff": diff, "file": str(file_path), "is_new": not result.stdout.strip()})
+        return JSONResponse({"diff": diff, "file": str(file_path), "is_new": is_untracked})
     except subprocess.TimeoutExpired:
         return JSONResponse({"error": "timeout"}, status_code=504)
     except Exception as e:
