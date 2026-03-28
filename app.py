@@ -23,7 +23,7 @@ app = FastAPI(title="claude-monitor", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -33,15 +33,46 @@ _status_paths: dict[str, Path] = {}    # project_name -> path to status.json
 _mtimes: dict[str, float] = {}         # path_str -> mtime
 _sse_clients: list[asyncio.Queue] = [] # uma queue por cliente SSE
 
+# Config: extra roots (beyond PROJECTS_ROOT)
+_CONFIG_FILE = PROJECTS_ROOT / ".claude" / "monitor-roots.json"
+_extra_roots: list[Path] = []
+
+
+def _load_roots_config() -> None:
+    global _extra_roots
+    try:
+        if _CONFIG_FILE.exists():
+            data = json.loads(_CONFIG_FILE.read_text(encoding="utf-8"))
+            _extra_roots = [Path(p) for p in data.get("extra_roots", []) if Path(p).is_dir()]
+    except Exception:
+        _extra_roots = []
+
+
+def _save_roots_config() -> None:
+    try:
+        _CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _CONFIG_FILE.write_text(
+            json.dumps({"extra_roots": [str(p) for p in _extra_roots]}, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
 
 def _discover() -> None:
-    """Descobre projectos com .claude/status.json em PROJECTS_ROOT."""
+    """Descobre projectos com .claude/status.json em PROJECTS_ROOT e roots extras."""
     found: set[str] = set()
-    for status_path in PROJECTS_ROOT.glob("*/.claude/status.json"):
-        name = status_path.parts[-3]  # .../github-infowhere/<name>/.claude/status.json
-        found.add(name)
-        if name not in _status_paths:
-            _status_paths[name] = status_path
+
+    def _scan_root(root: Path) -> None:
+        for status_path in root.glob("*/.claude/status.json"):
+            name = status_path.parts[-3]
+            found.add(name)
+            if name not in _status_paths:
+                _status_paths[name] = status_path
+
+    _scan_root(PROJECTS_ROOT)
+    for root in _extra_roots:
+        _scan_root(root)
 
     # Remover projectos cujo ficheiro desapareceu
     gone = set(_status_paths.keys()) - found
@@ -93,6 +124,7 @@ async def poll_loop() -> None:
 
 @app.on_event("startup")
 async def startup() -> None:
+    _load_roots_config()
     _discover()
     # Leitura inicial de todos os status.json
     for name, path in _status_paths.items():
@@ -386,6 +418,70 @@ async def get_skills():
                 })
     skills.sort(key=lambda s: (s["source"], s["name"]))
     return {"skills": skills}
+
+
+@app.get("/api/browse")
+async def browse_directory(path: str = Query(default="")):
+    """Lists subdirectories at path for the directory picker UI."""
+    target = Path(path).expanduser().resolve() if path else Path.home()
+    if not target.is_dir():
+        return JSONResponse({"error": "not a directory"}, status_code=400)
+    try:
+        dirs = sorted(
+            [str(p) for p in target.iterdir() if p.is_dir() and not p.name.startswith(".")],
+            key=lambda s: s.lower(),
+        )
+    except PermissionError:
+        return JSONResponse({"error": "permission denied"}, status_code=403)
+    parent = str(target.parent) if target.parent != target else None
+    return {"current": str(target), "parent": parent, "dirs": dirs}
+
+
+@app.get("/api/config")
+async def get_config():
+    """Returns monitored roots configuration."""
+    return {
+        "primary_root": str(PROJECTS_ROOT),
+        "extra_roots": [str(p) for p in _extra_roots],
+    }
+
+
+@app.post("/api/config/roots")
+async def update_roots(request: Request):
+    """Add or remove an extra monitored root directory."""
+    global _extra_roots
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    action = data.get("action", "")
+    path_str = (data.get("path") or "").strip()
+    if not path_str:
+        return JSONResponse({"error": "path is required"}, status_code=400)
+
+    p = Path(path_str).expanduser().resolve()
+
+    if action == "add":
+        if not p.is_dir():
+            return JSONResponse({"error": f"Directório não encontrado: {p}"}, status_code=400)
+        if p == PROJECTS_ROOT:
+            return JSONResponse({"error": "Essa pasta já é a pasta principal"}, status_code=400)
+        if p not in _extra_roots:
+            _extra_roots.append(p)
+            _save_roots_config()
+            _discover()
+    elif action == "remove":
+        _extra_roots = [r for r in _extra_roots if r != p]
+        _save_roots_config()
+        _discover()
+    else:
+        return JSONResponse({"error": "action must be 'add' or 'remove'"}, status_code=400)
+
+    return {
+        "primary_root": str(PROJECTS_ROOT),
+        "extra_roots": [str(r) for r in _extra_roots],
+    }
 
 
 # Serve static — deve ficar por último para não conflituar com as rotas acima
