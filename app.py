@@ -1,10 +1,15 @@
 import asyncio
+import fcntl
 import json
 import os
+import pty
+import shutil
+import struct
 import subprocess
+import termios
 from pathlib import Path
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -192,6 +197,195 @@ async def sse_events(request: Request):
             "Connection": "keep-alive",
         },
     )
+
+
+@app.websocket("/ws/terminal")
+async def terminal_ws(websocket: WebSocket):
+    """Spawna o claude CLI num PTY e faz bridge com o browser via WebSocket."""
+    await websocket.accept()
+
+    claude_path = shutil.which("claude")
+    if not claude_path:
+        await websocket.send_bytes(b"\r\n\x1b[31mErro: 'claude' nao encontrado no PATH\x1b[0m\r\n")
+        await websocket.close()
+        return
+
+    master_fd, slave_fd = pty.openpty()
+
+    def _set_winsize(fd: int, rows: int, cols: int) -> None:
+        try:
+            fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+        except OSError:
+            pass
+
+    _set_winsize(master_fd, 24, 120)
+
+    env = {**os.environ, "TERM": "xterm-256color", "COLORTERM": "truecolor"}
+
+    proc = subprocess.Popen(
+        [claude_path],
+        stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+        env=env, close_fds=True, cwd=str(Path.home()),
+    )
+    os.close(slave_fd)
+
+    loop = asyncio.get_event_loop()
+    alive = True
+
+    async def pty_to_ws() -> None:
+        nonlocal alive
+        try:
+            while alive:
+                data = await loop.run_in_executor(None, lambda: os.read(master_fd, 4096))
+                if not data:
+                    break
+                await websocket.send_bytes(data)
+        except (OSError, Exception):
+            pass
+        finally:
+            alive = False
+
+    async def ws_to_pty() -> None:
+        nonlocal alive
+        try:
+            while alive:
+                msg = await websocket.receive()
+                if msg["type"] == "websocket.disconnect":
+                    break
+                raw = msg.get("bytes") or (msg.get("text", "").encode() if msg.get("text") else None)
+                if not raw:
+                    continue
+                # Mensagens de controlo chegam como JSON em texto
+                try:
+                    obj = json.loads(raw)
+                    if obj.get("type") == "resize":
+                        _set_winsize(master_fd, int(obj["rows"]), int(obj["cols"]))
+                    continue
+                except (json.JSONDecodeError, UnicodeDecodeError, KeyError):
+                    pass
+                try:
+                    os.write(master_fd, raw)
+                except OSError:
+                    break
+        except (WebSocketDisconnect, Exception):
+            pass
+        finally:
+            alive = False
+
+    t1 = asyncio.create_task(pty_to_ws())
+    t2 = asyncio.create_task(ws_to_pty())
+    try:
+        await asyncio.wait([t1, t2], return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        alive = False
+        t1.cancel()
+        t2.cancel()
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        try:
+            os.close(master_fd)
+        except OSError:
+            pass
+
+
+@app.get("/api/weekly-stats")
+async def get_weekly_stats():
+    """Returns weekly token totals across all monitored projects."""
+    result = {}
+    for name, path in _status_paths.items():
+        weekly_file = path.parent / "weekly_tokens.json"
+        try:
+            if weekly_file.exists():
+                result[name] = json.loads(weekly_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"weekly": result}
+
+
+def _parse_skill_md(content: str, name: str) -> dict:
+    """Parse SKILL.md: extract YAML frontmatter + first body paragraph + heading."""
+    lines = content.splitlines()
+    frontmatter: dict[str, str] = {}
+    body_start = 0
+
+    # Parse YAML frontmatter between --- delimiters
+    if lines and lines[0].strip() == "---":
+        end = next((i for i, l in enumerate(lines[1:], 1) if l.strip() == "---"), None)
+        if end:
+            for l in lines[1:end]:
+                if ":" in l:
+                    k, _, v = l.partition(":")
+                    frontmatter[k.strip()] = v.strip()
+            body_start = end + 1
+
+    title = frontmatter.get("name", name)
+    description = frontmatter.get("description", "")
+    argument_hint = frontmatter.get("argument-hint", "")
+
+    # Extract first non-empty body paragraph (skip headings)
+    body_lines: list[str] = []
+    collecting = False
+    for line in lines[body_start:]:
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            if collecting:
+                break
+            continue
+        if stripped.startswith("---"):
+            continue
+        if stripped:
+            collecting = True
+            body_lines.append(stripped)
+        elif collecting:
+            break
+
+    body_intro = " ".join(body_lines)[:300]
+
+    # Fall back: use heading as title if no frontmatter name
+    if title == name:
+        for line in lines[body_start:]:
+            if line.strip().startswith("# "):
+                title = line.strip()[2:].strip()
+                break
+
+    return {
+        "name": name,
+        "title": title,
+        "description": description,
+        "argument_hint": argument_hint,
+        "body_intro": body_intro,
+    }
+
+
+@app.get("/api/skills")
+async def get_skills():
+    """Returns list of available skills from ~/.claude/skills/ and standarts."""
+    skills = []
+    search_dirs = [
+        (Path.home() / ".claude" / "skills", "user"),
+        (PROJECTS_ROOT / "standarts" / "common" / "skills", "common"),
+        (PROJECTS_ROOT / "standarts" / "private" / "skills", "private"),
+        (PROJECTS_ROOT / "standarts" / "work" / "skills", "work"),
+    ]
+    for base, source in search_dirs:
+        if not base.is_dir():
+            continue
+        for skill_md in base.glob("*/SKILL.md"):
+            name = skill_md.parent.name
+            try:
+                content = skill_md.read_text(encoding="utf-8")
+                parsed = _parse_skill_md(content, name)
+                skills.append({**parsed, "source": source, "path": str(skill_md)})
+            except Exception:
+                skills.append({
+                    "name": name, "title": name, "description": "",
+                    "argument_hint": "", "body_intro": "",
+                    "source": source, "path": str(skill_md),
+                })
+    skills.sort(key=lambda s: (s["source"], s["name"]))
+    return {"skills": skills}
 
 
 # Serve static — deve ficar por último para não conflituar com as rotas acima
