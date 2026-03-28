@@ -489,6 +489,20 @@
   }
   .file-type-btn:hover { color: var(--text); border-color: var(--text-muted); background: var(--bg-hover); }
   .file-type-btn.active { background: rgba(251,191,36,.18); border-color: rgba(251,191,36,.6); color: var(--yellow); font-weight: 500; }
+  .filter-btn {
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    padding: 2px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.12s;
+  }
+  .filter-btn:hover { color: var(--text); border-color: var(--text-muted); background: var(--bg-hover); }
+  .filter-btn.active { background: rgba(59,130,246,.18); border-color: rgba(59,130,246,.6); color: var(--blue); font-weight: 500; }
 
   /* ── File items (clickable) ── */
   .file-item {
@@ -1937,6 +1951,26 @@ const EVENT_ICONS = { success: '✅', error: '❌', info: 'ℹ️' };
 let allProjects = {};
 let expandedCards = new Set();
 let activeFile = null;  // { project, path, element }
+const notifTimers = {};  // projectName -> setTimeout id
+
+function _handleNotifTimer(projectName, data) {
+  // Cancel any existing timer for this project
+  if (notifTimers[projectName]) {
+    clearTimeout(notifTimers[projectName]);
+    delete notifTimers[projectName];
+  }
+  // Start auto-dismiss timer only when waiting with a notification
+  if (data.state === 'waiting' && data.notification) {
+    notifTimers[projectName] = setTimeout(() => {
+      delete notifTimers[projectName];
+      if (allProjects[projectName]) {
+        allProjects[projectName] = { ...allProjects[projectName], notification: null, state: 'idle' };
+        renderAll();
+        if (window.renderContextTab) window.renderContextTab();
+      }
+    }, 20000);
+  }
+}
 
 // Project visibility: hiddenProjects stores which projects are hidden.
 // Empty set = show all (default). Non-empty = those are hidden.
@@ -2143,11 +2177,51 @@ const PENDING_STATUS_ICONS = {
   '?': '<span style="color:#7eb8f7" title="untracked">?</span>',
 };
 
+// Pending files state
+const pendingFiles = {};        // projectName -> raw files array from API
+const pendingFilters = {};      // projectName -> { query: '', hiddenStatuses: Set }
+
+// Status codes present in a files array
+function _statusesInFiles(files) {
+  const s = new Set();
+  (files || []).forEach(f => s.add(f.status_code));
+  return s;
+}
+
+// Load hidden statuses from localStorage per project
+function _loadHiddenStatuses(projectName) {
+  try {
+    const raw = localStorage.getItem('cm-hidden-statuses-' + projectName);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+function _saveHiddenStatuses(projectName, set) {
+  localStorage.setItem('cm-hidden-statuses-' + projectName, JSON.stringify([...set]));
+}
+
+function _applyPendingFilter(files, projectName) {
+  if (!files) return [];
+  const f = pendingFilters[projectName] || {};
+  const q = (f.query || '').toLowerCase();
+  const hidden = f.hiddenStatuses || new Set();
+  const activeExts = f.exts || new Set();
+  return files.filter(file => {
+    if (hidden.has(file.status_code)) return false;
+    if (activeExts.size && !activeExts.has(fileExt(file.rel_path))) return false;
+    if (q && !file.rel_path.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
 function render_pending_files(files, projectName) {
+  const filtered = _applyPendingFilter(files, projectName);
   if (!files || files.length === 0) {
     return `<div class="pending-clean">✓ working tree clean</div>`;
   }
-  return files.map(f => {
+  if (filtered.length === 0) {
+    return `<div class="pending-clean">nenhum resultado</div>`;
+  }
+  return filtered.map(f => {
     const isActive = activeFile && activeFile.project === projectName && activeFile.path === f.path;
     const icon = PENDING_STATUS_ICONS[f.status_code] || `<span style="color:var(--text-dim)">${escHtml(f.status_code)}</span>`;
     return `<div class="file-item ${isActive ? 'active' : ''}"
@@ -2159,8 +2233,66 @@ function render_pending_files(files, projectName) {
   }).join('');
 }
 
-// Pending files state: projectName -> [{path, rel_path, status_code, label}]
-const pendingFiles = {};
+function _refreshPendingUI(projectName) {
+  const files = pendingFiles[projectName] || [];
+  const filtered = _applyPendingFilter(files, projectName);
+  const listEl      = document.getElementById('pending-list-'     + CSS.escape(projectName));
+  const countEl     = document.getElementById('pending-count-'    + CSS.escape(projectName));
+  const statusesEl  = document.getElementById('pending-statuses-' + CSS.escape(projectName));
+  const extsEl      = document.getElementById('pending-exts-'     + CSS.escape(projectName));
+  if (listEl)     listEl.innerHTML = render_pending_files(files, projectName);
+  if (countEl)    countEl.textContent = filtered.length || '';
+  if (statusesEl) statusesEl.innerHTML = _renderStatusButtons(files, projectName);
+  if (extsEl)     extsEl.innerHTML = _renderExtButtons(files, projectName);
+}
+
+function _renderStatusButtons(files, projectName) {
+  const statuses = _statusesInFiles(files);
+  if (statuses.size === 0) return '';
+  const hidden = (pendingFilters[projectName] || {}).hiddenStatuses || new Set();
+  const STATUS_LABELS = { 'M': 'M mod', 'A': 'A add', 'D': 'D del', '?': '? new', 'R': 'R ren', 'C': 'C cop', 'U': 'U merge' };
+  return [...statuses].sort().map(s => {
+    const isHidden = hidden.has(s);
+    const label = STATUS_LABELS[s] || s;
+    return `<button class="file-type-btn${isHidden ? '' : ' active'}"
+      onclick="togglePendingStatus('${CSS.escape(projectName)}','${s}')"
+      title="${isHidden ? 'Mostrar' : 'Ocultar'} ${label}">${label}</button>`;
+  }).join('');
+}
+
+function _renderExtButtons(files, projectName) {
+  const exts = [...new Set((files || []).map(f => fileExt(f.rel_path)).filter(Boolean))].sort();
+  if (exts.length <= 1) return '';
+  const active = (pendingFilters[projectName] || {}).exts || new Set();
+  return exts.map(ext =>
+    `<button class="file-type-btn${active.has(ext) ? ' active' : ''}"
+      onclick="togglePendingExt('${CSS.escape(projectName)}','${ext}')">.${ext}</button>`
+  ).join('');
+}
+
+function togglePendingExt(projectName, ext) {
+  if (!pendingFilters[projectName]) pendingFilters[projectName] = { hiddenStatuses: _loadHiddenStatuses(projectName) };
+  if (!pendingFilters[projectName].exts) pendingFilters[projectName].exts = new Set();
+  const exts = pendingFilters[projectName].exts;
+  if (exts.has(ext)) exts.delete(ext); else exts.add(ext);
+  _refreshPendingUI(projectName);
+}
+
+function filterPendingInCard(input) {
+  const name = input.dataset.project;
+  if (!pendingFilters[name]) pendingFilters[name] = { hiddenStatuses: _loadHiddenStatuses(name) };
+  pendingFilters[name].query = input.value;
+  _refreshPendingUI(name);
+}
+
+function togglePendingStatus(projectName, statusCode) {
+  if (!pendingFilters[projectName]) pendingFilters[projectName] = { hiddenStatuses: _loadHiddenStatuses(projectName) };
+  const hidden = pendingFilters[projectName].hiddenStatuses;
+  if (hidden.has(statusCode)) hidden.delete(statusCode);
+  else hidden.add(statusCode);
+  _saveHiddenStatuses(projectName, hidden);
+  _refreshPendingUI(projectName);
+}
 
 async function loadPendingFiles(projectName) {
   try {
@@ -2168,10 +2300,10 @@ async function loadPendingFiles(projectName) {
     if (!res.ok) return;
     const data = await res.json();
     pendingFiles[projectName] = data.files || [];
-    const listEl = document.getElementById('pending-list-' + CSS.escape(projectName));
-    const countEl = document.getElementById('pending-count-' + CSS.escape(projectName));
-    if (listEl) listEl.innerHTML = render_pending_files(pendingFiles[projectName], projectName);
-    if (countEl) countEl.textContent = pendingFiles[projectName].length || '';
+    if (!pendingFilters[projectName]) {
+      pendingFilters[projectName] = { query: '', hiddenStatuses: _loadHiddenStatuses(projectName) };
+    }
+    _refreshPendingUI(projectName);
   } catch (e) { /* ignore network errors */ }
 }
 
@@ -2380,6 +2512,13 @@ function render_card(name, data) {
         <div class="files-header">
           <span class="section-label">Para Commitar</span>
           <span class="files-count" id="pending-count-${CSS.escape(name)}">${(pendingFiles[name] || []).length || ''}</span>
+        </div>
+        <div class="files-toolbar">
+          <input class="files-search" placeholder="Filtrar…" data-project="${escAttr(name)}"
+            oninput="filterPendingInCard(this)"
+            value="${escAttr((pendingFilters[name] || {}).query || '')}">
+          <div class="files-type-filters" id="pending-statuses-${CSS.escape(name)}">${_renderStatusButtons(pendingFiles[name] || [], name)}</div>
+          <div class="files-type-filters" id="pending-exts-${CSS.escape(name)}">${_renderExtButtons(pendingFiles[name] || [], name)}</div>
         </div>
         <div class="file-list" id="pending-list-${CSS.escape(name)}">${render_pending_files(pendingFiles[name] || null, name)}</div>
       </div>
@@ -2724,6 +2863,10 @@ function connect() {
       const msg = JSON.parse(e.data);
       if (msg.type === 'init') {
         allProjects = msg.projects || {};
+        // Restart notification timers for any waiting projects
+        Object.entries(allProjects).forEach(([name, data]) => {
+          _handleNotifTimer(name, data);
+        });
         renderAll();
         loadAllPendingFiles();
         if (window.renderContextTab) window.renderContextTab();
@@ -2731,6 +2874,7 @@ function connect() {
         if (window.renderDebugTab) window.renderDebugTab();
       } else if (msg.type === 'update') {
         allProjects[msg.project_name] = msg.data;
+        _handleNotifTimer(msg.project_name, msg.data);
         renderAll();
         loadPendingFiles(msg.project_name);
         if (window.renderContextTab) window.renderContextTab();
