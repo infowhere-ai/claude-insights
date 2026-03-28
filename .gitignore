@@ -1,0 +1,5 @@
+.claude/logs/.session-*
+node_modules/
+__pycache__/
+.venv/
+.env
