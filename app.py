@@ -7,6 +7,7 @@ import shutil
 import struct
 import subprocess
 import termios
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
@@ -117,6 +118,33 @@ async def poll_loop() -> None:
                 _mtimes[path_str] = mtime
                 data = _read_status(path)
                 if data is not None:
+                    # Load active agents
+                    active_agents = []
+                    project_path = path.parents[1]
+                    agents_dir = project_path / ".claude" / "agents"
+                    if agents_dir.is_dir():
+                        now_ts = time.time()
+                        for agent_file in agents_dir.glob("*.json"):
+                            try:
+                                agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+                                # Include running agents + recently done agents (last 5 min)
+                                if agent_data.get("state") == "running":
+                                    active_agents.append(agent_data)
+                                elif agent_data.get("state") == "done":
+                                    finished_at = agent_data.get("finished_at", "")
+                                    if finished_at:
+                                        try:
+                                            from datetime import datetime
+                                            ft = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                                            age = now_ts - ft.timestamp()
+                                            if age < 300:  # 5 minutes
+                                                active_agents.append(agent_data)
+                                        except Exception:
+                                            pass
+                            except Exception:
+                                pass
+                        active_agents.sort(key=lambda a: a.get("started_at", ""))
+                    data["active_agents"] = active_agents
                     projects[name] = data
                     _broadcast({"type": "update", "project_name": name, "data": data})
         await asyncio.sleep(POLL_INTERVAL)
@@ -130,6 +158,32 @@ async def startup() -> None:
     for name, path in _status_paths.items():
         data = _read_status(path)
         if data is not None:
+            # Load active agents on startup
+            active_agents = []
+            project_path = path.parents[1]
+            agents_dir = project_path / ".claude" / "agents"
+            if agents_dir.is_dir():
+                now_ts = time.time()
+                for agent_file in agents_dir.glob("*.json"):
+                    try:
+                        agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+                        if agent_data.get("state") == "running":
+                            active_agents.append(agent_data)
+                        elif agent_data.get("state") == "done":
+                            finished_at = agent_data.get("finished_at", "")
+                            if finished_at:
+                                try:
+                                    from datetime import datetime
+                                    ft = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                                    age = now_ts - ft.timestamp()
+                                    if age < 300:
+                                        active_agents.append(agent_data)
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+                active_agents.sort(key=lambda a: a.get("started_at", ""))
+            data["active_agents"] = active_agents
             projects[name] = data
             _mtimes[str(path)] = path.stat().st_mtime
     asyncio.create_task(discovery_loop())

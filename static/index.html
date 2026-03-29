@@ -1748,6 +1748,15 @@
   }
   .stats-compact { cursor: default; }
 
+  /* Sub-agent panel */
+  .agents-panel { margin: 6px 8px 2px; }
+  .agents-panel-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .agent-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--bg-card); border-radius: 4px; margin-bottom: 3px; min-height: 28px; }
+  .agent-badge { font-size: 9px; font-weight: 700; letter-spacing: .05em; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+  .agent-badge.running { background: rgba(74,222,128,.18); color: #4ade80; }
+  .agent-badge.done { background: rgba(148,163,184,.12); color: var(--text-dim); }
+  .agent-task { font-size: 11px; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-tool { font-size: 10px; color: var(--blue); margin-left: auto; flex-shrink: 0; }
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
@@ -2639,6 +2648,43 @@ function render_card(name, data) {
   </div>`;
 }
 
+function renderAgents(projectEl, agents) {
+  // Remove existing panel
+  const existing = projectEl.querySelector('.agents-panel');
+  if (existing) existing.remove();
+
+  const running = agents.filter(a => a.state === 'running');
+  const done = agents.filter(a => a.state === 'done');
+  const visible = [...running, ...done].slice(0, 4);
+
+  if (visible.length === 0) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'agents-panel';
+  panel.innerHTML = `<div class="agents-panel-title">Sub-agentes (${running.length} a correr)</div>`;
+
+  visible.forEach(agent => {
+    const row = document.createElement('div');
+    row.className = 'agent-row';
+    const task = (agent.task || 'Sub-agente').slice(0, 60);
+    const tool = agent.current_tool ? `▶ ${agent.current_tool}` : (agent.state === 'done' ? `✓ ${agent.tools_used || 0} tools` : '');
+    row.innerHTML = `
+      <span class="agent-badge ${agent.state === 'running' ? 'running' : 'done'}">${agent.state === 'running' ? 'RUN' : 'DONE'}</span>
+      <span class="agent-task">${escHtml(task)}</span>
+      ${tool ? `<span class="agent-tool">${escHtml(tool)}</span>` : ''}
+    `;
+    panel.appendChild(row);
+  });
+
+  // Insert after the state/action line (before card-body)
+  const cardBody = projectEl.querySelector('.card-body');
+  if (cardBody) {
+    projectEl.insertBefore(panel, cardBody);
+  } else {
+    projectEl.appendChild(panel);
+  }
+}
+
 function onFileClick(projectEscaped, filePath, el) {
   // CSS.escape inverte-se com a lookup pelo data-name
   const card = el.closest('.project-card');
@@ -2950,7 +2996,13 @@ function renderAll() {
   for (const [name, data] of visible) {
     const tmp = document.createElement('div');
     tmp.innerHTML = render_card(name, data);
-    frag.appendChild(tmp.firstElementChild);
+    const cardEl = tmp.firstElementChild;
+    // Render agents if any
+    const agents = data.active_agents || [];
+    if (agents.length > 0) {
+      renderAgents(cardEl, agents);
+    }
+    frag.appendChild(cardEl);
   }
   body.appendChild(frag);
 }
