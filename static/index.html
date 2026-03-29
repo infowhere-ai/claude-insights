@@ -1214,6 +1214,94 @@
     padding: 32px 16px; text-align: center;
     color: var(--text-dim); font-size: 0.82rem; font-family: var(--font-mono);
   }
+  /* ── CLAUDE.md tab ── */
+  .claudemd-header {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 10px 16px 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .claudemd-project { font-size: 0.88rem; font-family: var(--font-mono); color: var(--blue); font-weight: 500; }
+  .claudemd-path { font-size: 0.78rem; color: var(--text-dim); }
+  .claudemd-empty { padding: 40px 20px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
+
+  .md-body {
+    padding: 4px 20px 20px;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .md-body h1 { font-size: 1.35rem; font-weight: 600; color: var(--text); margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .md-body h2 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 16px 0 8px; }
+  .md-body h3 { font-size: 0.97rem; font-weight: 600; color: var(--text-muted); margin: 14px 0 6px; }
+  .md-body h4, .md-body h5, .md-body h6 { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin: 10px 0 5px; }
+  .md-body p { margin: 6px 0 10px; }
+  .md-body ul, .md-body ol { margin: 6px 0 10px 20px; }
+  .md-body li { margin: 3px 0; }
+  .md-body code { font-family: var(--font-mono); font-size: 0.87em; background: rgba(137,180,250,0.1); color: var(--blue); padding: 1px 5px; border-radius: 3px; }
+  .md-body pre { background: var(--bg-diff); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+  .md-body pre code { background: none; color: var(--text); padding: 0; font-size: 0.85em; }
+  .md-body blockquote { border-left: 3px solid var(--border-waiting); padding: 4px 0 4px 14px; margin: 8px 0; color: var(--text-muted); font-style: italic; }
+  .md-body table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.87rem; }
+  .md-body th { background: var(--bg-hover); color: var(--text-muted); font-weight: 500; text-align: left; padding: 6px 10px; border: 1px solid var(--border); }
+  .md-body td { padding: 5px 10px; border: 1px solid var(--border); color: var(--text); }
+  .md-body tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .md-body a { color: var(--blue); text-decoration: none; }
+  .md-body a:hover { text-decoration: underline; }
+  .md-body hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .md-body strong { color: var(--text); font-weight: 600; }
+
+  /* ── Account/Uso tab ── */
+  .acct-wrap { padding: 14px 16px; display: flex; flex-direction: column; gap: 18px; }
+
+  .acct-section-title {
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  .acct-model-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .acct-model-badge {
+    font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600;
+    background: rgba(137,180,250,0.12); color: var(--blue);
+    border: 1px solid rgba(137,180,250,0.3); border-radius: 5px;
+    padding: 3px 10px;
+  }
+  .acct-tier-badge {
+    font-family: var(--font-mono); font-size: 0.75rem;
+    background: rgba(203,166,247,0.1); color: var(--purple);
+    border: 1px solid rgba(203,166,247,0.25); border-radius: 5px;
+    padding: 2px 8px;
+  }
+
+  .acct-tokens-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .acct-token-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 9px 12px;
+  }
+  .acct-token-label { font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono); margin-bottom: 3px; }
+  .acct-token-value { font-size: 1.05rem; font-weight: 600; font-family: var(--font-mono); color: var(--text); }
+  .acct-token-value.inp { color: var(--blue); }
+  .acct-token-value.out { color: var(--green); }
+  .acct-token-value.ccr { color: var(--yellow); }
+  .acct-token-value.crd { color: var(--text-muted); }
+
+  .acct-chart-wrap { }
+  .acct-chart { display: flex; align-items: flex-end; gap: 3px; height: 52px; }
+  .acct-bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 2px; }
+  .acct-bar { width: 100%; border-radius: 2px 2px 0 0; min-height: 2px; transition: opacity 0.15s; }
+  .acct-bar:hover { opacity: 0.75; }
+  .acct-bar.msg-bar { background: var(--blue); }
+  .acct-bar.tool-bar { background: var(--purple); }
+  .acct-chart-labels { display: flex; gap: 3px; margin-top: 3px; }
+  .acct-day-label { flex: 1; text-align: center; font-size: 0.6rem; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; }
+  .acct-chart-legend { display: flex; gap: 14px; margin-top: 6px; }
+  .acct-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
+  .acct-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
   /* Aliases for renderDebugTab JS output */
   .debug-time { color: var(--text-dim); flex-shrink: 0; font-size: 0.72rem; }
   .debug-hook-badge {
@@ -1662,6 +1750,7 @@
 
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
 <body>
 
@@ -1849,6 +1938,19 @@
         </svg>
         Debug
       </button>
+      <button class="tab-btn" id="tab-btn-claudemd" onclick="switchTab('claudemd')">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+          <path d="M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2z"/>
+          <path d="M3 5.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 8a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 8m0 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5"/>
+        </svg>
+        CLAUDE.md
+      </button>
+      <button class="tab-btn" id="tab-btn-account" onclick="switchTab('account')">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+          <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
+        </svg>
+        Conta
+      </button>
     </div>
     <div class="bottom-panel-actions">
       <button class="btn-icon" onclick="toggleBottomPanel()" title="Minimizar / Expandir" id="btn-collapse-bottom">
@@ -1888,6 +1990,16 @@
       </label>
     </div>
     <div class="debug-list" id="debug-list"></div>
+  </div>
+
+  <!-- Tab: CLAUDE.md -->
+  <div class="tab-content" id="tab-claudemd">
+    <div id="claudemd-content"></div>
+  </div>
+
+  <!-- Tab: Conta/Uso -->
+  <div class="tab-content" id="tab-account">
+    <div id="account-content"><div class="claudemd-empty">A carregar…</div></div>
   </div>
 </div>
 
@@ -2991,6 +3103,8 @@ document.addEventListener('keydown', (e) => {
       if (tabName === 'context') window.renderContextTab && window.renderContextTab();
       if (tabName === 'events') renderEventsTab();
       if (tabName === 'debug') renderDebugTab();
+      if (tabName === 'claudemd') renderClaudeMdTab();
+      if (tabName === 'account') loadAccountData();
     }
   };
 
@@ -3016,6 +3130,8 @@ document.addEventListener('keydown', (e) => {
     if (tabName === 'context') window.renderContextTab && window.renderContextTab();
     if (tabName === 'events') renderEventsTab();
     if (tabName === 'debug') renderDebugTab();
+    if (tabName === 'claudemd') renderClaudeMdTab();
+    if (tabName === 'account') loadAccountData();
   };
 
   // ── Context window constants ───────────────────────────────────────────────
@@ -3146,6 +3262,178 @@ document.addEventListener('keydown', (e) => {
       </div>`;
     }).join('');
   };
+
+  // ── CLAUDE.md tab ──────────────────────────────────────────────────────────
+  let _claudeMdCache = {};  // projectName -> {content, path}
+
+  window.renderClaudeMdTab = function() {
+    if (panelCollapsed) return;
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab && activeTab.id !== 'tab-btn-claudemd') return;
+
+    const el = document.getElementById('claudemd-content');
+    if (!el) return;
+
+    // Pick most active project (same logic as context tab)
+    const entries = Object.entries(allProjects);
+    if (entries.length === 0) {
+      el.innerHTML = '<div class="claudemd-empty">Sem projectos monitorizados…</div>';
+      return;
+    }
+    const PRIO = { working: 0, waiting: 1, idle: 2 };
+    const sorted = [...entries].sort(([, a], [, b]) => {
+      const ap = PRIO[a.state] ?? 99, bp = PRIO[b.state] ?? 99;
+      if (ap !== bp) return ap - bp;
+      return (b.updated_at || '').localeCompare(a.updated_at || '');
+    });
+    const [name] = sorted[0];
+
+    if (_claudeMdCache[name]) {
+      _renderClaudeMd(el, name, _claudeMdCache[name]);
+      return;
+    }
+
+    el.innerHTML = '<div class="claudemd-empty">A carregar…</div>';
+    fetch(`/api/claude-md?project=${encodeURIComponent(name)}`)
+      .then(r => r.json())
+      .then(data => {
+        _claudeMdCache[name] = data;
+        _renderClaudeMd(el, name, data);
+      })
+      .catch(() => {
+        el.innerHTML = '<div class="claudemd-empty">Erro ao carregar CLAUDE.md</div>';
+      });
+  };
+
+  function _renderClaudeMd(el, name, data) {
+    if (!data.content) {
+      el.innerHTML = `<div class="claudemd-header"><span class="claudemd-project">${escHtml(name)}</span><span class="claudemd-path">sem CLAUDE.md</span></div><div class="claudemd-empty">Nenhum CLAUDE.md encontrado neste projecto.</div>`;
+      return;
+    }
+    const rendered = typeof marked !== 'undefined' ? marked.parse(data.content) : `<pre>${escHtml(data.content)}</pre>`;
+    el.innerHTML = `<div class="claudemd-header"><span class="claudemd-project">${escHtml(name)}</span><span class="claudemd-path">${escHtml(data.path || 'CLAUDE.md')}</span></div><div class="md-body">${rendered}</div>`;
+  }
+
+  // ── Account/Uso tab ────────────────────────────────────────────────────────
+  let _accountData = null;
+  let _accountLoading = false;
+
+  function loadAccountData(force) {
+    if (_accountLoading) return;
+    if (_accountData && !force) { renderAccountTab(); return; }
+    _accountLoading = true;
+    fetch('/api/account')
+      .then(r => r.json())
+      .then(data => {
+        _accountData = data;
+        _accountLoading = false;
+        renderAccountTab();
+      })
+      .catch(() => { _accountLoading = false; });
+  }
+
+  function fmtTokens(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  function renderAccountTab() {
+    if (panelCollapsed) return;
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab && activeTab.id !== 'tab-btn-account') return;
+
+    const el = document.getElementById('account-content');
+    if (!el) return;
+
+    if (!_accountData) {
+      el.innerHTML = '<div class="claudemd-empty">A carregar…</div>';
+      loadAccountData();
+      return;
+    }
+
+    const d = _accountData;
+    const tw = d.tokens_week || {};
+
+    // Model + tier
+    const modelShort = (d.model || 'unknown').replace('claude-', '').replace(/-\d{8}$/, '');
+    const pluginsHtml = (d.enabled_plugins || []).map(p => {
+      const short = p.replace('@claude-plugins-official', '').replace('@', '');
+      return `<span class="acct-tier-badge">${escHtml(short)}</span>`;
+    }).join(' ');
+
+    // Tokens grid
+    const tokensHtml = `
+      <div class="acct-tokens-grid">
+        <div class="acct-token-card"><div class="acct-token-label">Input (semana)</div><div class="acct-token-value inp">${fmtTokens(tw.input || 0)}</div></div>
+        <div class="acct-token-card"><div class="acct-token-label">Output (semana)</div><div class="acct-token-value out">${fmtTokens(tw.output || 0)}</div></div>
+        <div class="acct-token-card"><div class="acct-token-label">Cache criado</div><div class="acct-token-value ccr">${fmtTokens(tw.cache_creation || 0)}</div></div>
+        <div class="acct-token-card"><div class="acct-token-label">Cache lido</div><div class="acct-token-value crd">${fmtTokens(tw.cache_read || 0)}</div></div>
+      </div>`;
+
+    // Activity chart — last 14 days from daily_activity
+    const activity = (d.daily_activity || []);
+    const now = new Date();
+    const days14 = [];
+    for (let i = 13; i >= 0; i--) {
+      const d2 = new Date(now); d2.setDate(d2.getDate() - i);
+      const dateStr = d2.toISOString().split('T')[0];
+      const found = activity.find(a => a.date === dateStr) || { messageCount: 0, toolCallCount: 0, sessionCount: 0 };
+      days14.push({ date: dateStr, day: d2.toLocaleDateString('pt', { weekday: 'narrow' }), dayNum: d2.getDate(), ...found });
+    }
+    const maxMsg = Math.max(...days14.map(d => d.messageCount), 1);
+    const maxTool = Math.max(...days14.map(d => d.toolCallCount), 1);
+    const chartBars = days14.map(d => {
+      const msgH = Math.round((d.messageCount / maxMsg) * 44);
+      const toolH = Math.round((d.toolCallCount / maxTool) * 44);
+      const isToday = d.date === now.toISOString().split('T')[0];
+      return `<div class="acct-bar-col" title="${d.date}&#10;${d.messageCount} msgs · ${d.sessionCount} sessões · ${d.toolCallCount} tools">
+        <div class="acct-bar msg-bar" style="height:${msgH}px;opacity:${isToday ? '1' : '0.75'}"></div>
+      </div>`;
+    }).join('');
+    const labelRow = days14.map(d => `<div class="acct-day-label">${d.dayNum}</div>`).join('');
+
+    // Total tokens (sum of all time from daily activity — just messages as proxy)
+    const totalMsgs = activity.reduce((s, a) => s + (a.messageCount || 0), 0);
+    const totalSessions = activity.reduce((s, a) => s + (a.sessionCount || 0), 0);
+    const totalTools = activity.reduce((s, a) => s + (a.toolCallCount || 0), 0);
+
+    // Week totals from last 7 days of activity
+    const weekDates = new Set(days14.slice(7).map(d => d.date));
+    const weekMsgs = activity.filter(a => weekDates.has(a.date)).reduce((s, a) => s + (a.messageCount || 0), 0);
+    const weekSessions = activity.filter(a => weekDates.has(a.date)).reduce((s, a) => s + (a.sessionCount || 0), 0);
+
+    el.innerHTML = `
+      <div class="acct-wrap">
+        <div>
+          <div class="acct-section-title">Modelo &amp; Plano</div>
+          <div class="acct-model-row">
+            <span class="acct-model-badge">${escHtml(modelShort)}</span>
+            ${d.service_tier ? `<span class="acct-tier-badge">${escHtml(d.service_tier)}</span>` : ''}
+            ${pluginsHtml}
+          </div>
+        </div>
+        <div>
+          <div class="acct-section-title">Tokens esta semana</div>
+          ${tokensHtml}
+        </div>
+        <div>
+          <div class="acct-section-title">Actividade (14 dias) · ${fmtTokens(weekMsgs)} msgs · ${weekSessions} sessões esta semana</div>
+          <div class="acct-chart-wrap">
+            <div class="acct-chart">${chartBars}</div>
+            <div class="acct-chart-labels">${labelRow}</div>
+            <div class="acct-chart-legend">
+              <div class="acct-legend-item"><div class="acct-legend-dot" style="background:var(--blue)"></div>Mensagens</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-dim);font-family:var(--font-mono)">
+          Total histórico: ${fmtTokens(totalMsgs)} msgs · ${fmtTokens(totalSessions)} sessões · ${fmtTokens(totalTools)} tool calls
+          <span style="float:right;cursor:pointer;color:var(--blue)" onclick="loadAccountData(true)">↻ actualizar</span>
+        </div>
+      </div>`;
+  }
 
   // ── Contexto tab ───────────────────────────────────────────────────────────
   window.renderContextTab = function() {

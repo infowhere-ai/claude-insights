@@ -552,6 +552,96 @@ async def update_roots(request: Request):
     }
 
 
+@app.get("/api/claude-md")
+async def get_claude_md(project: str = Query(...)):
+    """Returns CLAUDE.md content for the given project."""
+    project_path = PROJECTS_ROOT / project
+    if not project_path.is_dir():
+        # Try extra_roots
+        for root in _extra_roots:
+            candidate = root / project
+            if candidate.is_dir():
+                project_path = candidate
+                break
+        else:
+            return JSONResponse({"error": "project not found"}, status_code=404)
+
+    for candidate in [project_path / "CLAUDE.md", project_path / ".claude" / "CLAUDE.md"]:
+        if candidate.is_file():
+            try:
+                content = candidate.read_text(encoding="utf-8")
+                return JSONResponse({"content": content, "path": str(candidate.relative_to(project_path))})
+            except Exception as e:
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+    return JSONResponse({"content": None, "path": None})
+
+
+@app.get("/api/account")
+async def get_account():
+    """Returns account settings and usage stats aggregated from session files."""
+    from datetime import datetime, timedelta
+
+    home = Path.home()
+
+    # Settings
+    settings: dict = {}
+    try:
+        sp = home / ".claude" / "settings.json"
+        if sp.exists():
+            settings = json.loads(sp.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+
+    # Stats cache (daily activity — messages/sessions/tool calls)
+    daily_activity: list = []
+    try:
+        sc = home / ".claude" / "stats-cache.json"
+        if sc.exists():
+            daily_activity = json.loads(sc.read_text(encoding="utf-8")).get("dailyActivity", [])
+    except Exception:
+        pass
+
+    # Token aggregation from session JSONL files (last 7 days)
+    week_ago = datetime.now() - timedelta(days=7)
+    token_totals = {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0}
+    service_tier: str = "standard"
+
+    projects_dir = home / ".claude" / "projects"
+    if projects_dir.is_dir():
+        for jsonl_file in projects_dir.rglob("*.jsonl"):
+            try:
+                if datetime.fromtimestamp(jsonl_file.stat().st_mtime) < week_ago:
+                    continue
+                with jsonl_file.open(encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            d = json.loads(line)
+                        except Exception:
+                            continue
+                        if d.get("type") == "assistant" and "message" in d:
+                            u = d["message"].get("usage", {})
+                            token_totals["input"] += u.get("input_tokens", 0)
+                            token_totals["output"] += u.get("output_tokens", 0)
+                            token_totals["cache_creation"] += u.get("cache_creation_input_tokens", 0)
+                            token_totals["cache_read"] += u.get("cache_read_input_tokens", 0)
+                            if u.get("service_tier"):
+                                service_tier = u["service_tier"]
+            except Exception:
+                pass
+
+    return {
+        "model": settings.get("model", "unknown"),
+        "enabled_plugins": list((settings.get("enabledPlugins") or {}).keys()),
+        "daily_activity": daily_activity,
+        "tokens_week": token_totals,
+        "service_tier": service_tier,
+    }
+
+
 # Serve static — deve ficar por último para não conflituar com as rotas acima
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.is_dir():
