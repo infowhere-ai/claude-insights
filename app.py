@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import fcntl
 import json
 import os
@@ -19,7 +20,10 @@ PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", str(Path.home() / "desenvolvimen
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "1.0"))
 DISCOVERY_INTERVAL = float(os.getenv("DISCOVERY_INTERVAL", "60.0"))
 
-app = FastAPI(title="claude-monitor", version="1.0.0")
+VERSION = "1.0.0"
+BUILD_DATE = os.getenv("BUILD_DATE", datetime.date.today().isoformat())
+
+app = FastAPI(title="claude-monitor", version=VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -193,6 +197,11 @@ async def startup() -> None:
 @app.get("/health")
 async def health():
     return {"status": "ok", "projects_monitored": len(projects)}
+
+
+@app.get("/api/version")
+async def get_version():
+    return {"version": VERSION, "build_date": BUILD_DATE}
 
 
 @app.get("/api/diff")

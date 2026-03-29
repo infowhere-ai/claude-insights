@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Monitor</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e1e2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Claude Monitor">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Roboto+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
@@ -166,7 +172,12 @@
     color: var(--text-dim); text-transform: uppercase;
     letter-spacing: 0.06em; margin-bottom: 6px;
     display: flex; align-items: center; gap: 6px;
+    cursor: pointer; user-select: none;
   }
+  .roots-info-label:hover { color: var(--text); }
+  .roots-info-chevron { font-size: 0.75rem; transition: transform 0.15s; margin-right: 2px; }
+  .roots-info-box.collapsed .roots-info-chevron { transform: rotate(-90deg); }
+  .roots-info-box.collapsed .roots-info-list { display: none; }
   .roots-info-list {
     display: flex; flex-direction: column; gap: 3px;
   }
@@ -416,6 +427,20 @@
     display: none;
   }
   .card-body.open { display: block; }
+  .card-collapsed-hint { display: none; font-size: 0.7rem; color: var(--text-dim); padding: 0 12px 6px; }
+  .project-card.card-is-collapsed .card-body,
+  .project-card.card-is-collapsed .card-action,
+  .project-card.card-is-collapsed .agents-panel { display: none !important; }
+  .project-card.card-is-collapsed .card-collapsed-hint { display: block; }
+
+  /* ── Folder groups in file list ── */
+  .file-group-header { display: flex; align-items: center; gap: 5px; padding: 3px 8px 2px; font-size: 0.7rem; color: var(--text-dim); cursor: pointer; user-select: none; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .file-group-header:hover { color: var(--text); }
+  .file-group-arrow { font-size: 9px; display: inline-block; transition: transform 0.12s; }
+  .file-group.collapsed .file-group-arrow { transform: rotate(-90deg); }
+  .file-group.collapsed .file-group-items { display: none; }
+  .file-group-name { font-family: var(--font-mono); }
+  .file-group-count { margin-left: auto; opacity: 0.6; }
 
   .section { padding: 8px 12px; border-bottom: 1px solid var(--border); }
   .section:last-child { border-bottom: none; }
@@ -442,7 +467,17 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 6px;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+    padding: 2px 2px;
+    margin: -2px -2px 6px;
   }
+  .files-header:hover { background: var(--bg-hover); }
+  .files-header-chevron { font-size: 0.75rem; color: var(--text-dim); transition: transform 0.15s; flex-shrink: 0; }
+  .files-section-collapsed .files-header-chevron { transform: rotate(-90deg); }
+  .files-section-collapsed .files-toolbar,
+  .files-section-collapsed .file-list { display: none; }
   .files-count {
     font-size: 0.77rem;
     color: var(--text-dim);
@@ -1225,6 +1260,31 @@
   .claudemd-path { font-size: 0.78rem; color: var(--text-dim); }
   .claudemd-empty { padding: 40px 20px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
 
+  /* ── CLAUDE.md sub-tabs ── */
+  .cmdmd-subtabs {
+    display: flex; flex-wrap: wrap; gap: 2px;
+    padding: 6px 10px 0; border-bottom: 1px solid var(--border);
+    background: var(--bg-panel); flex-shrink: 0;
+    position: sticky; top: 0; z-index: 2;
+  }
+  .cmdmd-subtab {
+    padding: 4px 10px 5px; font-size: 0.78rem; font-family: var(--font-mono);
+    color: var(--text-dim); cursor: pointer; border-radius: 4px 4px 0 0;
+    border: 1px solid transparent; border-bottom: none;
+    white-space: nowrap; user-select: none;
+  }
+  .cmdmd-subtab:hover { color: var(--text); background: var(--bg-hover); }
+  .cmdmd-subtab.active {
+    color: var(--text); background: var(--bg-card);
+    border-color: var(--border); border-bottom: 1px solid var(--bg-card);
+    margin-bottom: -1px;
+  }
+  .cmdmd-subtab.missing { opacity: 0.45; font-style: italic; }
+  .cmdmd-pane { display: none; flex: 1; overflow-y: auto; }
+  .cmdmd-pane.active { display: block; }
+  .cmdmd-missing-msg { padding: 40px 20px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
+  .cmdmd-missing { color: var(--text-dim) !important; font-style: italic; }
+
   .md-body {
     padding: 4px 20px 20px;
     font-size: 0.92rem;
@@ -1669,6 +1729,8 @@
   .prefs-body {
     flex: 1; overflow-y: auto;
     padding: 16px;
+    display: flex;
+    flex-direction: column;
     display: flex; flex-direction: column; gap: 20px;
   }
 
@@ -1698,6 +1760,30 @@
   }
 
   .theme-btns { display: flex; gap: 8px; }
+
+  .prefs-footer {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  .prefs-footer-brand {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+  .prefs-footer-brand a {
+    color: var(--blue);
+    text-decoration: none;
+  }
+  .prefs-footer-brand a:hover { text-decoration: underline; }
+  .prefs-footer-meta {
+    margin-top: 6px;
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
 
   .theme-btn {
     flex: 1; padding: 7px;
@@ -1757,6 +1843,22 @@
   .agent-badge.done { background: rgba(148,163,184,.12); color: var(--text-dim); }
   .agent-task { font-size: 11px; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .agent-tool { font-size: 10px; color: var(--blue); margin-left: auto; flex-shrink: 0; }
+
+  /* ── Agents tab ── */
+  .agent-section { margin-bottom: 6px; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .agent-section-header { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--bg-card); cursor: pointer; user-select: none; }
+  .agent-section-header:hover { background: var(--bg-card-hover); }
+  .agent-sec-arrow { font-size: 9px; color: var(--text-dim); transition: transform 0.15s; flex-shrink: 0; }
+  .agent-section.expanded .agent-sec-arrow { transform: rotate(90deg); }
+  .agent-sec-badge { font-size: 0.7rem; font-weight: 600; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+  .agent-sec-badge.running { background: rgba(74,222,128,.18); color: #4ade80; }
+  .agent-sec-badge.done { background: rgba(148,163,184,.12); color: var(--text-dim); }
+  .agent-sec-task { flex: 1; font-size: 0.78rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-sec-meta { font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
+  .agent-sec-proj { font-size: 0.68rem; color: var(--text-dim); background: var(--bg); border-radius: 3px; padding: 1px 4px; flex-shrink: 0; }
+  .agent-events-list { display: none; border-top: 1px solid var(--border); }
+  .agent-section.expanded .agent-events-list { display: block; }
+  .agents-tab-empty { color: var(--text-dim); font-size: 0.82rem; padding: 20px; text-align: center; }
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
@@ -1882,7 +1984,9 @@
       </div>
     </div>
     <div class="roots-info-box" id="roots-info-box">
-      <div class="roots-info-label">📁 Pastas monitoradas</div>
+      <div class="roots-info-label" onclick="toggleRootsInfoBox()">
+        <span class="roots-info-chevron">›</span>📁 Pastas monitoradas
+      </div>
       <div class="roots-info-list" id="roots-info-list"></div>
     </div>
   </div>
@@ -1947,6 +2051,12 @@
         </svg>
         Debug
       </button>
+      <button class="tab-btn" id="tab-btn-agents" onclick="switchTab('agents')">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+          <path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H14a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 2 7h5.5V6A1.5 1.5 0 0 1 6 4.5zm-6 8A1.5 1.5 0 0 1 1.5 10h1A1.5 1.5 0 0 1 4 11.5v1A1.5 1.5 0 0 1 2.5 14h-1A1.5 1.5 0 0 1 0 12.5zm6 0A1.5 1.5 0 0 1 7.5 10h1a1.5 1.5 0 0 1 1.5 1.5v1A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5zm6 0a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5z"/>
+        </svg>
+        Agentes
+      </button>
       <button class="tab-btn" id="tab-btn-claudemd" onclick="switchTab('claudemd')">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
           <path d="M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2z"/>
@@ -2001,9 +2111,15 @@
     <div class="debug-list" id="debug-list"></div>
   </div>
 
+  <!-- Tab: Agentes -->
+  <div class="tab-content" id="tab-agents">
+    <div id="agents-tab-list"></div>
+  </div>
+
   <!-- Tab: CLAUDE.md -->
-  <div class="tab-content" id="tab-claudemd">
-    <div id="claudemd-content"></div>
+  <div class="tab-content" id="tab-claudemd" style="display:flex;flex-direction:column;">
+    <div class="cmdmd-subtabs" id="cmdmd-subtabs"></div>
+    <div id="cmdmd-panes" style="flex:1;overflow-y:auto;position:relative;"></div>
   </div>
 
   <!-- Tab: Conta/Uso -->
@@ -2047,6 +2163,12 @@
         <span class="prefs-range-val" id="pref-font-size-val">13px</span>
       </div>
     </div>
+    <div class="prefs-footer">
+      <div class="prefs-footer-brand">
+        Desenvolvido por <a href="https://infowhere.ai" target="_blank">Infowhere.ai</a>
+      </div>
+      <div class="prefs-footer-meta" id="prefs-version-info">—</div>
+    </div>
   </div>
 </div>
 
@@ -2069,8 +2191,18 @@ const STATE_ORDER = { working: 0, waiting: 1, idle: 2, stopped: 3 };
 const FILE_OP_ICONS = { write: '✏', edit: '✏', read: '👁', create: '＋' };
 const EVENT_ICONS = { success: '✅', error: '❌', info: 'ℹ️' };
 
+// Register Service Worker (required for PWA install prompt)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
 let allProjects = {};
-let expandedCards = new Set();
+let expandedCards = (() => {
+  try {
+    const stored = JSON.parse(localStorage.getItem('cm-collapsed-cards') || '[]');
+    return new Set(Array.isArray(stored) ? stored : []);
+  } catch { return new Set(); }
+})();
 let activeFile = null;  // { project, path, element }
 const notifTimers = {};  // projectName -> setTimeout id
 
@@ -2334,6 +2466,55 @@ function _applyPendingFilter(files, projectName) {
   });
 }
 
+function _renderFileItem(f, projectName) {
+  const isActive = activeFile && activeFile.project === projectName && activeFile.path === f.path;
+  const icon = PENDING_STATUS_ICONS[f.status_code] || `<span style="color:var(--text-dim)">${escHtml(f.status_code)}</span>`;
+  return `<div class="file-item ${isActive ? 'active' : ''}"
+    onclick="onFileClick('${CSS.escape(projectName)}', '${escAttr(f.path)}', this)"
+    title="${escAttr(f.path)}">
+    <span class="file-op">${icon}</span>
+    <span class="file-path">${escHtml(f.rel_path)}</span>
+  </div>`;
+}
+
+function _loadCollapsedFolders(projectName) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('cm-folder-collapsed:' + projectName) || '[]');
+    return new Set(Array.isArray(stored) ? stored : []);
+  } catch { return new Set(); }
+}
+
+function _saveCollapsedFolders(projectName, collapsed) {
+  localStorage.setItem('cm-folder-collapsed:' + projectName, JSON.stringify([...collapsed]));
+}
+
+function toggleFolderGroup(projectName, folder) {
+  const collapsed = _loadCollapsedFolders(projectName);
+  if (collapsed.has(folder)) collapsed.delete(folder);
+  else collapsed.add(folder);
+  _saveCollapsedFolders(projectName, collapsed);
+  const groupEl = document.getElementById('fg-' + CSS.escape(projectName) + '-' + CSS.escape(folder));
+  if (groupEl) groupEl.classList.toggle('collapsed', collapsed.has(folder));
+}
+
+function toggleRootsInfoBox() {
+  const el = document.getElementById('roots-info-box');
+  if (!el) return;
+  const isNowCollapsed = !el.classList.contains('collapsed');
+  el.classList.toggle('collapsed', isNowCollapsed);
+  localStorage.setItem('cm-roots-info-collapsed', isNowCollapsed ? '1' : '0');
+}
+
+function toggleFilesSection(name) {
+  const key = 'files-collapsed:' + name;
+  const stored = JSON.parse(localStorage.getItem('cm-files-collapsed') || '{}');
+  const isNowCollapsed = !stored[name];
+  stored[name] = isNowCollapsed;
+  localStorage.setItem('cm-files-collapsed', JSON.stringify(stored));
+  const sectionEl = document.getElementById('files-section-' + CSS.escape(name));
+  if (sectionEl) sectionEl.classList.toggle('files-section-collapsed', isNowCollapsed);
+}
+
 function render_pending_files(files, projectName) {
   const filtered = _applyPendingFilter(files, projectName);
   if (!files || files.length === 0) {
@@ -2342,14 +2523,32 @@ function render_pending_files(files, projectName) {
   if (filtered.length === 0) {
     return `<div class="pending-clean">nenhum resultado</div>`;
   }
-  return filtered.map(f => {
-    const isActive = activeFile && activeFile.project === projectName && activeFile.path === f.path;
-    const icon = PENDING_STATUS_ICONS[f.status_code] || `<span style="color:var(--text-dim)">${escHtml(f.status_code)}</span>`;
-    return `<div class="file-item ${isActive ? 'active' : ''}"
-      onclick="onFileClick('${CSS.escape(projectName)}', '${escAttr(f.path)}', this)"
-      title="${escAttr(f.path)}">
-      <span class="file-op">${icon}</span>
-      <span class="file-path">${escHtml(f.rel_path)}</span>
+
+  // Group by top-level folder
+  const groups = new Map();
+  for (const f of filtered) {
+    const folder = fileFolder(f.rel_path) || '';
+    if (!groups.has(folder)) groups.set(folder, []);
+    groups.get(folder).push(f);
+  }
+
+  // Flat list when all files are in a single group
+  if (groups.size <= 1) {
+    return filtered.map(f => _renderFileItem(f, projectName)).join('');
+  }
+
+  const collapsed = _loadCollapsedFolders(projectName);
+  return [...groups.entries()].map(([folder, groupFiles]) => {
+    const isCollapsed = collapsed.has(folder);
+    const label = folder || '(raiz)';
+    const gId = 'fg-' + CSS.escape(projectName) + '-' + CSS.escape(folder);
+    return `<div class="file-group${isCollapsed ? ' collapsed' : ''}" id="${gId}">
+      <div class="file-group-header" onclick="toggleFolderGroup('${escAttr(projectName)}','${escAttr(folder)}')">
+        <span class="file-group-arrow">▾</span>
+        <span class="file-group-name">${escHtml(label)}/</span>
+        <span class="file-group-count">${groupFiles.length}</span>
+      </div>
+      <div class="file-group-items">${groupFiles.map(f => _renderFileItem(f, projectName)).join('')}</div>
     </div>`;
   }).join('');
 }
@@ -2609,7 +2808,7 @@ function render_card(name, data) {
   const notif = data.notification;
 
   return `
-  <div class="project-card ${state}" id="card-${CSS.escape(name)}" data-name="${name}">
+  <div class="project-card ${state}${isExpanded ? '' : ' card-is-collapsed'}" id="card-${CSS.escape(name)}" data-name="${name}">
     <div class="card-header" onclick="toggleCard('${name}')">
       <div class="card-title">
         <span class="chevron ${isExpanded ? 'open' : ''}">›</span>
@@ -2621,6 +2820,7 @@ function render_card(name, data) {
       </div>
     </div>
     ${action ? `<div class="card-action">${escHtml(action.description)}</div>` : ''}
+    <div class="card-collapsed-hint">clica para expandir</div>
     <div class="card-body ${isExpanded ? 'open' : ''}">
       ${notif ? `
       <div class="section">
@@ -2629,8 +2829,9 @@ function render_card(name, data) {
           <span>${escHtml(notif.message)}</span>
         </div>
       </div>` : ''}
-      <div class="section" id="files-section-${CSS.escape(name)}">
-        <div class="files-header">
+      <div class="section${(() => { try { const s = JSON.parse(localStorage.getItem('cm-files-collapsed') || '{}'); return s[name] ? ' files-section-collapsed' : ''; } catch { return ''; } })()}" id="files-section-${CSS.escape(name)}">
+        <div class="files-header" onclick="toggleFilesSection(${JSON.stringify(name)})">
+          <span class="files-header-chevron">›</span>
           <span class="section-label">Para Commitar</span>
           <span class="files-count" id="pending-count-${CSS.escape(name)}">${(pendingFiles[name] || []).length || ''}</span>
         </div>
@@ -2700,7 +2901,18 @@ function toggleCard(name) {
   const key = 'collapsed:' + name;
   if (expandedCards.has(key)) expandedCards.delete(key);
   else expandedCards.add(key);
-  renderAll();
+  localStorage.setItem('cm-collapsed-cards', JSON.stringify([...expandedCards]));
+
+  // Toggle in-place — no full re-render
+  const cardEl = document.getElementById('card-' + CSS.escape(name));
+  if (!cardEl) return;
+  const isExpanded = !expandedCards.has(key);
+  cardEl.classList.toggle('card-is-collapsed', !isExpanded);
+  const chevron = cardEl.querySelector('.chevron');
+  if (chevron) chevron.classList.toggle('open', isExpanded);
+  // card-body open state
+  const body = cardEl.querySelector('.card-body');
+  if (body) body.classList.toggle('open', isExpanded);
 }
 
 // ── Project visibility filter ─────────────────────────────────────────────────
@@ -3036,6 +3248,7 @@ function connect() {
         if (window.renderContextTab) window.renderContextTab();
         if (window.renderEventsTab) window.renderEventsTab();
         if (window.renderDebugTab) window.renderDebugTab();
+        if (window.renderAgentsTab) window.renderAgentsTab();
       } else if (msg.type === 'update') {
         allProjects[msg.project_name] = msg.data;
         _handleNotifTimer(msg.project_name, msg.data);
@@ -3044,6 +3257,7 @@ function connect() {
         if (window.renderContextTab) window.renderContextTab();
         if (window.renderEventsTab) window.renderEventsTab();
         if (window.renderDebugTab) window.renderDebugTab();
+        if (window.renderAgentsTab) window.renderAgentsTab();
         // Se o ficheiro activo é deste projecto, refresca o diff
         if (activeFile && activeFile.project === msg.project_name && activeFile.element) {
           const el = activeFile.element;
@@ -3155,6 +3369,7 @@ document.addEventListener('keydown', (e) => {
       if (tabName === 'context') window.renderContextTab && window.renderContextTab();
       if (tabName === 'events') renderEventsTab();
       if (tabName === 'debug') renderDebugTab();
+      if (tabName === 'agents') window.renderAgentsTab && window.renderAgentsTab();
       if (tabName === 'claudemd') renderClaudeMdTab();
       if (tabName === 'account') loadAccountData();
     }
@@ -3182,6 +3397,7 @@ document.addEventListener('keydown', (e) => {
     if (tabName === 'context') window.renderContextTab && window.renderContextTab();
     if (tabName === 'events') renderEventsTab();
     if (tabName === 'debug') renderDebugTab();
+    if (tabName === 'agents') window.renderAgentsTab && window.renderAgentsTab();
     if (tabName === 'claudemd') renderClaudeMdTab();
     if (tabName === 'account') loadAccountData();
   };
@@ -3317,54 +3533,94 @@ document.addEventListener('keydown', (e) => {
 
   // ── CLAUDE.md tab ──────────────────────────────────────────────────────────
   let _claudeMdCache = {};  // projectName -> {content, path}
+  let _cmdmdActiveTab = localStorage.getItem('cm-claudemd-active') || null;
 
-  window.renderClaudeMdTab = function() {
+  window.renderClaudeMdTab = async function() {
     if (panelCollapsed) return;
     const activeTab = document.querySelector('.tab-btn.active');
     if (activeTab && activeTab.id !== 'tab-btn-claudemd') return;
 
-    const el = document.getElementById('claudemd-content');
-    if (!el) return;
+    const tabsEl = document.getElementById('cmdmd-subtabs');
+    const panesEl = document.getElementById('cmdmd-panes');
+    if (!tabsEl || !panesEl) return;
 
-    // Pick most active project (same logic as context tab)
-    const entries = Object.entries(allProjects);
-    if (entries.length === 0) {
-      el.innerHTML = '<div class="claudemd-empty">Sem projectos monitorizados…</div>';
-      return;
-    }
-    const PRIO = { working: 0, waiting: 1, idle: 2 };
-    const sorted = [...entries].sort(([, a], [, b]) => {
-      const ap = PRIO[a.state] ?? 99, bp = PRIO[b.state] ?? 99;
-      if (ap !== bp) return ap - bp;
-      return (b.updated_at || '').localeCompare(a.updated_at || '');
-    });
-    const [name] = sorted[0];
-
-    if (_claudeMdCache[name]) {
-      _renderClaudeMd(el, name, _claudeMdCache[name]);
+    const names = Object.keys(allProjects);
+    if (names.length === 0) {
+      tabsEl.innerHTML = '';
+      panesEl.innerHTML = '<div class="claudemd-empty">Sem projectos monitorizados…</div>';
       return;
     }
 
-    el.innerHTML = '<div class="claudemd-empty">A carregar…</div>';
-    fetch(`/api/claude-md?project=${encodeURIComponent(name)}`)
-      .then(r => r.json())
-      .then(data => {
-        _claudeMdCache[name] = data;
-        _renderClaudeMd(el, name, data);
-      })
-      .catch(() => {
-        el.innerHTML = '<div class="claudemd-empty">Erro ao carregar CLAUDE.md</div>';
-      });
+    // Pick active tab (persist, fall back to first)
+    if (!_cmdmdActiveTab || !names.includes(_cmdmdActiveTab)) {
+      _cmdmdActiveTab = names[0];
+    }
+
+    // Render sub-tab buttons (use data-name for reliable matching)
+    tabsEl.innerHTML = names.map(name => {
+      const hasCached = _claudeMdCache[name];
+      const isMissing = hasCached && !hasCached.content;
+      const isActive = name === _cmdmdActiveTab;
+      return `<div class="cmdmd-subtab${isActive ? ' active' : ''}${isMissing ? ' missing' : ''}"
+        data-name="${escAttr(name)}"
+        onclick="switchCmdmdTab('${escAttr(name)}')">${escHtml(name)}</div>`;
+    }).join('');
+
+    // Load and show the active pane
+    await _showCmdmdPane(_cmdmdActiveTab, panesEl);
   };
 
-  function _renderClaudeMd(el, name, data) {
-    if (!data.content) {
-      el.innerHTML = `<div class="claudemd-header"><span class="claudemd-project">${escHtml(name)}</span><span class="claudemd-path">sem CLAUDE.md</span></div><div class="claudemd-empty">Nenhum CLAUDE.md encontrado neste projecto.</div>`;
-      return;
+  async function _showCmdmdPane(name, panesEl) {
+    // Fetch if not cached
+    if (!_claudeMdCache[name]) {
+      try {
+        const r = await fetch(`/api/claude-md?project=${encodeURIComponent(name)}`);
+        _claudeMdCache[name] = await r.json();
+      } catch {
+        _claudeMdCache[name] = { content: null, path: null };
+      }
+      // Mark tab as missing if no content
+      if (!_claudeMdCache[name].content) {
+        const btn = document.querySelector(`#cmdmd-subtabs .cmdmd-subtab[data-name="${escAttr(name)}"]`);
+        if (btn) btn.classList.add('missing');
+      }
     }
-    const rendered = typeof marked !== 'undefined' ? marked.parse(data.content) : `<pre>${escHtml(data.content)}</pre>`;
-    el.innerHTML = `<div class="claudemd-header"><span class="claudemd-project">${escHtml(name)}</span><span class="claudemd-path">${escHtml(data.path || 'CLAUDE.md')}</span></div><div class="md-body">${rendered}</div>`;
+
+    // Build pane if it doesn't exist yet
+    let pane = null;
+    panesEl.querySelectorAll('.cmdmd-pane').forEach(p => { if (p.dataset.name === name) pane = p; });
+
+    if (!pane) {
+      const data = _claudeMdCache[name];
+      pane = document.createElement('div');
+      pane.className = 'cmdmd-pane';
+      pane.dataset.name = name;
+      if (!data.content) {
+        pane.innerHTML = `<div class="cmdmd-missing-msg">Nenhum CLAUDE.md encontrado em <code>${escHtml(name)}</code></div>`;
+      } else {
+        const rendered = typeof marked !== 'undefined' ? marked.parse(data.content) : `<pre>${escHtml(data.content)}</pre>`;
+        pane.innerHTML = `<div class="md-body">${rendered}</div>`;
+      }
+      panesEl.appendChild(pane);
+    }
+
+    // Activate correct pane, hide all others
+    panesEl.querySelectorAll('.cmdmd-pane').forEach(p => p.classList.remove('active'));
+    pane.classList.add('active');
   }
+
+  window.switchCmdmdTab = async function(name) {
+    _cmdmdActiveTab = name;
+    localStorage.setItem('cm-claudemd-active', name);
+
+    // Update active state on tab buttons
+    document.querySelectorAll('#cmdmd-subtabs .cmdmd-subtab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.name === name);
+    });
+
+    const panesEl = document.getElementById('cmdmd-panes');
+    if (panesEl) await _showCmdmdPane(name, panesEl);
+  };
 
   // ── Account/Uso tab ────────────────────────────────────────────────────────
   let _accountData = null;
@@ -3871,6 +4127,108 @@ document.addEventListener('keydown', (e) => {
     loadDiff(project, filePath, null);
   };
 
+  // ── Agents tab ─────────────────────────────────────────────────────────────
+  window.renderAgentsTab = function renderAgentsTab() {
+    if (panelCollapsed) return;
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (!activeTab || activeTab.id !== 'tab-btn-agents') return;
+    const listEl = document.getElementById('agents-tab-list');
+    if (!listEl) return;
+
+    const allAgents = [];
+    for (const [name, data] of Object.entries(allProjects)) {
+      for (const agent of (data.active_agents || [])) {
+        allAgents.push({ ...agent, _project: name });
+      }
+    }
+
+    if (allAgents.length === 0) {
+      listEl.innerHTML = '<div class="agents-tab-empty">Sem agentes activos ou recentes.</div>';
+      return;
+    }
+
+    allAgents.sort((a, b) => {
+      if (a.state === 'running' && b.state !== 'running') return -1;
+      if (a.state !== 'running' && b.state === 'running') return 1;
+      return (b.started_at || '').localeCompare(a.started_at || '');
+    });
+
+    listEl.innerHTML = allAgents.map((agent, idx) => {
+      const sectionId = `agent-sec-${idx}`;
+      const isRunning = agent.state === 'running';
+      const rawTask = agent.task || '(sem descrição)';
+      const task = rawTask.length > 80 ? rawTask.slice(0, 80) + '…' : rawTask;
+
+      let meta = '';
+      if (agent.started_at) {
+        if (agent.state === 'done' && agent.finished_at) {
+          try {
+            const secs = Math.round((new Date(agent.finished_at) - new Date(agent.started_at)) / 1000);
+            meta = secs >= 60 ? Math.floor(secs / 60) + 'm ' + (secs % 60) + 's' : secs + 's';
+          } catch (e) { meta = ''; }
+        } else {
+          meta = fmt_time(agent.started_at);
+        }
+      }
+      const toolMeta = (agent.tools_used || 0) > 0 ? ` · ${agent.tools_used} tools` : '';
+
+      const events = agent.events || [];
+      let eventsHtml;
+      if (events.length === 0) {
+        eventsHtml = '<div style="color:var(--text-dim);font-size:0.75rem;padding:8px 12px;">Sem eventos registados</div>';
+      } else {
+        eventsHtml = events.map((e, ei) => {
+          const eId = `agent-evt-${idx}-${ei}`;
+          const col = debugToolColor(e.tool);
+          const hookCls = { PreToolUse: 'debug-hook-pre', PostToolUse: 'debug-hook-post', Notification: 'debug-hook-notif' }[e.hook] || 'debug-hook-notif';
+          const statusCls = { success: 'debug-status-success', error: 'debug-status-error', working: 'debug-status-working', info: 'debug-status-info' }[e.status] || 'debug-status-info';
+          const dur = e.duration_ms != null
+            ? `<span class="debug-dur">${e.duration_ms < 1000 ? e.duration_ms + 'ms' : (e.duration_ms / 1000).toFixed(1) + 's'}</span>`
+            : '';
+          const toolBadge = e.tool
+            ? `<span class="debug-tool-badge dtool-${e.tool}" style="--tc:${col}">${escHtml(e.tool)}</span>`
+            : '';
+          const msgText = e.message ? (e.message.length > 100 ? e.message.slice(0, 100) + '…' : e.message) : '';
+          let detailHtml = '';
+          if (e.input && typeof e.input === 'object') {
+            const kvs = Object.entries(e.input)
+              .map(([k, v]) => `<div class="debug-kv-pair"><span class="debug-kv-key">${escHtml(k)}</span><span class="debug-kv-val">${escHtml(String(v))}</span></div>`)
+              .join('');
+            if (kvs) detailHtml += `<div class="debug-input-section">${kvs}</div>`;
+          }
+          if (e.output) {
+            const isErr = e.output.startsWith('ERR:');
+            const out = e.output.length > 800 ? e.output.slice(0, 800) + '…' : e.output;
+            detailHtml += `<pre class="debug-detail-code${isErr ? ' debug-detail-code-err' : ''}">${escHtml(out)}</pre>`;
+          }
+          return `<div class="debug-event" id="${eId}" onclick="window._debugToggleExpand('${eId}')">
+            <div class="debug-event-row">
+              <span class="debug-expand-arrow">▶</span>
+              <span class="debug-time">${fmt_time(e.timestamp)}</span>
+              <span class="${hookCls} debug-hook-badge">${e.hook || ''}</span>
+              ${toolBadge}
+              <span class="debug-status-dot ${statusCls}"></span>
+              <span class="debug-msg">${escHtml(msgText)}</span>
+              ${dur}
+            </div>
+            ${detailHtml ? `<div class="debug-event-detail">${detailHtml}</div>` : ''}
+          </div>`;
+        }).join('');
+      }
+
+      return `<div class="agent-section" id="${sectionId}">
+        <div class="agent-section-header" onclick="document.getElementById('${sectionId}').classList.toggle('expanded')">
+          <span class="agent-sec-arrow">▶</span>
+          <span class="agent-sec-badge ${isRunning ? 'running' : 'done'}">${isRunning ? 'RUN' : 'DONE'}</span>
+          <span class="agent-sec-task">${escHtml(task)}</span>
+          <span class="agent-sec-meta">${escHtml(meta + toolMeta)}</span>
+          <span class="agent-sec-proj">${escHtml(agent._project)}</span>
+        </div>
+        <div class="agent-events-list">${eventsHtml}</div>
+      </div>`;
+    }).join('');
+  };
+
   // ── Skills tab ─────────────────────────────────────────────────────────────
   async function loadSkills() {
     try {
@@ -3975,6 +4333,13 @@ document.addEventListener('keydown', (e) => {
   window.openPrefs = function() {
     document.getElementById('prefs-overlay').style.display = '';
     document.getElementById('prefs-panel').classList.add('open');
+    // Load version info once
+    const el = document.getElementById('prefs-version-info');
+    if (el && el.textContent === '—') {
+      fetch('/api/version').then(r => r.json()).then(d => {
+        el.textContent = `v${d.version} · ${d.build_date}`;
+      }).catch(() => {});
+    }
   };
 
   window.closePrefs = function() {
@@ -4001,6 +4366,11 @@ document.addEventListener('keydown', (e) => {
   loadPrefs();
   loadHiddenProjects();
   loadConfig();
+  // Restore roots-info-box collapse state
+  if (localStorage.getItem('cm-roots-info-collapsed') === '1') {
+    const el = document.getElementById('roots-info-box');
+    if (el) el.classList.add('collapsed');
+  }
   // Pre-load skills in background
   loadSkills();
 
