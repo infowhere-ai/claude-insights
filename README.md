@@ -2,7 +2,7 @@
 
 Real-time dashboard for [Claude Code](https://claude.ai/code) sessions. See what Claude is doing across all your projects — current status, active agents, changed files, git diffs, token usage, and a full event log.
 
-![Claude Monitor screenshot](https://github.com/user-attachments/assets/placeholder)
+![Claude Monitor screenshot](docs/screenshot.png)
 
 ## Features
 
