@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # claude-monitor — start/stop/status
-# Uso: ./run.sh [start|stop|status]
+# Usage: ./run.sh [start|stop|status]
 
 set -euo pipefail
 
@@ -16,42 +16,42 @@ yellow() { echo -e "\033[0;33m$*\033[0m"; }
 red()    { echo -e "\033[0;31m$*\033[0m"; }
 info()   { echo -e "\033[0;36m→\033[0m $*"; }
 
-# ── Verificar venv ──────────────────────────────────────────────────────────
+# ── Ensure venv ──────────────────────────────────────────────────────────────
 ensure_venv() {
     if [ ! -f "$VENV/bin/uvicorn" ]; then
-        info "A criar venv e instalar dependências..."
+        info "Creating venv and installing dependencies..."
         python3 -m venv "$VENV"
         "$VENV/bin/pip" install -q -r "$SCRIPT_DIR/requirements.txt"
-        green "✓ Dependências instaladas"
+        green "✓ Dependencies installed"
     fi
 }
 
-# ── Status ──────────────────────────────────────────────────────────────────
+# ── Status ───────────────────────────────────────────────────────────────────
 cmd_status() {
     if [ -f "$PID_FILE" ]; then
         PID="$(cat "$PID_FILE")"
         if kill -0 "$PID" 2>/dev/null; then
-            green "● claude-monitor está a correr (PID $PID)"
+            green "● claude-monitor is running (PID $PID)"
             echo "  URL: $URL"
             echo "  Log: $LOG_FILE"
             return 0
         else
-            yellow "○ claude-monitor não está a correr (PID $PID obsoleto)"
+            yellow "○ claude-monitor is not running (stale PID $PID)"
             rm -f "$PID_FILE"
             return 1
         fi
     else
-        yellow "○ claude-monitor não está a correr"
+        yellow "○ claude-monitor is not running"
         return 1
     fi
 }
 
-# ── Start ───────────────────────────────────────────────────────────────────
+# ── Start ────────────────────────────────────────────────────────────────────
 cmd_start() {
     if [ -f "$PID_FILE" ]; then
         PID="$(cat "$PID_FILE")"
         if kill -0 "$PID" 2>/dev/null; then
-            yellow "claude-monitor já está a correr (PID $PID) — $URL"
+            yellow "claude-monitor is already running (PID $PID) — $URL"
             return 0
         fi
         rm -f "$PID_FILE"
@@ -59,7 +59,7 @@ cmd_start() {
 
     ensure_venv
 
-    info "A iniciar claude-monitor na porta $PORT..."
+    info "Starting claude-monitor on port $PORT..."
     "$VENV/bin/uvicorn" app:app \
         --host 0.0.0.0 \
         --port "$PORT" \
@@ -69,34 +69,34 @@ cmd_start() {
     echo $! > "$PID_FILE"
     PID="$(cat "$PID_FILE")"
 
-    # Aguardar até 10s que o servidor responda
+    # Wait up to 10s for the server to respond
     for i in $(seq 1 20); do
         sleep 0.5
         if curl -sf "$URL/health" > /dev/null 2>&1; then
-            green "✓ claude-monitor a correr (PID $PID)"
+            green "✓ claude-monitor running (PID $PID)"
             echo "  → $URL"
             return 0
         fi
     done
 
-    red "✗ Falhou a iniciar. Ver log: $LOG_FILE"
+    red "✗ Failed to start. Check log: $LOG_FILE"
     cat "$LOG_FILE" | tail -20
     rm -f "$PID_FILE"
     exit 1
 }
 
-# ── Stop ────────────────────────────────────────────────────────────────────
+# ── Stop ─────────────────────────────────────────────────────────────────────
 cmd_stop() {
     if [ ! -f "$PID_FILE" ]; then
-        yellow "claude-monitor não está a correr"
+        yellow "claude-monitor is not running"
         return 0
     fi
 
     PID="$(cat "$PID_FILE")"
     if kill -0 "$PID" 2>/dev/null; then
-        info "A parar claude-monitor (PID $PID)..."
+        info "Stopping claude-monitor (PID $PID)..."
         kill "$PID"
-        # Aguardar até 5s
+        # Wait up to 5s
         for i in $(seq 1 10); do
             sleep 0.5
             kill -0 "$PID" 2>/dev/null || break
@@ -104,14 +104,14 @@ cmd_stop() {
         if kill -0 "$PID" 2>/dev/null; then
             kill -9 "$PID" 2>/dev/null || true
         fi
-        green "✓ claude-monitor parado"
+        green "✓ claude-monitor stopped"
     else
-        yellow "Processo $PID já não existe"
+        yellow "Process $PID no longer exists"
     fi
     rm -f "$PID_FILE"
 }
 
-# ── Dispatch ─────────────────────────────────────────────────────────────────
+# ── Dispatch ──────────────────────────────────────────────────────────────────
 CMD="${1:-status}"
 
 case "$CMD" in
@@ -120,7 +120,7 @@ case "$CMD" in
     restart) cmd_stop; cmd_start ;;
     status)  cmd_status ;;
     *)
-        echo "Uso: $(basename "$0") [start|stop|restart|status]"
+        echo "Usage: $(basename "$0") [start|stop|restart|status]"
         exit 1
         ;;
 esac

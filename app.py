@@ -32,11 +32,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Estado em memória
+# In-memory state
 projects: dict[str, dict] = {}         # project_name -> status dict
 _status_paths: dict[str, Path] = {}    # project_name -> path to status.json
 _mtimes: dict[str, float] = {}         # path_str -> mtime
-_sse_clients: list[asyncio.Queue] = [] # uma queue por cliente SSE
+_sse_clients: list[asyncio.Queue] = [] # one queue per SSE client
 
 # Config: extra roots (beyond PROJECTS_ROOT)
 _CONFIG_FILE = PROJECTS_ROOT / ".claude" / "monitor-roots.json"
@@ -65,7 +65,7 @@ def _save_roots_config() -> None:
 
 
 def _discover() -> None:
-    """Descobre projectos com .claude/status.json em PROJECTS_ROOT e roots extras."""
+    """Discovers projects with .claude/status.json under PROJECTS_ROOT and extra roots."""
     found: set[str] = set()
 
     def _scan_root(root: Path) -> None:
@@ -79,7 +79,7 @@ def _discover() -> None:
     for root in _extra_roots:
         _scan_root(root)
 
-    # Remover projectos cujo ficheiro desapareceu
+    # Remove projects whose status file has disappeared
     gone = set(_status_paths.keys()) - found
     for name in gone:
         _status_paths.pop(name, None)
@@ -109,7 +109,7 @@ async def discovery_loop() -> None:
 
 
 async def poll_loop() -> None:
-    # Espera inicial para deixar o discovery correr primeiro
+    # Initial wait to let discovery run first
     await asyncio.sleep(2)
     while True:
         for name, path in list(_status_paths.items()):
@@ -158,7 +158,7 @@ async def poll_loop() -> None:
 async def startup() -> None:
     _load_roots_config()
     _discover()
-    # Leitura inicial de todos os status.json
+    # Initial read of all status.json files
     for name, path in _status_paths.items():
         data = _read_status(path)
         if data is not None:
@@ -206,13 +206,13 @@ async def get_version():
 
 @app.get("/api/diff")
 async def get_diff(project: str = Query(...), file: str = Query(...)):
-    """Retorna o git diff do ficheiro especificado no projecto."""
+    """Returns the git diff for the specified file in the project."""
     project_path = PROJECTS_ROOT / project
     if not project_path.is_dir():
         return JSONResponse({"error": "project not found"}, status_code=404)
 
     file_path = Path(file)
-    # Aceita path absoluto ou relativo ao projecto
+    # Accepts absolute path or path relative to the project
     if not file_path.is_absolute():
         file_path = project_path / file_path
 
@@ -220,7 +220,7 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
         return JSONResponse({"error": "file not found", "diff": ""})
 
     try:
-        # 1. Tenta diff vs HEAD (ficheiro tracked com alterações não committed)
+        # 1. Try diff vs HEAD (tracked file with uncommitted changes)
         result = subprocess.run(
             ["git", "diff", "HEAD", "--", str(file_path)],
             cwd=str(project_path),
@@ -228,7 +228,7 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
         )
         diff = result.stdout.strip()
 
-        # 2. Se não há diff vs HEAD, tenta staged only
+        # 2. If no diff vs HEAD, try staged only
         if not diff:
             result2 = subprocess.run(
                 ["git", "diff", "--cached", "--", str(file_path)],
@@ -237,9 +237,8 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
             )
             diff = result2.stdout.strip()
 
-        # 3. Apenas para ficheiros UNTRACKED (não conhecidos pelo git) mostra o
-        #    ficheiro completo como novo. Ficheiros tracked sem alterações
-        #    retornam diff vazio — não devem cair neste fallback.
+        # 3. Only for UNTRACKED files (unknown to git) show the full file as new.
+        #    Tracked files with no changes return an empty diff — should not fall through here.
         is_untracked = False
         if not diff:
             ls_result = subprocess.run(
@@ -274,7 +273,7 @@ async def sse_events(request: Request):
     _sse_clients.append(queue)
 
     async def event_generator():
-        # Estado inicial ao conectar
+        # Send initial state on connect
         yield f"data: {json.dumps({'type': 'init', 'projects': projects})}\n\n"
         try:
             while True:
@@ -304,12 +303,12 @@ async def sse_events(request: Request):
 
 @app.websocket("/ws/terminal")
 async def terminal_ws(websocket: WebSocket):
-    """Spawna o claude CLI num PTY e faz bridge com o browser via WebSocket."""
+    """Spawns the claude CLI in a PTY and bridges it to the browser via WebSocket."""
     await websocket.accept()
 
     claude_path = shutil.which("claude")
     if not claude_path:
-        await websocket.send_bytes(b"\r\n\x1b[31mErro: 'claude' nao encontrado no PATH\x1b[0m\r\n")
+        await websocket.send_bytes(b"\r\n\x1b[31mError: 'claude' not found in PATH\x1b[0m\r\n")
         await websocket.close()
         return
 
@@ -358,7 +357,7 @@ async def terminal_ws(websocket: WebSocket):
                 raw = msg.get("bytes") or (msg.get("text", "").encode() if msg.get("text") else None)
                 if not raw:
                     continue
-                # Mensagens de controlo chegam como JSON em texto
+                # Control messages arrive as JSON text
                 try:
                     obj = json.loads(raw)
                     if obj.get("type") == "resize":
@@ -595,9 +594,9 @@ async def update_roots(request: Request):
 
     if action == "add":
         if not p.is_dir():
-            return JSONResponse({"error": f"Directório não encontrado: {p}"}, status_code=400)
+            return JSONResponse({"error": f"Directory not found: {p}"}, status_code=400)
         if p == PROJECTS_ROOT:
-            return JSONResponse({"error": "Essa pasta já é a pasta principal"}, status_code=400)
+            return JSONResponse({"error": "This folder is already the primary folder"}, status_code=400)
         if p not in _extra_roots:
             _extra_roots.append(p)
             _save_roots_config()
@@ -705,7 +704,7 @@ async def get_account():
     }
 
 
-# Serve static — deve ficar por último para não conflituar com as rotas acima
+# Serve static — must be last to avoid conflicting with the routes above
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.is_dir():
     app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")

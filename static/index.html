@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -746,7 +746,7 @@
   .tab-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   /* ── Activity tab ── */
-  /* ── Atividades (dashboard) ── */
+  /* ── Dashboard tab ── */
   .dash-empty {
     display: flex; align-items: center; justify-content: center;
     height: 100%; color: var(--text-dim);
@@ -829,7 +829,7 @@
   .dash-ctx-pct.warn { color: #f9e2af; }
   .dash-ctx-pct.crit { color: var(--red); }
 
-  /* ── Eventos tab ── */
+  /* ── Events tab ── */
   .events-filter-wrap {
     position: sticky; top: 0; z-index: 2;
     display: flex; gap: 6px; padding: 7px 12px;
@@ -922,7 +922,7 @@
     white-space: nowrap; flex-shrink: 0;
   }
 
-  /* ── Contexto tab ── */
+  /* ── Context tab ── */
   .ctx-focused { padding: 8px 12px; overflow-y: auto; }
   .ctx-header { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
   .ctx-project-name { font-size: 1rem; font-weight: 700; font-family: var(--font-mono); color: var(--text); }
@@ -1311,7 +1311,7 @@
   .md-body hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
   .md-body strong { color: var(--text); font-weight: 600; }
 
-  /* ── Account/Uso tab ── */
+  /* ── Account/Usage tab ── */
   .acct-wrap { padding: 14px 16px; display: flex; flex-direction: column; gap: 18px; }
 
   .acct-section-title {
@@ -1892,16 +1892,16 @@
     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
       <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
     </svg>
-    Projectos a monitorar
+    Projects to monitor
   </button>
   <div class="toolbar-spacer"></div>
-  <span id="projects-count" class="toolbar-count">0 projectos</span>
+  <span id="projects-count" class="toolbar-count">0 projects</span>
   <div id="conn-badge" class="badge-conn disconnected">
     <div class="dot"></div>
     <span id="conn-label">offline</span>
   </div>
-  <button class="header-btn" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">☀</button>
-  <button class="header-btn" onclick="openPrefs()" title="Preferências">
+  <button class="header-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">☀</button>
+  <button class="header-btn" onclick="openPrefs()" title="Preferences">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
       <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
     </svg>
@@ -1916,40 +1916,40 @@
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
           <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
         </svg>
-        Projectos a monitorar
+        Projects to monitor
       </div>
-      <button class="proj-filter-close" onclick="closeProjFilter()" title="Fechar">✕</button>
+      <button class="proj-filter-close" onclick="closeProjFilter()" title="Close">✕</button>
     </div>
     <!-- Tabs -->
     <div class="proj-filter-tabs">
-      <button class="proj-filter-tab active" id="tab-projects" onclick="switchFilterTab('projects')">Projectos</button>
-      <button class="proj-filter-tab" id="tab-pastas" onclick="switchFilterTab('pastas')">Pastas monitoradas</button>
+      <button class="proj-filter-tab active" id="tab-projects" onclick="switchFilterTab('projects')">Projects</button>
+      <button class="proj-filter-tab" id="tab-pastas" onclick="switchFilterTab('pastas')">Monitored folders</button>
     </div>
-    <!-- Tab: Projectos -->
+    <!-- Tab: Projects -->
     <div id="panel-projects" style="display:contents">
       <div class="proj-filter-body" id="proj-filter-list"></div>
       <div class="proj-filter-footer">
         <span class="proj-filter-count" id="proj-filter-count"></span>
-        <button class="proj-filter-btn-all" onclick="setProjFilterAll()">Mostrar todos</button>
-        <button class="proj-filter-btn-apply" onclick="closeProjFilter()">Fechar</button>
+        <button class="proj-filter-btn-all" onclick="setProjFilterAll()">Show all</button>
+        <button class="proj-filter-btn-apply" onclick="closeProjFilter()">Close</button>
       </div>
     </div>
-    <!-- Tab: Pastas -->
+    <!-- Tab: Folders -->
     <div id="panel-pastas" style="display:none; flex:1; overflow-y:auto; flex-direction:column;">
       <div class="roots-section">
         <div id="roots-list"></div>
         <div class="roots-add-row">
-          <input class="roots-input" id="roots-input" type="text" placeholder="/caminho/para/directório" onkeydown="if(event.key==='Enter')addRoot()">
-          <button class="roots-browse-btn" onclick="openDirBrowser()" title="Navegar directórios">📂</button>
-          <button class="roots-add-btn" onclick="addRoot()">Adicionar</button>
+          <input class="roots-input" id="roots-input" type="text" placeholder="/path/to/directory" onkeydown="if(event.key==='Enter')addRoot()">
+          <button class="roots-browse-btn" onclick="openDirBrowser()" title="Browse directories">📂</button>
+          <button class="roots-add-btn" onclick="addRoot()">Add</button>
         </div>
         <div class="roots-error" id="roots-error"></div>
-        <div class="roots-hint">Adicione pastas extra para descobrir projectos fora do directório principal.</div>
+        <div class="roots-hint">Add extra folders to discover projects outside the main directory.</div>
       </div>
     </div>
     <div class="proj-filter-footer" id="panel-pastas-footer" style="display:none">
       <span class="proj-filter-count" id="roots-count"></span>
-      <button class="proj-filter-btn-apply" onclick="closeProjFilter()">Fechar</button>
+      <button class="proj-filter-btn-apply" onclick="closeProjFilter()">Close</button>
     </div>
   </div>
 </div>
@@ -1958,13 +1958,13 @@
 <div class="dir-browser-overlay" id="dir-browser-overlay" onclick="if(event.target===this)closeDirBrowser()">
   <div class="dir-browser-modal">
     <div class="dir-browser-header">
-      <button class="dir-browser-up" id="dir-browser-up" onclick="dirBrowserUp()">↑ Acima</button>
+      <button class="dir-browser-up" id="dir-browser-up" onclick="dirBrowserUp()">↑ Up</button>
       <span class="dir-browser-path" id="dir-browser-path">/</span>
     </div>
     <div class="dir-browser-list" id="dir-browser-list"></div>
     <div class="dir-browser-footer">
-      <button class="dir-browser-cancel" onclick="closeDirBrowser()">Cancelar</button>
-      <button class="dir-browser-select" onclick="selectCurrentDir()">Seleccionar esta pasta</button>
+      <button class="dir-browser-cancel" onclick="closeDirBrowser()">Cancel</button>
+      <button class="dir-browser-select" onclick="selectCurrentDir()">Select this folder</button>
     </div>
   </div>
 </div>
@@ -1979,13 +1979,13 @@
           <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
           <path d="M4.285 9.567a.5.5 0 0 1 .683.183A3.498 3.498 0 0 0 8 11.5a3.498 3.498 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.498 4.498 0 0 1 8 12.5a4.498 4.498 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683z"/>
         </svg>
-        <p>Aguardando projectos activos…</p>
-        <p style="font-family:var(--font-mono);font-size:0.77rem;color:var(--text-dim)">hooks escrevem em .claude/status.json</p>
+        <p>Waiting for active projects…</p>
+        <p style="font-family:var(--font-mono);font-size:0.77rem;color:var(--text-dim)">hooks write to .claude/status.json</p>
       </div>
     </div>
     <div class="roots-info-box" id="roots-info-box">
       <div class="roots-info-label" onclick="toggleRootsInfoBox()">
-        <span class="roots-info-chevron">›</span>📁 Pastas monitoradas
+        <span class="roots-info-chevron">›</span>📁 Monitored folders
       </div>
       <div class="roots-info-list" id="roots-info-list"></div>
     </div>
@@ -2001,7 +2001,7 @@
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" opacity="0.4">
           <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 4.5z"/>
         </svg>
-        <span style="color:var(--text-dim)">clique num ficheiro para ver o diff</span>
+        <span style="color:var(--text-dim)">click a file to view the diff</span>
       </div>
       <div class="diff-header-badges" id="diff-stats"></div>
     </div>
@@ -2011,7 +2011,7 @@
           <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1L14 4.5zM8.5 6.5a.5.5 0 0 0-1 0v3.793L6.354 9.146a.5.5 0 1 0-.708.708l2 2a.5.5 0 0 0 .708 0l2-2a.5.5 0 0 0-.708-.708L8.5 10.293z"/>
         </svg>
         <p>Diff viewer</p>
-        <span class="hint">Clique num ficheiro no painel esquerdo<br>para ver as alterações — como no IntelliJ Local Changes</span>
+        <span class="hint">Click a file in the left panel<br>to see changes — like IntelliJ Local Changes</span>
       </div>
     </div>
   </div>
@@ -2030,13 +2030,13 @@
           <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9M3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708z"/>
           <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/>
         </svg>
-        Contexto
+        Context
       </button>
       <button class="tab-btn" id="tab-btn-events" onclick="switchTab('events')">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
           <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
         </svg>
-        Eventos
+        Events
       </button>
       <button class="tab-btn" id="tab-btn-skills" onclick="switchTab('skills')">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
@@ -2055,7 +2055,7 @@
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
           <path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H14a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 2 7h5.5V6A1.5 1.5 0 0 1 6 4.5zm-6 8A1.5 1.5 0 0 1 1.5 10h1A1.5 1.5 0 0 1 4 11.5v1A1.5 1.5 0 0 1 2.5 14h-1A1.5 1.5 0 0 1 0 12.5zm6 0A1.5 1.5 0 0 1 7.5 10h1a1.5 1.5 0 0 1 1.5 1.5v1A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5zm6 0a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5z"/>
         </svg>
-        Agentes
+        Agents
       </button>
       <button class="tab-btn" id="tab-btn-claudemd" onclick="switchTab('claudemd')">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
@@ -2068,25 +2068,25 @@
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
           <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
         </svg>
-        Conta
+        Account
       </button>
     </div>
     <div class="bottom-panel-actions">
-      <button class="btn-icon" onclick="toggleBottomPanel()" title="Minimizar / Expandir" id="btn-collapse-bottom">
+      <button class="btn-icon" onclick="toggleBottomPanel()" title="Minimize / Expand" id="btn-collapse-bottom">
         <span id="btn-collapse-icon">▲</span>
       </button>
     </div>
   </div>
 
-  <!-- Tab: Contexto -->
+  <!-- Tab: Context -->
   <div class="tab-content active" id="tab-context">
     <div id="ctx-tab-content"></div>
   </div>
 
-  <!-- Tab: Eventos -->
+  <!-- Tab: Events -->
   <div class="tab-content" id="tab-events">
     <div class="events-filter-wrap">
-      <input class="events-filter-input" id="events-filter" type="text" placeholder="Filtrar eventos…" oninput="filterEvents(this.value)">
+      <input class="events-filter-input" id="events-filter" type="text" placeholder="Filter events…" oninput="filterEvents(this.value)">
     </div>
     <div class="events-list-global" id="events-list-global"></div>
   </div>
@@ -2094,7 +2094,7 @@
   <!-- Tab: Skills -->
   <div class="tab-content" id="tab-skills">
     <div class="skills-search-wrap">
-      <input class="skills-search" id="skills-search" type="text" placeholder="Filtrar skills…" oninput="filterSkills(this.value)">
+      <input class="skills-search" id="skills-search" type="text" placeholder="Filter skills…" oninput="filterSkills(this.value)">
     </div>
     <div id="skills-list"></div>
   </div>
@@ -2102,7 +2102,7 @@
   <!-- Tab: Debug -->
   <div class="tab-content" id="tab-debug">
     <div class="debug-toolbar">
-      <input class="debug-filter-input" id="debug-filter" type="text" placeholder="Filtrar por tool, ficheiro, comando…" oninput="renderDebugTab()">
+      <input class="debug-filter-input" id="debug-filter" type="text" placeholder="Filter by tool, file, command…" oninput="renderDebugTab()">
       <div class="debug-tool-chips" id="debug-tool-chips"></div>
       <label class="debug-toggle-label">
         <input type="checkbox" id="debug-show-pre" onchange="renderDebugTab()"> Pre+Post
@@ -2111,7 +2111,7 @@
     <div class="debug-list" id="debug-list"></div>
   </div>
 
-  <!-- Tab: Agentes -->
+  <!-- Tab: Agents -->
   <div class="tab-content" id="tab-agents">
     <div id="agents-tab-list"></div>
   </div>
@@ -2122,9 +2122,9 @@
     <div id="cmdmd-panes" style="flex:1;overflow-y:auto;position:relative;"></div>
   </div>
 
-  <!-- Tab: Conta/Uso -->
+  <!-- Tab: Account/Usage -->
   <div class="tab-content" id="tab-account">
-    <div id="account-content"><div class="claudemd-empty">A carregar…</div></div>
+    <div id="account-content"><div class="claudemd-empty">Loading…</div></div>
   </div>
 </div>
 
@@ -2132,19 +2132,19 @@
 <div class="prefs-overlay" id="prefs-overlay" onclick="closePrefs()"></div>
 <div class="prefs-panel" id="prefs-panel">
   <div class="prefs-header">
-    <span>Preferências</span>
+    <span>Preferences</span>
     <button class="prefs-close" onclick="closePrefs()">×</button>
   </div>
   <div class="prefs-body">
     <div>
-      <div class="prefs-section-title">Tema</div>
+      <div class="prefs-section-title">Theme</div>
       <div class="theme-btns">
         <button class="theme-btn" id="theme-dark-btn" onclick="setTheme('dark')">🌙 Dark</button>
         <button class="theme-btn" id="theme-light-btn" onclick="setTheme('light')">☀ Light</button>
       </div>
     </div>
     <div>
-      <div class="prefs-section-title">Fonte Mono</div>
+      <div class="prefs-section-title">Mono Font</div>
       <select class="prefs-select" id="pref-font-family" onchange="applyPrefs()">
         <option value="">Auto (SF Mono / JetBrains Mono)</option>
         <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
@@ -2153,11 +2153,11 @@
         <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
         <option value="'Roboto Mono', monospace">Roboto Mono</option>
         <option value="'Source Code Pro', monospace">Source Code Pro</option>
-        <option value="monospace">monospace (sistema)</option>
+        <option value="monospace">monospace (system)</option>
       </select>
     </div>
     <div>
-      <div class="prefs-section-title">Tamanho do Texto</div>
+      <div class="prefs-section-title">Text Size</div>
       <div class="prefs-range-row">
         <input class="prefs-range" id="pref-font-size" type="range" min="10" max="18" step="1" oninput="applyPrefs(); document.getElementById('pref-font-size-val').textContent = this.value + 'px'">
         <span class="prefs-range-val" id="pref-font-size-val">13px</span>
@@ -2165,7 +2165,7 @@
     </div>
     <div class="prefs-footer">
       <div class="prefs-footer-brand">
-        Desenvolvido por <a href="https://infowhere.ai" target="_blank">Infowhere.ai</a>
+        Developed by <a href="https://infowhere.ai" target="_blank">Infowhere.ai</a>
       </div>
       <div class="prefs-footer-meta" id="prefs-version-info">—</div>
     </div>
@@ -2177,7 +2177,7 @@
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div class="modal-title" id="modal-title"></div>
-      <button class="modal-close" onclick="closeEventModal()" title="Fechar (Esc)">×</button>
+      <button class="modal-close" onclick="closeEventModal()" title="Close (Esc)">×</button>
     </div>
     <div class="modal-body">
       <div class="modal-message" id="modal-message"></div>
@@ -2238,7 +2238,7 @@ function fmt_time(ts) {
   if (!ts) return '';
   try {
     const d = new Date(ts);
-    return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch { return ''; }
 }
 
@@ -2257,7 +2257,7 @@ function state_label(state) {
 function short_path(p) {
   if (!p) return '';
   const parts = p.replace(/\\/g, '/').split('/');
-  // Mostra últimos 2-3 segmentos
+  // Show last 2-3 segments
   return parts.slice(-3).join('/');
 }
 
@@ -2276,7 +2276,7 @@ function parse_hunk_header(line) {
 
 function render_diff(diffText) {
   if (!diffText || !diffText.trim()) {
-    return '<div class="diff-placeholder"><p style="color:var(--text-dim);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Sem alterações detectadas</p></div>';
+    return '<div class="diff-placeholder"><p style="color:var(--text-dim);font-family:var(--font-mono);font-size:0.92rem;padding:40px">No changes detected</p></div>';
   }
 
   const lines = diffText.split('\n');
@@ -2333,14 +2333,14 @@ function escHtml(s) {
 // ── Diff loader ───────────────────────────────────────────────────────────────
 
 async function loadDiff(project, filePath, fileEl) {
-  // Marca activo
+  // Mark active
   if (activeFile && activeFile.element) {
     activeFile.element.classList.remove('active');
   }
   activeFile = { project, path: filePath, element: fileEl };
   fileEl.classList.add('active');
 
-  // Atualiza header
+  // Update header
   const titleEl = document.getElementById('diff-title');
   const statsEl = document.getElementById('diff-stats');
   const bodyEl = document.getElementById('diff-body');
@@ -2358,7 +2358,7 @@ async function loadDiff(project, filePath, fileEl) {
 
   // Loading
   if (placeholderEl) placeholderEl.remove();
-  bodyEl.innerHTML = '<div class="diff-loading"><div class="spinner"></div> A carregar diff…</div>';
+  bodyEl.innerHTML = '<div class="diff-loading"><div class="spinner"></div> Loading diff…</div>';
 
   try {
     const params = new URLSearchParams({ project, file: filePath });
@@ -2366,21 +2366,21 @@ async function loadDiff(project, filePath, fileEl) {
     const data = await resp.json();
 
     if (data.error) {
-      bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Erro: ${escHtml(data.error)}</p></div>`;
+      bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Error: ${escHtml(data.error)}</p></div>`;
       return;
     }
 
     if (!data.diff) {
-      // Ficheiro tracked sem alterações pendentes
+      // Tracked file with no pending changes
       const shortName = basename(filePath);
       bodyEl.innerHTML = `<div class="diff-placeholder">
         <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" opacity="0.25" style="margin-bottom:10px">
           <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
         </svg>
         <p style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text-dim)">
-          Sem alterações pendentes em <span style="color:var(--text-muted)">${escHtml(shortName)}</span>
+          No pending changes in <span style="color:var(--text-muted)">${escHtml(shortName)}</span>
         </p>
-        <p style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-dim);margin-top:4px">ficheiro committed e sem modificações locais</p>
+        <p style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-dim);margin-top:4px">file committed with no local modifications</p>
       </div>`;
       statsEl.innerHTML = '';
       return;
@@ -2396,7 +2396,7 @@ async function loadDiff(project, filePath, fileEl) {
         ${result.dels > 0 ? `<span class="diff-stat del">-${result.dels}</span>` : ''}`;
     }
   } catch (e) {
-    bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Falha na ligação</p></div>`;
+    bodyEl.innerHTML = `<div class="diff-placeholder"><p style="color:var(--red);font-family:var(--font-mono);font-size:0.92rem;padding:40px">Connection failed</p></div>`;
   }
 }
 
@@ -2521,7 +2521,7 @@ function render_pending_files(files, projectName) {
     return `<div class="pending-clean">✓ working tree clean</div>`;
   }
   if (filtered.length === 0) {
-    return `<div class="pending-clean">nenhum resultado</div>`;
+    return `<div class="pending-clean">no results</div>`;
   }
 
   // Group by top-level folder
@@ -2540,7 +2540,7 @@ function render_pending_files(files, projectName) {
   const collapsed = _loadCollapsedFolders(projectName);
   return [...groups.entries()].map(([folder, groupFiles]) => {
     const isCollapsed = collapsed.has(folder);
-    const label = folder || '(raiz)';
+    const label = folder || '(root)';
     const gId = 'fg-' + CSS.escape(projectName) + '-' + CSS.escape(folder);
     return `<div class="file-group${isCollapsed ? ' collapsed' : ''}" id="${gId}">
       <div class="file-group-header" onclick="toggleFolderGroup('${escAttr(projectName)}','${escAttr(folder)}')">
@@ -2576,7 +2576,7 @@ function _renderStatusButtons(files, projectName) {
     const label = STATUS_LABELS[s] || s;
     return `<button class="file-type-btn${isHidden ? '' : ' active'}"
       onclick="togglePendingStatus('${CSS.escape(projectName)}','${s}')"
-      title="${isHidden ? 'Mostrar' : 'Ocultar'} ${label}">${label}</button>`;
+      title="${isHidden ? 'Show' : 'Hide'} ${label}">${label}</button>`;
   }).join('');
 }
 
@@ -2624,7 +2624,7 @@ async function loadPendingFiles(projectName) {
       pendingFilters[projectName] = { query: '', hiddenStatuses: _loadHiddenStatuses(projectName) };
     }
     _refreshPendingUI(projectName);
-  } catch (e) { /* ignore network errors */ }
+  } catch (e) { /* ignore */ }
 }
 
 function loadAllPendingFiles() {
@@ -2642,7 +2642,7 @@ function render_events(events, projectName) {
     <div class="event-item event-clickable"
          data-event="${encoded}"
          onclick="showEventDetail(JSON.parse(this.dataset.event))"
-         title="Clique para ver no painel direito">
+         title="Click to view in right panel">
       <span class="event-icon">${EVENT_ICONS[e.status] || '·'}</span>
       <span class="event-time">${fmt_time(e.timestamp)}</span>
       ${e.tool ? `<span class="event-tool">${escHtml(e.tool)}</span>` : ''}
@@ -2650,7 +2650,7 @@ function render_events(events, projectName) {
       <span class="event-zoom"
             data-event="${encoded}"
             onclick="event.stopPropagation(); openEventModal(JSON.parse(this.dataset.event))"
-            title="Ver evento completo">
+            title="View full event">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
           <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
         </svg>
@@ -2664,7 +2664,7 @@ function showEventDetail(event) {
   const statsEl = document.getElementById('diff-stats');
   const bodyEl = document.getElementById('diff-body');
 
-  // Limpa ficheiro activo
+  // Clear active file
   if (activeFile && activeFile.element) activeFile.element.classList.remove('active');
   activeFile = null;
 
@@ -2709,17 +2709,17 @@ function render_stats(stats) {
   const agents = stats.sub_agents_total;
   if (agents) {
     const active = stats.sub_agent_active;
-    chips.push(`<span class="stat-agents ${active ? 'active' : ''}" title="Sub-agentes lançados">${active ? '⚡ ' : ''}${agents} agent${agents !== 1 ? 's' : ''}</span>`);
+    chips.push(`<span class="stat-agents ${active ? 'active' : ''}" title="Sub-agents launched">${active ? '⚡ ' : ''}${agents} agent${agents !== 1 ? 's' : ''}</span>`);
   }
   if (!chips.length) return '';
   let html = `<div class="section"><div class="stats-chips">${chips.join('')}</div>`;
   if (stats.week_input_tokens || stats.week_output_tokens) {
     const weekTotal = (stats.week_input_tokens || 0) + (stats.week_output_tokens || 0);
     const sessions = stats.week_sessions || 0;
-    html += `<div class="stats-weekly" title="Tokens consumidos esta semana">${stats.week || ''} · ${fmt_tokens(weekTotal)} tokens · ${sessions} sessão${sessions !== 1 ? 'ões' : ''}</div>`;
+    html += `<div class="stats-weekly" title="Tokens consumed this week">${stats.week || ''} · ${fmt_tokens(weekTotal)} tokens · ${sessions} session${sessions !== 1 ? 's' : ''}</div>`;
   }
   if (stats.last_compact_at) {
-    html += `<div class="stats-compact" title="Última compactação">compact ${fmt_time(stats.last_compact_at)}${stats.last_compact_trigger ? ' · ' + escHtml(stats.last_compact_trigger) : ''}</div>`;
+    html += `<div class="stats-compact" title="Last compaction">compact ${fmt_time(stats.last_compact_at)}${stats.last_compact_trigger ? ' · ' + escHtml(stats.last_compact_trigger) : ''}</div>`;
   }
   html += '</div>';
   return html;
@@ -2820,7 +2820,7 @@ function render_card(name, data) {
       </div>
     </div>
     ${action ? `<div class="card-action">${escHtml(action.description)}</div>` : ''}
-    <div class="card-collapsed-hint">clica para expandir</div>
+    <div class="card-collapsed-hint">click to expand</div>
     <div class="card-body ${isExpanded ? 'open' : ''}">
       ${notif ? `
       <div class="section">
@@ -2832,11 +2832,11 @@ function render_card(name, data) {
       <div class="section${(() => { try { const s = JSON.parse(localStorage.getItem('cm-files-collapsed') || '{}'); return s[name] ? ' files-section-collapsed' : ''; } catch { return ''; } })()}" id="files-section-${CSS.escape(name)}">
         <div class="files-header" onclick="toggleFilesSection(${JSON.stringify(name)})">
           <span class="files-header-chevron">›</span>
-          <span class="section-label">Para Commitar</span>
+          <span class="section-label">To Commit</span>
           <span class="files-count" id="pending-count-${CSS.escape(name)}">${(pendingFiles[name] || []).length || ''}</span>
         </div>
         <div class="files-toolbar">
-          <input class="files-search" placeholder="Filtrar…" data-project="${escAttr(name)}"
+          <input class="files-search" placeholder="Filter…" data-project="${escAttr(name)}"
             oninput="filterPendingInCard(this)"
             value="${escAttr((pendingFilters[name] || {}).query || '')}">
           <div class="files-type-filters" id="pending-statuses-${CSS.escape(name)}">${_renderStatusButtons(pendingFiles[name] || [], name)}</div>
@@ -2862,12 +2862,12 @@ function renderAgents(projectEl, agents) {
 
   const panel = document.createElement('div');
   panel.className = 'agents-panel';
-  panel.innerHTML = `<div class="agents-panel-title">Sub-agentes (${running.length} a correr)</div>`;
+  panel.innerHTML = `<div class="agents-panel-title">Sub-agents (${running.length} running)</div>`;
 
   visible.forEach(agent => {
     const row = document.createElement('div');
     row.className = 'agent-row';
-    const task = (agent.task || 'Sub-agente').slice(0, 60);
+    const task = (agent.task || 'Sub-agent').slice(0, 60);
     const tool = agent.current_tool ? `▶ ${agent.current_tool}` : (agent.state === 'done' ? `✓ ${agent.tools_used || 0} tools` : '');
     row.innerHTML = `
       <span class="agent-badge ${agent.state === 'running' ? 'running' : 'done'}">${agent.state === 'running' ? 'RUN' : 'DONE'}</span>
@@ -2962,15 +2962,15 @@ function renderProjFilterList() {
   if (!list) return;
   const names = Object.keys(allProjects).sort();
   if (names.length === 0) {
-    list.innerHTML = '<div class="proj-filter-empty">Nenhum projecto descoberto ainda.</div>';
+    list.innerHTML = '<div class="proj-filter-empty">No projects discovered yet.</div>';
     if (countEl) countEl.textContent = '';
     return;
   }
   const hiddenCount = hiddenProjects.size;
   if (countEl) {
     countEl.textContent = hiddenCount === 0
-      ? `Todos os ${names.length} projectos visíveis`
-      : `${hiddenCount} oculto${hiddenCount !== 1 ? 's' : ''} de ${names.length}`;
+      ? `All ${names.length} projects visible`
+      : `${hiddenCount} hidden of ${names.length}`;
   }
   list.innerHTML = names.map(name => {
     // checked = visible = NOT hidden
@@ -3041,7 +3041,7 @@ function renderRootsList() {
   const countEl = document.getElementById('roots-count');
   if (!el) return;
   const total = 1 + (monitorRoots.extra_roots || []).length;
-  if (countEl) countEl.textContent = `${total} pasta${total !== 1 ? 's' : ''} monitorada${total !== 1 ? 's' : ''}`;
+  if (countEl) countEl.textContent = `${total} monitored folder${total !== 1 ? 's' : ''}`;
 
   const primaryHtml = `<div class="roots-item">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color:var(--text-dim);flex-shrink:0">
@@ -3078,14 +3078,14 @@ async function addRoot() {
       body: JSON.stringify({ action: 'add', path })
     });
     const data = await r.json();
-    if (!r.ok) { errEl.textContent = data.error || 'Erro ao adicionar pasta'; return; }
+    if (!r.ok) { errEl.textContent = data.error || 'Error adding folder'; return; }
     monitorRoots = data;
     input.value = '';
     renderRootsList();
     renderRootsInfoBox();
     Object.keys(allProjects).forEach(n => refreshFileList(n));
   } catch (err) {
-    errEl.textContent = 'Erro de ligação ao servidor';
+    errEl.textContent = 'Server connection error';
   }
 }
 
@@ -3098,13 +3098,13 @@ async function removeRoot(path) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'remove', path })
     });
-    if (!r.ok) { errEl.textContent = 'Erro ao remover pasta'; return; }
+    if (!r.ok) { errEl.textContent = 'Error removing folder'; return; }
     monitorRoots = await r.json();
     renderRootsList();
     renderRootsInfoBox();
     Object.keys(allProjects).forEach(n => refreshFileList(n));
   } catch {
-    errEl.textContent = 'Erro de ligação ao servidor';
+    errEl.textContent = 'Server connection error';
   }
 }
 
@@ -3131,11 +3131,11 @@ async function browseTo(path) {
   const listEl = document.getElementById('dir-browser-list');
   const pathEl = document.getElementById('dir-browser-path');
   const upBtn  = document.getElementById('dir-browser-up');
-  listEl.innerHTML = '<div class="dir-browser-empty">A carregar...</div>';
+  listEl.innerHTML = '<div class="dir-browser-empty">Loading...</div>';
   try {
     const url = path ? `/api/browse?path=${encodeURIComponent(path)}` : '/api/browse';
     const r = await fetch(url);
-    if (!r.ok) { listEl.innerHTML = '<div class="dir-browser-empty">Erro ao carregar directório</div>'; return; }
+    if (!r.ok) { listEl.innerHTML = '<div class="dir-browser-empty">Error loading directory</div>'; return; }
     const data = await r.json();
     if (data.error) { listEl.innerHTML = `<div class="dir-browser-empty">${escHtml(data.error)}</div>`; return; }
     _dirBrowserCurrent = data.current;
@@ -3143,7 +3143,7 @@ async function browseTo(path) {
     pathEl.textContent = data.current;
     upBtn.disabled = !data.parent;
     if (!data.dirs.length) {
-      listEl.innerHTML = '<div class="dir-browser-empty">Nenhuma sub-pasta encontrada</div>';
+      listEl.innerHTML = '<div class="dir-browser-empty">No subdirectories found</div>';
       return;
     }
     listEl.innerHTML = data.dirs.map(d => {
@@ -3151,7 +3151,7 @@ async function browseTo(path) {
       return `<div class="dir-browser-item" data-path="${escHtml(d)}" onclick="browseTo(this.dataset.path)">📁 ${escHtml(name)}</div>`;
     }).join('');
   } catch {
-    listEl.innerHTML = '<div class="dir-browser-empty">Erro de ligação ao servidor</div>';
+    listEl.innerHTML = '<div class="dir-browser-empty">Server connection error</div>';
   }
 }
 
@@ -3187,9 +3187,9 @@ function renderAll() {
 
   const active = visible.filter(([, d]) => d.state === 'working' || d.state === 'waiting').length;
   const filterNote = hiddenProjects.size > 0
-    ? ` · ${hiddenProjects.size} oculto${hiddenProjects.size !== 1 ? 's' : ''}`
+    ? ` · ${hiddenProjects.size} hidden`
     : '';
-  count.textContent = `${sorted.length} projecto${sorted.length !== 1 ? 's' : ''}${active ? ` · ${active} activo${active !== 1 ? 's' : ''}` : ''}${filterNote}`;
+  count.textContent = `${sorted.length} project${sorted.length !== 1 ? 's' : ''}${active ? ` · ${active} active` : ''}${filterNote}`;
 
   // Update filter button state
   const filterBtn = document.getElementById('proj-filter-btn');
@@ -3258,13 +3258,13 @@ function connect() {
         if (window.renderEventsTab) window.renderEventsTab();
         if (window.renderDebugTab) window.renderDebugTab();
         if (window.renderAgentsTab) window.renderAgentsTab();
-        // Se o ficheiro activo é deste projecto, refresca o diff
+        // If the active file belongs to this project, refresh the diff
         if (activeFile && activeFile.project === msg.project_name && activeFile.element) {
           const el = activeFile.element;
           loadDiff(activeFile.project, activeFile.path, el);
         }
       }
-    } catch { /* ignorar */ }
+    } catch { /* ignore */ }
   };
   es.onerror = () => set_conn('reconnecting');
 }
@@ -3303,7 +3303,7 @@ function closeEventModal(e) {
   document.getElementById('event-modal').style.display = 'none';
 }
 
-// Fix: garante que o backdrop fecha ao clicar fora do modal (não no conteúdo)
+// Fix: ensures the backdrop closes when clicking outside the modal (not on the content)
 document.getElementById('event-modal').addEventListener('click', function(e) {
   if (e.target === this) this.style.display = 'none';
 });
@@ -3431,7 +3431,7 @@ document.addEventListener('keydown', (e) => {
 
     const entries = Object.entries(allProjects);
     if (entries.length === 0) {
-      list.innerHTML = '<div class="activity-empty">Sem projectos monitorados…</div>';
+      list.innerHTML = '<div class="activity-empty">No monitored projects…</div>';
       return;
     }
 
@@ -3459,7 +3459,7 @@ document.addEventListener('keydown', (e) => {
       const ctxRemPct  = 100 - ctxUsedPct; // remaining until auto-compact (like Claude Code)
       // 0-50% used = green, 51-80% = yellow, 81-100% = red
       const ctxCls = ctxUsedPct >= 81 ? 'crit' : ctxUsedPct >= 51 ? 'warn' : 'ok';
-      // Label shows remaining % (= "X% até compact"), like Claude Code's "X% until auto-compact"
+      // Label shows remaining % (= "X% until compact"), like Claude Code's "X% until auto-compact"
       const ctxLabel = ctxTokens > 0 ? `${ctxUsedPct}%` : '';
       // Bar width = used% (fills up as context grows); label shows remaining%
       const ctxBarW = ctxTokens > 0 ? Math.max(1, ctxUsedPct) : 0;
@@ -3480,7 +3480,7 @@ document.addEventListener('keydown', (e) => {
         const nextTime = parseNextSession(notif.message);
         rateLimitHtml = `
         <div class="dash-rate-limit" title="${escAttr(notif.message)}">
-          ⚠ Rate limit${nextTime ? ` · próxima sessão: <span class="dash-next-session">${escHtml(nextTime)}</span>` : ''}
+          ⚠ Rate limit${nextTime ? ` · next session: <span class="dash-next-session">${escHtml(nextTime)}</span>` : ''}
         </div>`;
       }
 
@@ -3495,7 +3495,7 @@ document.addEventListener('keydown', (e) => {
       let agentsHtml = '';
       if (stats.sub_agents_total) {
         const active = stats.sub_agent_active ? ' ⚡' : '';
-        agentsHtml = `<span class="dash-agents" title="Sub-agentes">${active}${stats.sub_agents_total} agent${stats.sub_agents_total !== 1 ? 's' : ''}</span>`;
+        agentsHtml = `<span class="dash-agents" title="Sub-agents">${active}${stats.sub_agents_total} agent${stats.sub_agents_total !== 1 ? 's' : ''}</span>`;
       }
 
       return `
@@ -3509,20 +3509,20 @@ document.addEventListener('keydown', (e) => {
         ${action ? `<div class="dash-action">${escHtml(action.description || '')}</div>` : ''}
         ${rateLimitHtml}
         ${sessTotal > 0 ? `
-        <div class="dash-ctx-bar-wrap" title="Usado: ${ctxUsedPct}% · Faltam ${ctxRemPct}% até compact · ${fmt_tokens(ctxTokens)} de ${fmt_tokens(ctxWindow)}">
+        <div class="dash-ctx-bar-wrap" title="Used: ${ctxUsedPct}% · ${ctxRemPct}% remaining until compact · ${fmt_tokens(ctxTokens)} of ${fmt_tokens(ctxWindow)}">
           <div class="dash-ctx-bar ${ctxCls}" style="width:${ctxBarW}%"></div>
         </div>
         <div class="dash-ctx-meta">
           <span class="dash-ctx-pct ${ctxCls}">${ctxLabel} <span class="dash-ctx-label">ctx</span></span>
-          <span class="dash-ctx-label" title="in: ${fmt_tokens(sessIn)} · out: ${fmt_tokens(sessOut)}">${fmt_tokens(sessTotal)} sessão</span>
+          <span class="dash-ctx-label" title="in: ${fmt_tokens(sessIn)} · out: ${fmt_tokens(sessOut)}">${fmt_tokens(sessTotal)} session</span>
         </div>
         ${weekTotal > 0 ? `<div class="dash-tok-inline">
           <span class="dash-tok-inline-item">
-            <span class="dash-tok-inline-label">${stats.week || 'semana'}</span>
+            <span class="dash-tok-inline-label">${stats.week || 'week'}</span>
             <span class="dash-tok-inline-val">${fmt_tokens(weekTotal)}</span>
           </span>
           <span class="dash-tok-inline-item">
-            <span class="dash-tok-inline-label">sessões</span>
+            <span class="dash-tok-inline-label">sessions</span>
             <span class="dash-tok-inline-val">${weekSessions}</span>
           </span>
         </div>` : ''}` : ''}
@@ -3547,7 +3547,7 @@ document.addEventListener('keydown', (e) => {
     const names = Object.keys(allProjects);
     if (names.length === 0) {
       tabsEl.innerHTML = '';
-      panesEl.innerHTML = '<div class="claudemd-empty">Sem projectos monitorizados…</div>';
+      panesEl.innerHTML = '<div class="claudemd-empty">No monitored projects…</div>';
       return;
     }
 
@@ -3596,7 +3596,7 @@ document.addEventListener('keydown', (e) => {
       pane.className = 'cmdmd-pane';
       pane.dataset.name = name;
       if (!data.content) {
-        pane.innerHTML = `<div class="cmdmd-missing-msg">Nenhum CLAUDE.md encontrado em <code>${escHtml(name)}</code></div>`;
+        pane.innerHTML = `<div class="cmdmd-missing-msg">No CLAUDE.md found in <code>${escHtml(name)}</code></div>`;
       } else {
         const rendered = typeof marked !== 'undefined' ? marked.parse(data.content) : `<pre>${escHtml(data.content)}</pre>`;
         pane.innerHTML = `<div class="md-body">${rendered}</div>`;
@@ -3656,7 +3656,7 @@ document.addEventListener('keydown', (e) => {
     if (!el) return;
 
     if (!_accountData) {
-      el.innerHTML = '<div class="claudemd-empty">A carregar…</div>';
+      el.innerHTML = '<div class="claudemd-empty">Loading…</div>';
       loadAccountData();
       return;
     }
@@ -3674,10 +3674,10 @@ document.addEventListener('keydown', (e) => {
     // Tokens grid
     const tokensHtml = `
       <div class="acct-tokens-grid">
-        <div class="acct-token-card"><div class="acct-token-label">Input (semana)</div><div class="acct-token-value inp">${fmtTokens(tw.input || 0)}</div></div>
-        <div class="acct-token-card"><div class="acct-token-label">Output (semana)</div><div class="acct-token-value out">${fmtTokens(tw.output || 0)}</div></div>
-        <div class="acct-token-card"><div class="acct-token-label">Cache criado</div><div class="acct-token-value ccr">${fmtTokens(tw.cache_creation || 0)}</div></div>
-        <div class="acct-token-card"><div class="acct-token-label">Cache lido</div><div class="acct-token-value crd">${fmtTokens(tw.cache_read || 0)}</div></div>
+        <div class="acct-token-card"><div class="acct-token-label">Input (week)</div><div class="acct-token-value inp">${fmtTokens(tw.input || 0)}</div></div>
+        <div class="acct-token-card"><div class="acct-token-label">Output (week)</div><div class="acct-token-value out">${fmtTokens(tw.output || 0)}</div></div>
+        <div class="acct-token-card"><div class="acct-token-label">Cache created</div><div class="acct-token-value ccr">${fmtTokens(tw.cache_creation || 0)}</div></div>
+        <div class="acct-token-card"><div class="acct-token-label">Cache read</div><div class="acct-token-value crd">${fmtTokens(tw.cache_read || 0)}</div></div>
       </div>`;
 
     // Activity chart — last 14 days from daily_activity
@@ -3688,7 +3688,7 @@ document.addEventListener('keydown', (e) => {
       const d2 = new Date(now); d2.setDate(d2.getDate() - i);
       const dateStr = d2.toISOString().split('T')[0];
       const found = activity.find(a => a.date === dateStr) || { messageCount: 0, toolCallCount: 0, sessionCount: 0 };
-      days14.push({ date: dateStr, day: d2.toLocaleDateString('pt', { weekday: 'narrow' }), dayNum: d2.getDate(), ...found });
+      days14.push({ date: dateStr, day: d2.toLocaleDateString('en', { weekday: 'narrow' }), dayNum: d2.getDate(), ...found });
     }
     const maxMsg = Math.max(...days14.map(d => d.messageCount), 1);
     const maxTool = Math.max(...days14.map(d => d.toolCallCount), 1);
@@ -3696,7 +3696,7 @@ document.addEventListener('keydown', (e) => {
       const msgH = Math.round((d.messageCount / maxMsg) * 44);
       const toolH = Math.round((d.toolCallCount / maxTool) * 44);
       const isToday = d.date === now.toISOString().split('T')[0];
-      return `<div class="acct-bar-col" title="${d.date}&#10;${d.messageCount} msgs · ${d.sessionCount} sessões · ${d.toolCallCount} tools">
+      return `<div class="acct-bar-col" title="${d.date}&#10;${d.messageCount} msgs · ${d.sessionCount} sessions · ${d.toolCallCount} tools">
         <div class="acct-bar msg-bar" style="height:${msgH}px;opacity:${isToday ? '1' : '0.75'}"></div>
       </div>`;
     }).join('');
@@ -3715,7 +3715,7 @@ document.addEventListener('keydown', (e) => {
     el.innerHTML = `
       <div class="acct-wrap">
         <div>
-          <div class="acct-section-title">Modelo &amp; Plano</div>
+          <div class="acct-section-title">Model &amp; Plan</div>
           <div class="acct-model-row">
             <span class="acct-model-badge">${escHtml(modelShort)}</span>
             ${d.service_tier ? `<span class="acct-tier-badge">${escHtml(d.service_tier)}</span>` : ''}
@@ -3723,22 +3723,22 @@ document.addEventListener('keydown', (e) => {
           </div>
         </div>
         <div>
-          <div class="acct-section-title">Tokens esta semana</div>
+          <div class="acct-section-title">Tokens this week</div>
           ${tokensHtml}
         </div>
         <div>
-          <div class="acct-section-title">Actividade (14 dias) · ${fmtTokens(weekMsgs)} msgs · ${weekSessions} sessões esta semana</div>
+          <div class="acct-section-title">Activity (14 days) · ${fmtTokens(weekMsgs)} msgs · ${weekSessions} sessions this week</div>
           <div class="acct-chart-wrap">
             <div class="acct-chart">${chartBars}</div>
             <div class="acct-chart-labels">${labelRow}</div>
             <div class="acct-chart-legend">
-              <div class="acct-legend-item"><div class="acct-legend-dot" style="background:var(--blue)"></div>Mensagens</div>
+              <div class="acct-legend-item"><div class="acct-legend-dot" style="background:var(--blue)"></div>Messages</div>
             </div>
           </div>
         </div>
         <div style="font-size:0.75rem;color:var(--text-dim);font-family:var(--font-mono)">
-          Total histórico: ${fmtTokens(totalMsgs)} msgs · ${fmtTokens(totalSessions)} sessões · ${fmtTokens(totalTools)} tool calls
-          <span style="float:right;cursor:pointer;color:var(--blue)" onclick="loadAccountData(true)">↻ actualizar</span>
+          Historical total: ${fmtTokens(totalMsgs)} msgs · ${fmtTokens(totalSessions)} sessions · ${fmtTokens(totalTools)} tool calls
+          <span style="float:right;cursor:pointer;color:var(--blue)" onclick="loadAccountData(true)">↻ refresh</span>
         </div>
       </div>`;
   }
@@ -3754,7 +3754,7 @@ document.addEventListener('keydown', (e) => {
 
     const entries = Object.entries(allProjects);
     if (entries.length === 0) {
-      el.innerHTML = '<div class="ctx-empty">Sem projectos monitorizados…</div>';
+      el.innerHTML = '<div class="ctx-empty">No monitored projects…</div>';
       return;
     }
 
@@ -3808,7 +3808,7 @@ document.addEventListener('keydown', (e) => {
     if (notif && notif.message) {
       const nextTime = parseNextSession(notif.message);
       rateLimitHtml = `<div class="ctx-rate-limit">⚠ Rate limit${nextTime
-        ? ` · próxima sessão: <strong>${escHtml(nextTime)}</strong>` : ''}</div>`;
+        ? ` · next session: <strong>${escHtml(nextTime)}</strong>` : ''}</div>`;
     }
 
     // Other projects (not the focused one)
@@ -3827,22 +3827,22 @@ document.addEventListener('keydown', (e) => {
       ${rateLimitHtml}
 
       <div class="ctx-ctx-section">
-        <div class="ctx-ctx-bar-wrap" title="Usado: ${ctxUsedPct}% · Faltam ${ctxRemPct}% até compact · ${fmt_tokens(ctxTokens)} de ${fmt_tokens(ctxWindow)}">
+        <div class="ctx-ctx-bar-wrap" title="Used: ${ctxUsedPct}% · ${ctxRemPct}% remaining until compact · ${fmt_tokens(ctxTokens)} of ${fmt_tokens(ctxWindow)}">
           <div class="ctx-ctx-bar ${ctxCls}" style="width:${ctxBarW}%"></div>
         </div>
         <div class="ctx-ctx-stats">
           <span class="ctx-ctx-pct ${ctxCls}">${ctxLabel}</span>
-          <span class="ctx-ctx-label">contexto</span>
+          <span class="ctx-ctx-label">context</span>
           ${sessTotal > 0 ? `
           <span class="ctx-tok-sep">·</span>
-          <span class="ctx-tok" title="in: ${fmt_tokens(sessIn)}  out: ${fmt_tokens(sessOut)}${sessCache > 0 ? '  cache: ' + fmt_tokens(sessCache) : ''}">sessão ${fmt_tokens(sessTotal)}</span>
-          ${weekTotal > 0 ? `<span class="ctx-tok-sep">·</span><span class="ctx-tok" title="${stats.week_sessions || 0} sessões esta semana">semana ${fmt_tokens(weekTotal)}</span>` : ''}
+          <span class="ctx-tok" title="in: ${fmt_tokens(sessIn)}  out: ${fmt_tokens(sessOut)}${sessCache > 0 ? '  cache: ' + fmt_tokens(sessCache) : ''}">session ${fmt_tokens(sessTotal)}</span>
+          ${weekTotal > 0 ? `<span class="ctx-tok-sep">·</span><span class="ctx-tok" title="${stats.week_sessions || 0} sessions this week">week ${fmt_tokens(weekTotal)}</span>` : ''}
           ` : ''}
         </div>
       </div>
 
       ${sessTotal > 0 ? `
-      <div class="ctx-section-title">Tokens desta sessão</div>
+      <div class="ctx-section-title">Tokens this session</div>
       <div class="ctx-tok-grid">
         <div class="ctx-tok-row">
           <span class="ctx-tok-row-label">Input</span>
@@ -3876,10 +3876,10 @@ document.addEventListener('keydown', (e) => {
 
       ${weekTotal > 0 ? `
       <div class="ctx-week-row">
-        <span>${stats.week || 'semana'}</span>
+        <span>${stats.week || 'week'}</span>
         <span class="ctx-week-val">${fmt_tokens(weekTotal)}</span>
         <span>·</span>
-        <span>${stats.week_sessions || 0} sessões</span>
+        <span>${stats.week_sessions || 0} sessions</span>
       </div>` : ''}
 
       ${stats.last_compact_at ? `
@@ -3932,7 +3932,7 @@ document.addEventListener('keydown', (e) => {
     ) : all;
 
     if (filtered.length === 0) {
-      listEl.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:0.92rem">Sem eventos registados</div>';
+      listEl.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:0.92rem">No events recorded</div>';
       return;
     }
 
@@ -3942,7 +3942,7 @@ document.addEventListener('keydown', (e) => {
       <div class="event-item event-clickable"
            data-event="${encoded}"
            onclick="showEventDetail(JSON.parse(this.dataset.event))"
-           title="Clique para ver detalhes">
+           title="Click to view details">
         <span class="event-icon">${EVENT_ICONS[e.status] || '·'}</span>
         <span class="event-time">${fmt_time(e.timestamp)}</span>
         <span class="ev-project-label">${escHtml(e._project)}</span>
@@ -3951,7 +3951,7 @@ document.addEventListener('keydown', (e) => {
         <span class="event-zoom"
               data-event="${encoded}"
               onclick="event.stopPropagation(); openEventModal(JSON.parse(this.dataset.event))"
-              title="Ver evento completo">
+              title="View full event">
           <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
           </svg>
@@ -4029,7 +4029,7 @@ document.addEventListener('keydown', (e) => {
     });
 
     if (filtered.length === 0) {
-      listEl.innerHTML = '<div class="debug-empty">Sem eventos de debug. Execute ferramentas para ver o trace aqui.</div>';
+      listEl.innerHTML = '<div class="debug-empty">No debug events. Run tools to see the trace here.</div>';
       return;
     }
 
@@ -4143,7 +4143,7 @@ document.addEventListener('keydown', (e) => {
     }
 
     if (allAgents.length === 0) {
-      listEl.innerHTML = '<div class="agents-tab-empty">Sem agentes activos ou recentes.</div>';
+      listEl.innerHTML = '<div class="agents-tab-empty">No active or recent agents.</div>';
       return;
     }
 
@@ -4156,7 +4156,7 @@ document.addEventListener('keydown', (e) => {
     listEl.innerHTML = allAgents.map((agent, idx) => {
       const sectionId = `agent-sec-${idx}`;
       const isRunning = agent.state === 'running';
-      const rawTask = agent.task || '(sem descrição)';
+      const rawTask = agent.task || '(no description)';
       const task = rawTask.length > 80 ? rawTask.slice(0, 80) + '…' : rawTask;
 
       let meta = '';
@@ -4175,7 +4175,7 @@ document.addEventListener('keydown', (e) => {
       const events = agent.events || [];
       let eventsHtml;
       if (events.length === 0) {
-        eventsHtml = '<div style="color:var(--text-dim);font-size:0.75rem;padding:8px 12px;">Sem eventos registados</div>';
+        eventsHtml = '<div style="color:var(--text-dim);font-size:0.75rem;padding:8px 12px;">No events recorded</div>';
       } else {
         eventsHtml = events.map((e, ei) => {
           const eId = `agent-evt-${idx}-${ei}`;
@@ -4238,7 +4238,7 @@ document.addEventListener('keydown', (e) => {
       renderSkills(allSkills, '');
     } catch (_) {
       const list = document.getElementById('skills-list');
-      if (list) list.innerHTML = '<div style="color:var(--red);padding:8px 12px;font-size:0.92rem">Erro ao carregar skills</div>';
+      if (list) list.innerHTML = '<div style="color:var(--red);padding:8px 12px;font-size:0.92rem">Error loading skills</div>';
     }
   }
 
@@ -4257,10 +4257,10 @@ document.addEventListener('keydown', (e) => {
     ) : skills;
 
     if (filtered.length === 0) {
-      list.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:0.92rem">Nenhum skill encontrado</div>';
+      list.innerHTML = '<div style="color:var(--text-dim);padding:8px 12px;font-size:0.92rem">No skills found</div>';
       return;
     }
-    const srcLabel = { user: '👤 Pessoal', common: '🌐 Common', private: '🔒 Private', work: '💼 Work' };
+    const srcLabel = { user: '👤 Personal', common: '🌐 Common', private: '🔒 Private', work: '💼 Work' };
     const groups = {};
     for (const s of filtered) { if (!groups[s.source]) groups[s.source] = []; groups[s.source].push(s); }
     list.innerHTML = Object.entries(groups).map(([src, items]) => `
@@ -4278,7 +4278,7 @@ document.addEventListener('keydown', (e) => {
           ${s.description ? `<div class="skill-desc">${escHtml(s.description)}</div>` : ''}
           ${hasBody ? `<div class="skill-body">${escHtml(s.body_intro)}${s.body_intro.length >= 300 ? '…' : ''}</div>
           <button class="skill-expand-btn" onclick="toggleSkill('${escAttr(s.name)}')">
-            <span class="sk-arrow-${escAttr(s.name)}">▶</span> ver mais
+            <span class="sk-arrow-${escAttr(s.name)}">▶</span> see more
           </button>` : ''}
         </div>`;
       }).join('')}
@@ -4294,7 +4294,7 @@ document.addEventListener('keydown', (e) => {
     if (arrow) arrow.textContent = expanded ? '▼' : '▶';
     if (btn) {
       const spans = btn.querySelectorAll('span');
-      btn.childNodes[btn.childNodes.length - 1].textContent = expanded ? ' ver menos' : ' ver mais';
+      btn.childNodes[btn.childNodes.length - 1].textContent = expanded ? ' see less' : ' see more';
     }
   };
 
