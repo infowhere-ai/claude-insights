@@ -159,37 +159,6 @@
   }
 
   /* ── Monitored roots info box ── */
-  .roots-info-box {
-    margin: 0 12px 12px;
-    padding: 10px 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    flex-shrink: 0;
-  }
-  .roots-info-label {
-    font-family: var(--font-mono); font-size: 0.72rem;
-    color: var(--text-dim); text-transform: uppercase;
-    letter-spacing: 0.06em; margin-bottom: 6px;
-    display: flex; align-items: center; gap: 6px;
-    cursor: pointer; user-select: none;
-  }
-  .roots-info-label:hover { color: var(--text); }
-  .roots-info-chevron { font-size: 0.75rem; transition: transform 0.15s; margin-right: 2px; }
-  .roots-info-box.collapsed .roots-info-chevron { transform: rotate(-90deg); }
-  .roots-info-box.collapsed .roots-info-list { display: none; }
-  .roots-info-list {
-    display: flex; flex-direction: column; gap: 3px;
-  }
-  .roots-info-item {
-    font-family: var(--font-mono); font-size: 0.78rem;
-    color: var(--text); overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; display: flex; align-items: center; gap: 5px;
-  }
-  .roots-info-item .roots-info-icon { color: var(--text-dim); flex-shrink: 0; }
-  .roots-info-item .roots-info-primary {
-    font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0;
-  }
 
   /* ── Resizer ── */
   .resizer {
@@ -1392,259 +1361,36 @@
   .header-btn:hover { background: var(--bg-card); color: var(--text); }
   .header-btn.active { background: rgba(251,191,36,0.15); color: var(--yellow); }
 
-  /* ── Pending projects notification ── */
-  .pending-notif-btn {
-    position: relative;
+  /* ── Pending project cards ── */
+  .project-card.pending {
+    border-color: rgba(243,139,168,0.25);
+    background: rgba(243,139,168,0.04);
   }
-  .pending-notif-dot {
-    position: absolute;
-    top: 3px; right: 3px;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #f38ba8;
-    border: 2px solid var(--bg);
-    pointer-events: none;
+  .pending-card-hint {
+    font-size: 0.8rem; color: var(--text-dim); line-height: 1.4;
+    padding: 8px 14px 10px;
   }
-
-  /* ── Pending projects modal ── */
-  .pending-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.55);
-    z-index: 200;
-    display: none;
-    align-items: center;
-    justify-content: center;
+  .card-hide-btn {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-dim); padding: 2px 4px; border-radius: 4px;
+    font-size: 0.85rem; line-height: 1; flex-shrink: 0;
+    opacity: 0; transition: opacity 0.12s, color 0.12s;
   }
-  .pending-overlay.open { display: flex; }
-  .pending-modal {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 460px;
-    max-width: 92vw;
-    max-height: 80vh;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
-    display: flex; flex-direction: column;
-    overflow: hidden;
-  }
-  .pending-modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .pending-modal-title {
-    font-size: 1rem; font-weight: 600; color: var(--text);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .pending-modal-body {
-    flex: 1; overflow-y: auto; padding: 16px 20px;
-    display: flex; flex-direction: column; gap: 12px;
-  }
-  .pending-modal-body::-webkit-scrollbar { width: 4px; }
-  .pending-modal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-  .pending-modal-hint {
-    font-size: 0.84rem; color: var(--text-muted); line-height: 1.5;
-    padding: 10px 12px;
-    background: rgba(163,198,255,0.07);
-    border: 1px solid rgba(163,198,255,0.15);
-    border-radius: 7px;
-  }
-  .pending-modal-hint code {
-    font-family: var(--font-mono); font-size: 0.82rem;
-    background: var(--bg-diff); border-radius: 3px;
-    padding: 1px 5px;
-  }
-  .pending-proj-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    font-family: var(--font-mono); font-size: 0.83rem;
-    color: var(--text-muted);
-  }
-  .pending-proj-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #f38ba8; flex-shrink: 0;
-  }
-  .pending-modal-footer {
-    padding: 12px 20px;
-    border-top: 1px solid var(--border);
-    display: flex; justify-content: flex-end;
-    flex-shrink: 0;
-  }
-  .pending-modal-close-btn {
-    padding: 6px 18px;
-    border: none; border-radius: 6px;
-    background: var(--bg-card-hover); color: var(--text);
-    font-size: 0.88rem; cursor: pointer;
-    transition: background 0.12s;
-  }
-  .pending-modal-close-btn:hover { background: var(--border); }
-
-  /* ── Project filter modal ── */
-  .proj-filter-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.55);
-    z-index: 200;
-    display: none;
-    align-items: center;
-    justify-content: center;
-  }
-  .proj-filter-overlay.open { display: flex; }
-
-  .proj-filter-modal {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 420px;
-    max-width: 92vw;
-    max-height: 80vh;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
-    display: flex; flex-direction: column;
-    overflow: hidden;
-  }
-
-  .proj-filter-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .proj-filter-header-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text);
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  .proj-filter-close {
-    width: 28px; height: 28px;
-    border: none; background: transparent;
-    color: var(--text-muted); cursor: pointer;
-    border-radius: 6px; font-size: 1.1rem; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .proj-filter-close:hover { background: var(--bg-hover); color: var(--text); }
-
-  .proj-filter-body {
-    flex: 1; overflow-y: auto; padding: 12px 16px;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .proj-filter-body::-webkit-scrollbar { width: 4px; }
-  .proj-filter-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .proj-filter-empty {
-    color: var(--text-dim); font-size: 0.9rem;
-    padding: 24px 0; text-align: center;
-  }
-
-  .proj-filter-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 9px 12px;
+  .project-card:hover .card-hide-btn { opacity: 1; }
+  .card-hide-btn:hover { color: var(--text-muted); background: var(--bg-hover); }
+  .show-hidden-btn {
+    display: block; width: 100%;
+    padding: 8px 14px;
+    margin-top: 6px;
+    border: 1px dashed var(--border);
     border-radius: 8px;
-    border: 1px solid transparent;
     background: transparent;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 0.95rem;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.12s, border-color 0.12s;
-    width: 100%;
+    color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 0.82rem;
+    cursor: pointer; text-align: center;
+    transition: border-color 0.12s, color 0.12s;
   }
-  .proj-filter-item:hover { background: var(--bg-hover); border-color: var(--border); }
-  .proj-filter-item.selected {
-    background: rgba(251,191,36,0.1);
-    border-color: rgba(251,191,36,0.4);
-  }
-
-  .proj-filter-checkbox {
-    width: 18px; height: 18px; flex-shrink: 0;
-    border: 2px solid var(--border);
-    border-radius: 4px;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.12s;
-  }
-  .proj-filter-item.selected .proj-filter-checkbox {
-    background: var(--yellow);
-    border-color: var(--yellow);
-  }
-  .proj-filter-checkbox svg { display: none; }
-  .proj-filter-item.selected .proj-filter-checkbox svg { display: block; }
-
-  .proj-filter-name {
-    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    color: var(--text);
-  }
-  .proj-filter-item.selected .proj-filter-name { color: var(--yellow); }
-
-  .proj-filter-state {
-    width: 8px; height: 8px; border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .proj-filter-state.working { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .proj-filter-state.waiting { background: var(--yellow); }
-  .proj-filter-state.idle    { background: var(--border); }
-
-  .proj-filter-footer {
-    display: flex; gap: 8px; align-items: center;
-    padding: 12px 16px 16px;
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .proj-filter-count {
-    flex: 1; font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono);
-  }
-
-  .proj-filter-btn-all {
-    padding: 6px 14px;
-    border-radius: 6px;
-    border: 1px solid rgba(137,180,250,0.4);
-    background: transparent;
-    color: var(--blue);
-    font-family: var(--font-mono);
-    font-size: 0.88rem;
-    cursor: pointer;
-  }
-  .proj-filter-btn-all:hover { background: rgba(137,180,250,0.1); }
-
-  .proj-filter-btn-apply {
-    padding: 6px 18px;
-    border-radius: 6px;
-    border: 1px solid rgba(74,222,128,0.4);
-    background: rgba(74,222,128,0.1);
-    color: var(--green);
-    font-family: var(--font-mono);
-    font-size: 0.88rem;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .proj-filter-btn-apply:hover { background: rgba(74,222,128,0.2); }
-
-  /* ── Modal tabs ── */
-  .proj-filter-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    padding: 0 8px;
-  }
-  .proj-filter-tab {
-    padding: 9px 14px;
-    border: none; background: transparent;
-    color: var(--text-muted);
-    font-family: var(--font-mono); font-size: 0.85rem;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: color 0.12s, border-color 0.12s;
-    white-space: nowrap;
-  }
-  .proj-filter-tab:hover { color: var(--text); }
-  .proj-filter-tab.active { color: var(--text); border-bottom-color: var(--yellow); }
+  .show-hidden-btn:hover { border-color: var(--text-muted); color: var(--text-muted); }
 
   /* ── Roots / folder management ── */
   .roots-section { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
@@ -1980,20 +1726,8 @@
 
 <!-- Toolbar -->
 <div class="toolbar">
-  <button class="toolbar-btn" id="proj-filter-btn" onclick="toggleProjFilter()">
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
-    </svg>
-    Projects to monitor
-  </button>
   <div class="toolbar-spacer"></div>
   <span id="projects-count" class="toolbar-count">0 projects</span>
-  <button class="header-btn pending-notif-btn" id="pending-notif-btn" onclick="openPendingModal()" title="Projects waiting for activation" style="display:none">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4 4 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
-    </svg>
-    <span class="pending-notif-dot" id="pending-notif-dot"></span>
-  </button>
   <div id="conn-badge" class="badge-conn disconnected">
     <div class="dot"></div>
     <span id="conn-label">offline</span>
@@ -2004,77 +1738,6 @@
       <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
     </svg>
   </button>
-</div>
-
-<!-- Pending projects modal -->
-<div class="pending-overlay" id="pending-overlay" onclick="if(event.target===this)closePendingModal()">
-  <div class="pending-modal" onclick="event.stopPropagation()">
-    <div class="pending-modal-header">
-      <div class="pending-modal-title">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4 4 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
-        </svg>
-        Projects waiting for activation
-      </div>
-      <button class="proj-filter-close" onclick="closePendingModal()" title="Close">✕</button>
-    </div>
-    <div class="pending-modal-body">
-      <div class="pending-modal-hint">
-        These projects have <code>.claude/</code> set up but haven't had a session yet.<br>
-        Open each project in <strong>Claude Code</strong> and run any command — they'll appear automatically once the hooks fire.
-      </div>
-      <div id="pending-modal-list"></div>
-    </div>
-    <div class="pending-modal-footer">
-      <button class="pending-modal-close-btn" onclick="closePendingModal()">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- Project filter modal -->
-<div class="proj-filter-overlay" id="proj-filter-overlay" onclick="closeProjFilter(event)">
-  <div class="proj-filter-modal" onclick="event.stopPropagation()">
-    <div class="proj-filter-header">
-      <div class="proj-filter-header-title">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
-        </svg>
-        Projects to monitor
-      </div>
-      <button class="proj-filter-close" onclick="closeProjFilter()" title="Close">✕</button>
-    </div>
-    <!-- Tabs -->
-    <div class="proj-filter-tabs">
-      <button class="proj-filter-tab active" id="tab-projects" onclick="switchFilterTab('projects')">Projects</button>
-      <button class="proj-filter-tab" id="tab-pastas" onclick="switchFilterTab('pastas')">Monitored folders</button>
-    </div>
-    <!-- Tab: Projects -->
-    <div id="panel-projects" style="display:contents">
-      <div class="proj-filter-body" id="proj-filter-list"></div>
-      <div class="proj-filter-footer">
-        <span class="proj-filter-count" id="proj-filter-count"></span>
-        <button class="proj-filter-btn-all" onclick="setProjFilterAll()">Show all</button>
-        <button class="proj-filter-btn-apply" onclick="closeProjFilter()">Close</button>
-      </div>
-    </div>
-    <!-- Tab: Folders -->
-    <div id="panel-pastas" style="display:none; flex:1; overflow-y:auto; flex-direction:column;">
-      <div class="roots-section">
-        <div id="roots-list"></div>
-        <div class="roots-add-row">
-          <input class="roots-input" id="roots-input" type="text" placeholder="/path/to/directory" onkeydown="if(event.key==='Enter')addRoot()">
-          <button class="roots-browse-btn" onclick="openDirBrowser()" title="Browse directories">📂</button>
-          <button class="roots-add-btn" onclick="addRoot()">Add</button>
-        </div>
-        <div class="roots-error" id="roots-error"></div>
-        <div class="roots-hint">Add extra folders to discover projects outside the main directory.</div>
-      </div>
-    </div>
-    <div class="proj-filter-footer" id="panel-pastas-footer" style="display:none">
-      <span class="proj-filter-count" id="roots-count"></span>
-      <button class="proj-filter-btn-apply" onclick="closeProjFilter()">Close</button>
-    </div>
-  </div>
 </div>
 
 <!-- ── Directory browser overlay ── -->
@@ -2105,12 +1768,6 @@
         <p>Waiting for active projects…</p>
         <p style="font-family:var(--font-mono);font-size:0.77rem;color:var(--text-dim)">hooks write to .claude/status.json</p>
       </div>
-    </div>
-    <div class="roots-info-box" id="roots-info-box">
-      <div class="roots-info-label" onclick="toggleRootsInfoBox()">
-        <span class="roots-info-chevron">›</span>📁 Monitored folders
-      </div>
-      <div class="roots-info-list" id="roots-info-list"></div>
     </div>
   </div>
 
@@ -2969,6 +2626,21 @@ function refreshFileList(name) {
   loadPendingFiles(name);
 }
 
+function render_pending_card(name) {
+  const safeN = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `<div class="project-card pending" data-project="${escHtml(name)}">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="project-name">${escHtml(name)}</span>
+      </div>
+      <span class="state-badge idle">pending</span>
+    </div>
+    <div class="pending-card-hint">
+      Has <code style="font-family:var(--font-mono);background:var(--bg-diff);border-radius:3px;padding:1px 4px">.claude/</code> set up — open in Claude Code to activate.
+    </div>
+  </div>`;
+}
+
 function render_card(name, data) {
   const state = data.state || 'idle';
   const isExpanded = !expandedCards.has('collapsed:' + name);
@@ -2981,6 +2653,7 @@ function render_card(name, data) {
       <div class="card-title">
         <span class="chevron ${isExpanded ? 'open' : ''}">›</span>
         <span class="project-name">${escHtml(name)}</span>
+        <button class="card-hide-btn" onclick="event.stopPropagation();hideProject('${name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');" title="Hide project">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="updated-at">${fmt_time(data.updated_at)}</span>
@@ -3097,104 +2770,24 @@ function saveHiddenProjects() {
   localStorage.setItem('cm-hidden-projects', JSON.stringify([...hiddenProjects]));
 }
 
-function toggleProjFilter() {
-  const overlay = document.getElementById('proj-filter-overlay');
-  if (overlay.classList.contains('open')) {
-    closeProjFilter();
-  } else {
-    switchFilterTab('projects');
-    renderProjFilterList();
-    overlay.classList.add('open');
-  }
-}
-
-function closeProjFilter(e) {
-  if (e && e.target !== document.getElementById('proj-filter-overlay')) return;
-  document.getElementById('proj-filter-overlay').classList.remove('open');
-}
-
-function switchFilterTab(tab) {
-  const isProjects = tab === 'projects';
-  document.getElementById('tab-projects').classList.toggle('active', isProjects);
-  document.getElementById('tab-pastas').classList.toggle('active', !isProjects);
-  document.getElementById('panel-projects').style.display = isProjects ? 'contents' : 'none';
-  const pastasPanel = document.getElementById('panel-pastas');
-  const pastasFooter = document.getElementById('panel-pastas-footer');
-  pastasPanel.style.display = isProjects ? 'none' : 'flex';
-  pastasFooter.style.display = isProjects ? 'none' : 'flex';
-  if (!isProjects) renderRootsList();
-}
-
-function renderProjFilterList() {
-  const list = document.getElementById('proj-filter-list');
-  const countEl = document.getElementById('proj-filter-count');
-  if (!list) return;
-  const names = Object.keys(allProjects).sort();
-  if (names.length === 0) {
-    list.innerHTML = '<div class="proj-filter-empty">No projects discovered yet.</div>';
-    if (countEl) countEl.textContent = '';
-    return;
-  }
-  const hiddenCount = hiddenProjects.size;
-  if (countEl) {
-    countEl.textContent = hiddenCount === 0
-      ? `All ${names.length} projects visible`
-      : `${hiddenCount} hidden of ${names.length}`;
-  }
-  list.innerHTML = names.map(name => {
-    // checked = visible = NOT hidden
-    const visible = !hiddenProjects.has(name);
-    const state = allProjects[name]?.state || 'idle';
-    const stateClass = state === 'working' ? 'working' : state === 'waiting' ? 'waiting' : 'idle';
-    const safeN = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return `<button class="proj-filter-item${visible ? ' selected' : ''}" onclick="toggleProjVisible('${safeN}')">
-      <span class="proj-filter-state ${stateClass}"></span>
-      <span class="proj-filter-checkbox">
-        <svg width="11" height="11" viewBox="0 0 16 16" fill="#000"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/></svg>
-      </span>
-      <span class="proj-filter-name">${name}</span>
-    </button>`;
-  }).join('');
-}
-
 function toggleProjVisible(name) {
   // Toggle hidden state: if currently hidden, show it; if visible, hide it
   if (hiddenProjects.has(name)) hiddenProjects.delete(name);
   else hiddenProjects.add(name);
   saveHiddenProjects();
-  renderProjFilterList();
   renderAll();
 }
 
-  window.openPendingModal = function() {
-    const list = document.getElementById('pending-modal-list');
-    if (list) {
-      list.innerHTML = pendingProjects.length === 0
-        ? '<div style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:8px 0">No pending projects</div>'
-        : pendingProjects.map(p => `<div class="pending-proj-row"><span class="pending-proj-dot"></span>${p}</div>`).join('');
-    }
-    document.getElementById('pending-overlay').classList.add('open');
-  };
-  window.closePendingModal = function() {
-    document.getElementById('pending-overlay').classList.remove('open');
-  };
+function hideProject(name) {
+  hiddenProjects.add(name);
+  saveHiddenProjects();
+  renderAll();
+}
 
 function _renderSetupTab() {
-    // Update toolbar notification badge
-    const notifBtn = document.getElementById('pending-notif-btn');
-    if (notifBtn) notifBtn.style.display = pendingProjects.length > 0 ? 'flex' : 'none';
-
-    // Update modal list if open
-    const list = document.getElementById('pending-modal-list');
-    if (list) {
-      list.innerHTML = pendingProjects.length === 0
-        ? '<div style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:8px 0">No pending projects</div>'
-        : pendingProjects.map(p => `<div class="pending-proj-row"><span class="pending-proj-dot"></span>${p}</div>`).join('');
-    }
-
-    // Update setup tab (kept for reference)
     const el = document.getElementById('setup-tab-content');
     if (!el) return;
+
     const badge = document.getElementById('setup-badge');
     if (badge) {
       if (pendingProjects.length > 0) {
@@ -3204,24 +2797,31 @@ function _renderSetupTab() {
         badge.style.display = 'none';
       }
     }
-    if (pendingProjects.length === 0) {
-      el.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:24px 0">All projects are active</div>';
-      return;
-    }
-    el.innerHTML = `
-      <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
-        These projects have <code style="font-family:var(--font-mono);background:var(--bg-diff);border-radius:3px;padding:1px 4px">.claude/</code> set up but need a Claude Code session to activate.
-        Open them in Claude Code and run any command.
-      </div>
-      ${pendingProjects.map(p => `<div class="pending-proj-row" style="margin-bottom:6px"><span class="pending-proj-dot"></span>${p}</div>`).join('')}
-    `;
-}
 
-function setProjFilterAll() {
-  hiddenProjects.clear();
-  saveHiddenProjects();
-  renderProjFilterList();
-  renderAll();
+    const pendingHtml = pendingProjects.length === 0
+      ? '<div style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:16px 0">All projects are active</div>'
+      : `<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
+          These projects have <code style="font-family:var(--font-mono);background:var(--bg-diff);border-radius:3px;padding:1px 4px">.claude/</code> set up but need a Claude Code session to activate.
+          Open them in Claude Code and run any command.
+        </div>
+        ${pendingProjects.map(p => `<div class="pending-proj-row" style="margin-bottom:6px"><span class="pending-proj-dot"></span>${p}</div>`).join('')}`;
+
+    el.innerHTML = `
+      ${pendingHtml}
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Monitored folders</div>
+        <div id="roots-list"></div>
+        <div class="roots-add-row">
+          <input class="roots-input" id="roots-input" type="text" placeholder="/path/to/directory" onkeydown="if(event.key==='Enter')addRoot()">
+          <button class="roots-browse-btn" onclick="openDirBrowser()" title="Browse directories">📂</button>
+          <button class="roots-add-btn" onclick="addRoot()">Add</button>
+        </div>
+        <div class="roots-error" id="roots-error"></div>
+        <div class="roots-hint">Add extra folders to discover projects outside the main directory.</div>
+      </div>
+    `;
+
+    renderRootsList();
 }
 
 // ── Roots / folder management ─────────────────────────────────────────────────
@@ -3400,42 +3000,42 @@ function renderAll() {
   const count = document.getElementById('projects-count');
 
   const sorted = sorted_projects(allProjects);
-  // Apply visibility filter (empty hiddenProjects = show all)
-  const visible = hiddenProjects.size === 0
-    ? sorted
-    : sorted.filter(([name]) => !hiddenProjects.has(name));
+  const visible = sorted.filter(([name]) => !hiddenProjects.has(name));
 
   const active = visible.filter(([, d]) => d.state === 'working' || d.state === 'waiting').length;
-  const filterNote = hiddenProjects.size > 0
-    ? ` · ${hiddenProjects.size} hidden`
-    : '';
+  const hiddenCount = hiddenProjects.size;
+  const filterNote = hiddenCount > 0 ? ` · ${hiddenCount} hidden` : '';
   count.textContent = `${sorted.length} project${sorted.length !== 1 ? 's' : ''}${active ? ` · ${active} active` : ''}${filterNote}`;
 
-  // Update filter button state
-  const filterBtn = document.getElementById('proj-filter-btn');
-  if (filterBtn) filterBtn.classList.toggle('active', hiddenProjects.size > 0);
+  body.querySelectorAll('.project-card, .show-hidden-btn').forEach(el => el.remove());
 
   if (visible.length === 0) {
     if (empty) empty.style.display = 'flex';
-    body.querySelectorAll('.project-card').forEach(el => el.remove());
     return;
   }
-
   if (empty) empty.style.display = 'none';
 
-  body.querySelectorAll('.project-card').forEach(el => el.remove());
   const frag = document.createDocumentFragment();
+
   for (const [name, data] of visible) {
     const tmp = document.createElement('div');
     tmp.innerHTML = render_card(name, data);
     const cardEl = tmp.firstElementChild;
-    // Render agents if any
     const agents = data.active_agents || [];
     if (agents.length > 0) {
       renderAgents(cardEl, agents);
     }
     frag.appendChild(cardEl);
   }
+
+  if (hiddenCount > 0) {
+    const btn = document.createElement('button');
+    btn.className = 'show-hidden-btn';
+    btn.textContent = `Show ${hiddenCount} hidden project${hiddenCount !== 1 ? 's' : ''}`;
+    btn.onclick = () => { hiddenProjects.clear(); saveHiddenProjects(); renderAll(); };
+    frag.appendChild(btn);
+  }
+
   body.appendChild(frag);
   _renderSetupTab();
 }
