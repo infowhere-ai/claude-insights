@@ -313,6 +313,36 @@
   .picker-toggle-btn:hover { background: var(--bg-card); color: var(--text); }
   .picker-toggle-btn.active { background: rgba(251,191,36,0.15); color: var(--yellow); }
 
+  /* ── Browse projects footer button ── */
+  .browse-projects-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: calc(100% - 24px);
+    margin: 8px 12px 12px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 7px;
+    background: rgba(99, 102, 241, 0.18);
+    color: #a5b4fc;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+  }
+  .browse-projects-btn:hover {
+    background: rgba(99, 102, 241, 0.30);
+    color: #c7d2fe;
+  }
+  .browse-projects-btn.active {
+    background: rgba(99, 102, 241, 0.35);
+    color: #e0e7ff;
+  }
+  .browse-projects-btn svg { opacity: 0.9; flex-shrink: 0; }
+
   /* ── Monitored roots info box ── */
 
   /* ── Resizer ── */
@@ -1941,6 +1971,14 @@
         <div class="picker-list" id="picker-list"></div>
       </div>
     </div>
+
+    <!-- ── Browse projects footer ── -->
+    <button class="browse-projects-btn" id="browse-projects-btn" onclick="togglePicker()" title="Browse all discovered projects">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5z"/>
+      </svg>
+      <span id="browse-btn-label">Browse all projects</span>
+    </button>
   </div>
 
   <!-- ── Resizer ── -->
@@ -2986,9 +3024,13 @@ let pickerOpen = false;
 function togglePicker() {
   pickerOpen = !pickerOpen;
   const panel = document.getElementById('project-picker');
-  const btn = document.getElementById('picker-toggle-btn');
+  const toolbarBtn = document.getElementById('picker-toggle-btn');
+  const browseBtn = document.getElementById('browse-projects-btn');
+  const browseLabel = document.getElementById('browse-btn-label');
   if (panel) panel.classList.toggle('hidden', !pickerOpen);
-  if (btn) btn.classList.toggle('active', pickerOpen);
+  if (toolbarBtn) toolbarBtn.classList.toggle('active', pickerOpen);
+  if (browseBtn) browseBtn.classList.toggle('active', pickerOpen);
+  if (browseLabel) browseLabel.textContent = pickerOpen ? 'Close project browser' : 'Browse all projects';
   if (pickerOpen) renderPicker();
 }
 
@@ -3059,20 +3101,7 @@ function _renderSetupTab() {
 
     el.innerHTML = `
       ${pendingHtml}
-      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-        <div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Monitored folders</div>
-        <div id="roots-list"></div>
-        <div class="roots-add-row">
-          <input class="roots-input" id="roots-input" type="text" placeholder="/path/to/directory" onkeydown="if(event.key==='Enter')addRoot()">
-          <button class="roots-browse-btn" onclick="openDirBrowser()" title="Browse directories">📂</button>
-          <button class="roots-add-btn" onclick="addRoot()">Add</button>
-        </div>
-        <div class="roots-error" id="roots-error"></div>
-        <div class="roots-hint">Add extra folders to discover projects outside the main directory.</div>
-      </div>
     `;
-
-    renderRootsList();
 }
 
 // ── Roots / folder management ─────────────────────────────────────────────────
