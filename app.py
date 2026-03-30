@@ -37,6 +37,7 @@ projects: dict[str, dict] = {}         # project_name -> status dict
 _status_paths: dict[str, Path] = {}    # project_name -> path to status.json
 _mtimes: dict[str, float] = {}         # path_str -> mtime
 _sse_clients: list[asyncio.Queue] = [] # one queue per SSE client
+_pending_projects: list[str] = []      # projects with .claude/ but no status.json
 
 # Per-project event log (rolling, max 500 entries)
 _project_events: dict[str, list] = {}
@@ -73,7 +74,9 @@ def _save_roots_config() -> None:
 
 def _discover() -> None:
     """Discovers projects with .claude/status.json under PROJECTS_ROOT and extra roots."""
+    global _pending_projects
     found: set[str] = set()
+    pending: set[str] = set()
 
     def _scan_root(root: Path) -> None:
         for status_path in root.glob("*/.claude/status.json"):
@@ -81,6 +84,16 @@ def _discover() -> None:
             found.add(name)
             if name not in _status_paths:
                 _status_paths[name] = status_path
+        # Also scan for dirs with .claude/ but no status.json
+        try:
+            for subdir in root.iterdir():
+                if not subdir.is_dir():
+                    continue
+                claude_dir = subdir / ".claude"
+                if claude_dir.is_dir() and not (claude_dir / "status.json").exists():
+                    pending.add(subdir.name)
+        except OSError:
+            pass
 
     _scan_root(PROJECTS_ROOT)
     for root in _extra_roots:
@@ -92,6 +105,9 @@ def _discover() -> None:
         _status_paths.pop(name, None)
         projects.pop(name, None)
         _mtimes.pop(name, None)
+
+    # pending = has .claude/ but no active status.json (and not already active)
+    _pending_projects = sorted(pending - found)
 
 
 def _read_status(path: Path) -> dict | None:
@@ -236,7 +252,7 @@ async def poll_loop() -> None:
                     data["stats"] = _get_project_stats(project_path, name)
 
                     projects[name] = data
-                    _broadcast({"type": "update", "project_name": name, "data": data})
+                    _broadcast({"type": "update", "project_name": name, "data": data, "pending_projects": _pending_projects})
         await asyncio.sleep(POLL_INTERVAL)
 
 
@@ -362,7 +378,7 @@ async def sse_events(request: Request):
 
     async def event_generator():
         # Send initial state on connect
-        yield f"data: {json.dumps({'type': 'init', 'projects': projects})}\n\n"
+        yield f"data: {json.dumps({'type': 'init', 'projects': projects, 'pending_projects': _pending_projects})}\n\n"
         try:
             while True:
                 if await request.is_disconnected():
