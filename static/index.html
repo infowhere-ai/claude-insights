@@ -2452,13 +2452,26 @@ function _saveHiddenStatuses(projectName, set) {
   localStorage.setItem('cm-hidden-statuses-' + projectName, JSON.stringify([...set]));
 }
 
+function _isHiddenPath(rel_path) {
+  return rel_path.startsWith('.') || rel_path.includes('/.');
+}
+
+function _loadShowHidden(projectName) {
+  try { return localStorage.getItem('cm-show-hidden-' + projectName) === '1'; } catch { return false; }
+}
+function _saveShowHidden(projectName, val) {
+  try { localStorage.setItem('cm-show-hidden-' + projectName, val ? '1' : '0'); } catch {}
+}
+
 function _applyPendingFilter(files, projectName) {
   if (!files) return [];
   const f = pendingFilters[projectName] || {};
   const q = (f.query || '').toLowerCase();
   const hidden = f.hiddenStatuses || new Set();
   const activeExts = f.exts || new Set();
+  const showHidden = f.showHidden != null ? f.showHidden : _loadShowHidden(projectName);
   return files.filter(file => {
+    if (!showHidden && _isHiddenPath(file.rel_path)) return false;
     if (hidden.has(file.status_code)) return false;
     if (activeExts.size && !activeExts.has(fileExt(file.rel_path))) return false;
     if (q && !file.rel_path.toLowerCase().includes(q)) return false;
@@ -2564,13 +2577,19 @@ function _refreshPendingUI(projectName) {
   if (countEl)    countEl.textContent = filtered.length || '';
   if (statusesEl) statusesEl.innerHTML = _renderStatusButtons(files, projectName);
   if (extsEl)     extsEl.innerHTML = _renderExtButtons(files, projectName);
+  const hiddenBtn = document.getElementById('show-hidden-btn-' + CSS.escape(projectName));
+  if (hiddenBtn) {
+    const f = pendingFilters[projectName];
+    const sh = f && f.showHidden != null ? f.showHidden : _loadShowHidden(projectName);
+    hiddenBtn.classList.toggle('active', !!sh);
+  }
 }
 
 function _renderStatusButtons(files, projectName) {
   const statuses = _statusesInFiles(files);
   if (statuses.size === 0) return '';
   const hidden = (pendingFilters[projectName] || {}).hiddenStatuses || new Set();
-  const STATUS_LABELS = { 'M': 'M mod', 'A': 'A add', 'D': 'D del', '?': '? new', 'R': 'R ren', 'C': 'C cop', 'U': 'U merge' };
+  const STATUS_LABELS = { 'M': 'modified', 'A': 'added', 'D': 'deleted', '?': 'untracked', 'R': 'renamed', 'C': 'copied', 'U': 'unmerged' };
   return [...statuses].sort().map(s => {
     const isHidden = hidden.has(s);
     const label = STATUS_LABELS[s] || s;
@@ -2612,6 +2631,19 @@ function togglePendingStatus(projectName, statusCode) {
   else hidden.add(statusCode);
   _saveHiddenStatuses(projectName, hidden);
   _refreshPendingUI(projectName);
+}
+
+function toggleShowHidden(projectName) {
+  if (!pendingFilters[projectName]) pendingFilters[projectName] = { hiddenStatuses: _loadHiddenStatuses(projectName) };
+  const current = pendingFilters[projectName].showHidden != null
+    ? pendingFilters[projectName].showHidden
+    : _loadShowHidden(projectName);
+  pendingFilters[projectName].showHidden = !current;
+  _saveShowHidden(projectName, !current);
+  _refreshPendingUI(projectName);
+  // Update button state
+  const btn = document.getElementById('show-hidden-btn-' + CSS.escape(projectName));
+  if (btn) btn.classList.toggle('active', !current);
 }
 
 async function loadPendingFiles(projectName) {
@@ -2841,6 +2873,7 @@ function render_card(name, data) {
             value="${escAttr((pendingFilters[name] || {}).query || '')}">
           <div class="files-type-filters" id="pending-statuses-${CSS.escape(name)}">${_renderStatusButtons(pendingFiles[name] || [], name)}</div>
           <div class="files-type-filters" id="pending-exts-${CSS.escape(name)}">${_renderExtButtons(pendingFiles[name] || [], name)}</div>
+          <button id="show-hidden-btn-${CSS.escape(name)}" class="file-type-btn${(() => { const f = pendingFilters[name]; const sh = f && f.showHidden != null ? f.showHidden : _loadShowHidden(name); return sh ? ' active' : ''; })()}" onclick="toggleShowHidden('${CSS.escape(name)}')" title="Show hidden files (starting with .)">· hidden</button>
         </div>
         <div class="file-list" id="pending-list-${CSS.escape(name)}">${render_pending_files(pendingFiles[name] || null, name)}</div>
       </div>

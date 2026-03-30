@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", str(Path.home() / "desenvolvimento" / "github-infowhere")))
+PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", str(Path(__file__).parent.parent)))
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "1.0"))
 DISCOVERY_INTERVAL = float(os.getenv("DISCOVERY_INTERVAL", "60.0"))
 
@@ -37,6 +37,13 @@ projects: dict[str, dict] = {}         # project_name -> status dict
 _status_paths: dict[str, Path] = {}    # project_name -> path to status.json
 _mtimes: dict[str, float] = {}         # path_str -> mtime
 _sse_clients: list[asyncio.Queue] = [] # one queue per SSE client
+
+# Per-project event log (rolling, max 500 entries)
+_project_events: dict[str, list] = {}
+
+# Per-project JSONL stats cache
+_jsonl_mtimes: dict[str, float] = {}   # jsonl_path -> mtime
+_project_stats_cache: dict[str, dict] = {}  # project_name -> stats
 
 # Config: extra roots (beyond PROJECTS_ROOT)
 _CONFIG_FILE = PROJECTS_ROOT / ".claude" / "monitor-roots.json"
@@ -102,6 +109,66 @@ def _broadcast(data: dict) -> None:
             pass
 
 
+def _get_project_stats(project_path: Path, project_name: str) -> dict:
+    """Reads token usage + model from the most recent JSONL session file for this project."""
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = Path.home() / ".claude" / "projects" / encoded
+    if not jsonl_dir.is_dir():
+        return {}
+
+    # Find most recently modified .jsonl file
+    try:
+        jsonl_files = list(jsonl_dir.glob("*.jsonl"))
+    except OSError:
+        return {}
+    if not jsonl_files:
+        return {}
+
+    latest = max(jsonl_files, key=lambda p: p.stat().st_mtime)
+    latest_mtime = latest.stat().st_mtime
+    cache_key = str(latest)
+
+    if _jsonl_mtimes.get(cache_key) == latest_mtime and project_name in _project_stats_cache:
+        return _project_stats_cache[project_name]
+
+    # Parse the JSONL
+    session_input = 0
+    session_output = 0
+    session_cache_read = 0
+    model = ""
+    try:
+        with latest.open(encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                except Exception:
+                    continue
+                if d.get("type") == "assistant" and "message" in d:
+                    u = d["message"].get("usage", {})
+                    session_input += u.get("input_tokens", 0)
+                    session_output += u.get("output_tokens", 0)
+                    session_cache_read += u.get("cache_read_input_tokens", 0)
+                    m = d["message"].get("model", "")
+                    if m:
+                        model = m
+    except OSError:
+        return {}
+
+    stats = {
+        "session_input_tokens": session_input,
+        "session_output_tokens": session_output,
+        "session_cache_read": session_cache_read,
+        "session_ctx_tokens": session_input + session_cache_read,
+        "model": model,
+    }
+    _jsonl_mtimes[cache_key] = latest_mtime
+    _project_stats_cache[project_name] = stats
+    return stats
+
+
 async def discovery_loop() -> None:
     while True:
         _discover()
@@ -149,6 +216,25 @@ async def poll_loop() -> None:
                                 pass
                         active_agents.sort(key=lambda a: a.get("started_at", ""))
                     data["active_agents"] = active_agents
+
+                    # Accumulate event log
+                    event = {
+                        "timestamp": data.get("ts", datetime.datetime.utcnow().isoformat() + "Z"),
+                        "status": data.get("status", "idle"),
+                        "tool": data.get("tool"),
+                        "message": data.get("tool") if data.get("status") == "working" else data.get("status", "idle"),
+                        "hook": "PreToolUse" if data.get("status") == "working" else "PostToolUse",
+                    }
+                    events = _project_events.setdefault(name, [])
+                    events.append(event)
+                    if len(events) > 500:
+                        events[:] = events[-500:]
+                    data["events"] = list(events)
+
+                    # Inject per-project token stats
+                    project_path = _status_paths[name].parents[1]
+                    data["stats"] = _get_project_stats(project_path, name)
+
                     projects[name] = data
                     _broadcast({"type": "update", "project_name": name, "data": data})
         await asyncio.sleep(POLL_INTERVAL)
@@ -188,6 +274,8 @@ async def startup() -> None:
                         pass
                 active_agents.sort(key=lambda a: a.get("started_at", ""))
             data["active_agents"] = active_agents
+            data["events"] = list(_project_events.get(name, []))
+            data["stats"] = _get_project_stats(path.parents[1], name)
             projects[name] = data
             _mtimes[str(path)] = path.stat().st_mtime
     asyncio.create_task(discovery_loop())
