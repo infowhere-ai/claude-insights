@@ -28,7 +28,7 @@ app = FastAPI(title="claude-monitor", version=VERSION)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -806,6 +806,63 @@ async def get_account():
         "tokens_week": token_totals,
         "service_tier": service_tier,
     }
+
+
+@app.delete("/api/file")
+async def delete_file(project: str = Query(...), path: str = Query(...)):
+    """Deletes an untracked file from a project. Only untracked (?) files are allowed."""
+    # Resolve project root
+    project_path: Path | None = None
+    if project in _status_paths:
+        project_path = _status_paths[project].parent.parent
+    else:
+        # Check pending projects
+        for root in [PROJECTS_ROOT] + _extra_roots:
+            candidate = root / project
+            if candidate.is_dir() and (candidate / ".claude").is_dir():
+                project_path = candidate
+                break
+
+    if project_path is None or not project_path.is_dir():
+        return JSONResponse({"error": "project not found"}, status_code=404)
+
+    # Resolve file path — accept absolute or relative
+    file_path = Path(path)
+    if not file_path.is_absolute():
+        file_path = project_path / file_path
+    file_path = file_path.resolve()
+
+    # Safety: file must be inside the project directory
+    try:
+        file_path.relative_to(project_path.resolve())
+    except ValueError:
+        return JSONResponse({"error": "path outside project"}, status_code=400)
+
+    if not file_path.exists():
+        return JSONResponse({"error": "file not found"}, status_code=404)
+
+    if not file_path.is_file():
+        return JSONResponse({"error": "path is not a file"}, status_code=400)
+
+    # Safety: only allow deleting untracked files (not tracked by git)
+    try:
+        ls = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", str(file_path)],
+            cwd=str(project_path),
+            capture_output=True, text=True, timeout=5,
+        )
+        if ls.returncode == 0:
+            return JSONResponse({"error": "file is tracked by git — only untracked files can be deleted here"}, status_code=400)
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"error": "timeout checking git status"}, status_code=504)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    try:
+        file_path.unlink()
+        return {"deleted": str(file_path)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # Serve static — must be last to avoid conflicting with the routes above

@@ -720,6 +720,46 @@
     color: var(--blue);
   }
 
+  /* ── Confirm modal (small) ── */
+  .modal-sm { max-width: 380px; }
+  .modal-body-text {
+    padding: 18px 20px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .modal-body-text strong { color: var(--text); }
+  .modal-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .btn { padding: 6px 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; border: 1px solid transparent; }
+  .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-muted); }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text); }
+  .btn-danger { background: rgba(248,81,73,.15); border-color: rgba(248,81,73,.4); color: #f85149; }
+  .btn-danger:hover { background: rgba(248,81,73,.28); }
+
+  .file-delete-btn {
+    visibility: hidden;
+    margin-left: auto;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 1px 4px;
+    border-radius: 3px;
+    line-height: 1;
+    opacity: 0.7;
+  }
+  .file-item:hover .file-delete-btn { visibility: visible; }
+  .file-delete-btn:hover { background: rgba(248,81,73,.2); color: #f85149; opacity: 1; }
+
   .file-op {
     width: 14px;
     flex-shrink: 0;
@@ -2174,6 +2214,24 @@
   </div>
 </div>
 
+<!-- ── Confirm delete modal ── -->
+<div class="modal-backdrop" id="confirm-delete-modal" style="display:none" onclick="_confirmDeleteCancel(event)">
+  <div class="modal modal-sm" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Delete untracked file</div>
+      <button class="modal-close" onclick="_confirmDeleteCancel()">×</button>
+    </div>
+    <div class="modal-body-text">
+      Delete <strong id="confirm-delete-filename"></strong>?<br>
+      This file is not tracked by git and cannot be recovered.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="_confirmDeleteCancel()">Cancel</button>
+      <button class="btn btn-danger" onclick="_confirmDeleteConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Event modal ── -->
 <div class="modal-backdrop" id="event-modal" style="display:none" onclick="closeEventModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -2485,11 +2543,18 @@ function _applyPendingFilter(files, projectName) {
 function _renderFileItem(f, projectName) {
   const isActive = activeFile && activeFile.project === projectName && activeFile.path === f.path;
   const icon = PENDING_STATUS_ICONS[f.status_code] || `<span style="color:var(--text-dim)">${escHtml(f.status_code)}</span>`;
+  const safeProj = escAttr(projectName);
+  const safePath = escAttr(f.path);
+  const deleteBtn = f.status_code === '?'
+    ? `<button class="file-delete-btn" title="Delete untracked file"
+        onclick="event.stopPropagation();deleteUntrackedFile('${safeProj}','${safePath}')">&#x2715;</button>`
+    : '';
   return `<div class="file-item ${isActive ? 'active' : ''}"
-    onclick="onFileClick('${CSS.escape(projectName)}', '${escAttr(f.path)}', this)"
+    onclick="onFileClick('${CSS.escape(projectName)}', '${safePath}', this)"
     title="${escAttr(f.path)}">
     <span class="file-op">${icon}</span>
     <span class="file-path">${escHtml(f.rel_path)}</span>
+    ${deleteBtn}
   </div>`;
 }
 
@@ -2943,6 +3008,43 @@ function onFileClick(projectEscaped, filePath, el) {
   const card = el.closest('.project-card');
   const projectName = card ? card.dataset.name : projectEscaped;
   loadDiff(projectName, filePath, el);
+}
+
+let _confirmDeleteResolve = null;
+
+function _showConfirmDeleteModal(filename) {
+  document.getElementById('confirm-delete-filename').textContent = filename;
+  document.getElementById('confirm-delete-modal').style.display = 'flex';
+  return new Promise(resolve => { _confirmDeleteResolve = resolve; });
+}
+
+function _confirmDeleteConfirm() {
+  document.getElementById('confirm-delete-modal').style.display = 'none';
+  if (_confirmDeleteResolve) { _confirmDeleteResolve(true); _confirmDeleteResolve = null; }
+}
+
+function _confirmDeleteCancel(e) {
+  if (e && !e.target.classList.contains('modal-backdrop')) return;
+  document.getElementById('confirm-delete-modal').style.display = 'none';
+  if (_confirmDeleteResolve) { _confirmDeleteResolve(false); _confirmDeleteResolve = null; }
+}
+
+async function deleteUntrackedFile(projectName, filePath) {
+  const relPath = filePath.split('/').pop();
+  const confirmed = await _showConfirmDeleteModal(relPath);
+  if (!confirmed) return;
+  try {
+    const params = new URLSearchParams({ project: projectName, path: filePath });
+    const res = await fetch(`/api/file?${params}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) {
+      alert('Error: ' + (data.error || res.statusText));
+      return;
+    }
+    loadPendingFiles(projectName);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
 }
 
 function escAttr(s) {
