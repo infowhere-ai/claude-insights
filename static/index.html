@@ -2273,12 +2273,13 @@ function _handleNotifTimer(projectName, data) {
     clearTimeout(notifTimers[projectName]);
     delete notifTimers[projectName];
   }
-  // Start auto-dismiss timer only when waiting with a notification
+  // Start auto-dismiss timer only when waiting with a notification.
+  // Only clears the notification — does NOT change the state (server is authoritative).
   if (data.state === 'waiting' && data.notification) {
     notifTimers[projectName] = setTimeout(() => {
       delete notifTimers[projectName];
       if (allProjects[projectName]) {
-        allProjects[projectName] = { ...allProjects[projectName], notification: null, state: 'idle' };
+        allProjects[projectName] = { ...allProjects[projectName], notification: null };
         renderAll();
         if (window.renderContextTab) window.renderContextTab();
       }
@@ -2388,7 +2389,7 @@ function render_diff(diffText) {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // ── Diff loader ───────────────────────────────────────────────────────────────
@@ -3117,6 +3118,26 @@ function togglePinned(name) {
   savePinnedProjects();
   renderAll();
   renderPicker();
+
+  // Close picker after selecting so the user sees the result in the sidebar
+  if (pickerOpen) {
+    setTimeout(() => {
+      if (pickerOpen) togglePicker();
+      // Scroll to the card (active projects) or the pinned-pending card
+      requestAnimationFrame(() => {
+        const safeId = CSS.escape(name);
+        const card = document.querySelector(`[data-project="${safeId}"], .project-card .project-name`);
+        // Try to find card by project name text
+        const cards = document.querySelectorAll('.project-card .project-name, .pinned-pending-card .project-name');
+        for (const el of cards) {
+          if (el.textContent.trim() === name) {
+            el.closest('.project-card, .pinned-pending-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            break;
+          }
+        }
+      });
+    }, 120);
+  }
 }
 
 // ── Project picker panel ──────────────────────────────────────────────────────
@@ -3382,7 +3403,11 @@ function renderAll() {
   const count = document.getElementById('projects-count');
 
   const sorted = sorted_projects(allProjects);
-  const visible = sorted.filter(([name]) => !hiddenProjects.has(name));
+  // Only show projects the user has explicitly pinned (or all if nothing is pinned yet)
+  const hasPins = pinnedProjects.size > 0;
+  const visible = sorted.filter(([name]) =>
+    !hiddenProjects.has(name) && (!hasPins || pinnedProjects.has(name))
+  );
 
   // Pinned pending projects (pending, not already active, not hidden)
   const activeNames = new Set(Object.keys(allProjects));
@@ -3478,7 +3503,29 @@ function connect() {
         if (window.renderDebugTab) window.renderDebugTab();
         if (window.renderAgentsTab) window.renderAgentsTab();
       } else if (msg.type === 'update') {
-        allProjects[msg.project_name] = msg.data;
+        // Working latch: if transitioning to idle but we just saw working,
+        // keep working visible for 3s so fast tool calls don't flash invisibly.
+        const prev = allProjects[msg.project_name];
+        const WORKING_LATCH_MS = 800;
+        if (msg.data.state === 'idle' && prev && prev.state === 'working' && prev._workingAt) {
+          const elapsed = Date.now() - prev._workingAt;
+          if (elapsed < WORKING_LATCH_MS) {
+            const latchData = { ...msg.data, state: 'working', _latch: true };
+            allProjects[msg.project_name] = latchData;
+            setTimeout(() => {
+              if (allProjects[msg.project_name]?._latch) {
+                allProjects[msg.project_name] = msg.data;
+                renderAll();
+                if (window.renderContextTab) window.renderContextTab();
+              }
+            }, WORKING_LATCH_MS - elapsed);
+          } else {
+            allProjects[msg.project_name] = msg.data;
+          }
+        } else {
+          if (msg.data.state === 'working') msg.data._workingAt = Date.now();
+          allProjects[msg.project_name] = msg.data;
+        }
         _handleNotifTimer(msg.project_name, msg.data);
         if (msg.pending_projects !== undefined) {
           pendingProjects = msg.pending_projects;

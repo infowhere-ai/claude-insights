@@ -49,25 +49,67 @@ open_ui() {
 }
 
 # ── Check hooks ──────────────────────────────────────────────────────────────
+# Strict validation: exactly one monitor-hook.sh entry per event, no duplicates,
+# no rogue raw-bash hooks. Prints a clear error for every problem found.
 check_hooks() {
     python3 - <<'PYEOF'
 import json, os, sys
-p = os.path.expanduser("~/.claude/settings.json")
-if not os.path.exists(p):
+
+SETTINGS = os.path.expanduser("~/.claude/settings.json")
+HOOK_SCRIPT = os.path.expanduser("~/.claude/hooks/monitor-hook.sh")
+REQUIRED_EVENTS = ["PreToolUse", "PostToolUse", "Notification", "Stop"]
+
+errors = []
+
+if not os.path.exists(SETTINGS):
+    print("ERROR: ~/.claude/settings.json not found — run ./install.sh first", file=sys.stderr)
     sys.exit(1)
+
 try:
-    s = json.load(open(p))
-except Exception:
+    settings = json.load(open(SETTINGS))
+except Exception as e:
+    print(f"ERROR: Cannot parse ~/.claude/settings.json: {e}", file=sys.stderr)
     sys.exit(1)
-hooks = s.get("hooks", {})
-def has_hook(lst):
-    return any(
-        h.get("type") == "command" and "status.json" in h.get("command", "")
-        for entry in lst for h in entry.get("hooks", [])
-    )
-if has_hook(hooks.get("PreToolUse", [])) and has_hook(hooks.get("PostToolUse", [])):
-    sys.exit(0)
-sys.exit(1)
+
+hooks_cfg = settings.get("hooks", {})
+
+for event in REQUIRED_EVENTS:
+    entries = hooks_cfg.get(event, [])
+    # Collect all commands across all entries for this event
+    all_cmds = [
+        h.get("command", "")
+        for entry in entries
+        for h in entry.get("hooks", [])
+        if h.get("type") == "command"
+    ]
+
+    monitor_cmds = [c for c in all_cmds if "monitor-hook.sh" in c]
+    rogue_cmds   = [c for c in all_cmds if "monitor-hook.sh" not in c]
+
+    if not monitor_cmds:
+        errors.append(f"  MISSING  {event}: monitor-hook.sh not found — run ./install.sh")
+    if len(monitor_cmds) > 1:
+        errors.append(f"  DUPLICATE {event}: {len(monitor_cmds)} monitor-hook.sh entries found (should be 1)")
+    if rogue_cmds:
+        for cmd in rogue_cmds:
+            short = cmd[:80] + "..." if len(cmd) > 80 else cmd
+            errors.append(f"  ROGUE    {event}: unexpected hook command: {short}")
+
+if not os.path.exists(HOOK_SCRIPT):
+    errors.append(f"  MISSING  hook script: {HOOK_SCRIPT} — run ./install.sh")
+
+if errors:
+    print("", file=sys.stderr)
+    print("Hook configuration problems detected:", file=sys.stderr)
+    for e in errors:
+        print(e, file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Fix: edit ~/.claude/settings.json and remove rogue/duplicate entries,", file=sys.stderr)
+    print("     or run ./install.sh to reset hooks to the correct state.", file=sys.stderr)
+    print("", file=sys.stderr)
+    sys.exit(1)
+
+sys.exit(0)
 PYEOF
 }
 

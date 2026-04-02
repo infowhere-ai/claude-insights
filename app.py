@@ -17,8 +17,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", str(Path(__file__).parent.parent)))
-POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "1.0"))
+POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "0.5"))
 DISCOVERY_INTERVAL = float(os.getenv("DISCOVERY_INTERVAL", "60.0"))
+JSONL_ACTIVE_SECONDS = float(os.getenv("JSONL_ACTIVE_SECONDS", "60.0"))  # session considered active if JSONL changed within this window
+CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
 
 VERSION = "1.0.0"
 BUILD_DATE = os.getenv("BUILD_DATE", datetime.date.today().isoformat())
@@ -42,13 +44,73 @@ _pending_projects: list[str] = []      # projects with .claude/ but no status.js
 # Per-project event log (rolling, max 500 entries)
 _project_events: dict[str, list] = {}
 
-# Per-project JSONL stats cache
+# Per-project JSONL stats cache (token counts — reads full file)
 _jsonl_mtimes: dict[str, float] = {}   # jsonl_path -> mtime
 _project_stats_cache: dict[str, dict] = {}  # project_name -> stats
+
+# JSONL watcher cache (state detection — reads only the tail)
+_jsonl_cache: dict[str, dict] = {}  # project_name -> {mtime, tool, jsonl_path}
 
 # Config: extra roots (beyond PROJECTS_ROOT)
 _CONFIG_FILE = PROJECTS_ROOT / ".claude" / "monitor-roots.json"
 _extra_roots: list[Path] = []
+
+
+# ── JSONL helpers ─────────────────────────────────────────────────────────────
+
+def _get_jsonl_dir(project_path: Path) -> Path:
+    """Returns ~/.claude/projects/<encoded> for this project path."""
+    encoded = str(project_path).replace("/", "-")
+    return CLAUDE_PROJECTS_DIR / encoded
+
+
+def _get_latest_jsonl(project_path: Path) -> tuple[Path | None, float]:
+    """Returns (path, mtime) of the most recently modified .jsonl in the project's session dir."""
+    jsonl_dir = _get_jsonl_dir(project_path)
+    if not jsonl_dir.is_dir():
+        return None, 0.0
+    try:
+        files = list(jsonl_dir.glob("*.jsonl"))
+        if not files:
+            return None, 0.0
+        latest = max(files, key=lambda p: p.stat().st_mtime)
+        return latest, latest.stat().st_mtime
+    except OSError:
+        return None, 0.0
+
+
+def _parse_jsonl_tail(jsonl_path: Path) -> dict:
+    """Read last 8 KB of a JSONL session file. Returns {tool, cwd}.
+    - tool: name of the most recent tool_use in an assistant message
+    - cwd:  working directory recorded in any recent entry
+    """
+    try:
+        with open(jsonl_path, "rb") as fh:
+            fh.seek(0, 2)
+            size = fh.tell()
+            fh.seek(max(0, size - 8192))
+            raw = fh.read().decode("utf-8", errors="replace")
+        tool: str | None = None
+        cwd: str | None = None
+        for line in reversed(raw.strip().split("\n")):
+            try:
+                d = json.loads(line)
+            except Exception:
+                continue
+            if not cwd and d.get("cwd"):
+                cwd = d["cwd"]
+            if tool is None and d.get("type") == "assistant":
+                content = d.get("message", {}).get("content", [])
+                if isinstance(content, list):
+                    for c in reversed(content):
+                        if isinstance(c, dict) and c.get("type") == "tool_use":
+                            tool = c.get("name", "Tool")
+                            break
+            if cwd and tool:
+                break
+        return {"tool": tool, "cwd": cwd}
+    except Exception:
+        return {}
 
 
 def _load_roots_config() -> None:
@@ -78,12 +140,17 @@ def _discover() -> None:
     found: set[str] = set()
     pending: set[str] = set()
 
-    def _scan_root(root: Path) -> None:
+    # Two-pass discovery: first collect all candidates, then filter subprojects.
+    # A project is a subproject if its parent directory is itself a discovered
+    # project directory (e.g. project-finances/backend where project-finances
+    # is also discovered). This works regardless of which root triggered discovery.
+    candidates: dict[str, Path] = {}  # name -> status_path
+
+    def _collect_root(root: Path) -> None:
         for status_path in root.glob("*/.claude/status.json"):
             name = status_path.parts[-3]
-            found.add(name)
-            if name not in _status_paths:
-                _status_paths[name] = status_path
+            if name not in candidates:
+                candidates[name] = status_path
         # Also scan for dirs with .claude/ but no status.json
         try:
             for subdir in root.iterdir():
@@ -95,9 +162,21 @@ def _discover() -> None:
         except OSError:
             pass
 
-    _scan_root(PROJECTS_ROOT)
+    _collect_root(PROJECTS_ROOT)
     for root in _extra_roots:
-        _scan_root(root)
+        _collect_root(root)
+
+    # Build set of all discovered project directories for the subproject check.
+    project_dirs: set[Path] = {sp.parent.parent for sp in candidates.values()}
+
+    for name, status_path in candidates.items():
+        project_dir = status_path.parent.parent
+        # Skip if this project's parent dir is itself a discovered project.
+        if project_dir.parent in project_dirs:
+            continue
+        found.add(name)
+        if name not in _status_paths:
+            _status_paths[name] = status_path
 
     # Remove projects whose status file has disappeared
     gone = set(_status_paths.keys()) - found
@@ -195,6 +274,7 @@ async def poll_loop() -> None:
     # Initial wait to let discovery run first
     await asyncio.sleep(2)
     while True:
+        now_ts = time.time()
         for name, path in list(_status_paths.items()):
             try:
                 mtime = path.stat().st_mtime
@@ -205,6 +285,26 @@ async def poll_loop() -> None:
                 _mtimes[path_str] = mtime
                 data = _read_status(path)
                 if data is not None:
+                    # If JSONL is still fresh, keep WORKING state regardless of what
+                    # status.json says. This prevents a PostToolUse hook (or a broken hook)
+                    # from flipping us to idle while Claude is still active.
+                    jsonl_info = _jsonl_cache.get(name, {})
+                    jsonl_mtime = jsonl_info.get("mtime", 0.0)
+                    # Only override status.json with JSONL if JSONL is newer than
+                    # status.json — meaning the hooks didn't capture this event.
+                    # If status.json is newer (e.g. Stop hook wrote idle), trust it.
+                    if jsonl_mtime and jsonl_mtime > mtime and (now_ts - jsonl_mtime) <= JSONL_ACTIVE_SECONDS:
+                        data["state"] = "working"
+                        data["status"] = "working"
+                        data["notification"] = None  # Clear stale permission notification
+                        jsonl_tool = jsonl_info.get("tool")
+                        if jsonl_tool:
+                            data["current_action"] = {
+                                "hook": "PreToolUse",
+                                "tool": jsonl_tool,
+                                "description": jsonl_tool,
+                            }
+                            data["tool"] = jsonl_tool
                     # Load active agents
                     active_agents = []
                     project_path = path.parents[1]
@@ -253,7 +353,118 @@ async def poll_loop() -> None:
 
                     projects[name] = data
                     _broadcast({"type": "update", "project_name": name, "data": data, "pending_projects": _pending_projects})
+
         await asyncio.sleep(POLL_INTERVAL)
+
+
+async def jsonl_watcher_loop() -> None:
+    """Primary state detection engine: watches JSONL transcript files.
+
+    Claude always writes to ~/.claude/projects/<encoded>/*.jsonl regardless of
+    hook configuration.  mtime < JSONL_ACTIVE_SECONDS → WORKING; stale → IDLE.
+
+    Pass 1: known projects mapped via _status_paths (fast).
+    Pass 2: scan all JSONL dirs for active sessions not yet in _status_paths
+            and trigger re-discovery if a new one is found under a known root.
+    """
+    await asyncio.sleep(3)  # let discovery run first
+    while True:
+        try:
+            now_ts = time.time()
+
+            # ── Pass 1: known projects ─────────────────────────────────────────
+            for name, sp in list(_status_paths.items()):
+                project_path = sp.parents[1]
+                latest_jsonl, latest_mtime = _get_latest_jsonl(project_path)
+                if latest_jsonl is None:
+                    continue
+
+                cached = _jsonl_cache.get(name, {})
+                if cached.get("mtime") != latest_mtime:
+                    parsed = _parse_jsonl_tail(latest_jsonl)
+                    _jsonl_cache[name] = {
+                        "mtime": latest_mtime,
+                        "tool": parsed.get("tool"),
+                        "jsonl_path": str(latest_jsonl),
+                    }
+                    cached = _jsonl_cache[name]
+
+                age = now_ts - latest_mtime
+                tool = cached.get("tool") or ""
+                current = projects.get(name, {})
+                cur_state = current.get("state") or current.get("status", "idle")
+
+                # Read status.json mtime to decide if hooks already handled this
+                status_mtime = 0.0
+                try:
+                    status_mtime = sp.stat().st_mtime
+                except OSError:
+                    pass
+
+                if age <= JSONL_ACTIVE_SECONDS and latest_mtime > status_mtime:
+                    # Session is active — ensure state is WORKING
+                    cur_action = current.get("current_action")
+                    cur_tool = cur_action.get("tool") if isinstance(cur_action, dict) else cur_action
+                    if cur_state != "working" or cur_tool != tool:
+                        updated = dict(current)
+                        updated["state"] = "working"
+                        updated["status"] = "working"
+                        updated["notification"] = None  # Clear stale permission notification
+                        if tool:
+                            updated["current_action"] = {
+                                "hook": "PreToolUse",
+                                "tool": tool,
+                                "description": tool,
+                            }
+                            updated["tool"] = tool
+                        updated["ts"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        projects[name] = updated
+                        _broadcast({"type": "update", "project_name": name, "data": updated, "pending_projects": _pending_projects})
+                else:
+                    # JSONL stale — if we still think it's working, flip to idle
+                    if cur_state == "working":
+                        stale = dict(current)
+                        stale["status"] = "idle"
+                        stale["state"] = "idle"
+                        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        stale["ts"] = now_iso
+                        stale["updated_at"] = now_iso
+                        stale["message"] = "idle"
+                        stale["_stale"] = True
+                        projects[name] = stale
+                        _broadcast({"type": "update", "project_name": name, "data": stale, "pending_projects": _pending_projects})
+
+            # ── Pass 2: discover sessions not yet tracked ──────────────────────
+            if CLAUDE_PROJECTS_DIR.is_dir():
+                tracked_paths = {str(sp.parents[1]) for sp in _status_paths.values()}
+                try:
+                    for encoded_dir in CLAUDE_PROJECTS_DIR.iterdir():
+                        if not encoded_dir.is_dir():
+                            continue
+                        try:
+                            jsonl_files = list(encoded_dir.glob("*.jsonl"))
+                            if not jsonl_files:
+                                continue
+                            latest = max(jsonl_files, key=lambda p: p.stat().st_mtime)
+                            if now_ts - latest.stat().st_mtime > JSONL_ACTIVE_SECONDS:
+                                continue  # not active
+                            parsed = _parse_jsonl_tail(latest)
+                            cwd = parsed.get("cwd")
+                            if not cwd or cwd in tracked_paths:
+                                continue
+                            # Check if this project sits under a known root
+                            all_roots = [PROJECTS_ROOT] + _extra_roots
+                            for root in all_roots:
+                                if cwd.startswith(str(root)):
+                                    _discover()  # re-run discovery to pick it up
+                                    break
+                        except OSError:
+                            continue
+                except OSError:
+                    pass
+        except Exception:
+            pass
+        await asyncio.sleep(2.0)
 
 
 @app.on_event("startup")
@@ -296,6 +507,7 @@ async def startup() -> None:
             _mtimes[str(path)] = path.stat().st_mtime
     asyncio.create_task(discovery_loop())
     asyncio.create_task(poll_loop())
+    asyncio.create_task(jsonl_watcher_loop())
 
 
 @app.get("/health")
