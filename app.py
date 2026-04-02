@@ -431,7 +431,9 @@ async def jsonl_watcher_loop() -> None:
                     # Session is active — ensure state is WORKING
                     cur_action = current.get("current_action")
                     cur_tool = cur_action.get("tool") if isinstance(cur_action, dict) else cur_action
-                    if cur_state != "working" or cur_tool != tool:
+                    # Broadcast if state/tool changed OR if JSONL has new data (stats refresh)
+                    stats_stale = _jsonl_mtimes.get(str(latest_jsonl)) != latest_mtime
+                    if cur_state != "working" or cur_tool != tool or stats_stale:
                         updated = dict(current)
                         updated["state"] = "working"
                         updated["status"] = "working"
@@ -448,15 +450,26 @@ async def jsonl_watcher_loop() -> None:
                             }
                             updated["tool"] = tool
                         updated["ts"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        # Refresh token stats whenever JSONL has new data.
+                        # Order: hook_stats first, then jsonl_stats on top — so that JSONL
+                        # token fields (session_ctx_tokens, session_input_tokens, etc.)
+                        # override the stale values frozen in the last hook event.
+                        # Non-token hook fields (sub_agents_total, agent_depth, week_*,
+                        # compact_ctx_threshold) are preserved from hook_stats base.
+                        if stats_stale:
+                            hook_stats = updated.get("stats") or {}
+                            jsonl_stats = _get_project_stats(project_path, name)
+                            updated["stats"] = {**hook_stats, **jsonl_stats}
                         projects[name] = updated
                         _broadcast({"type": "update", "project_name": name, "data": updated, "pending_projects": _pending_projects})
                 else:
                     # JSONL stale — if we still think it's working, flip to idle
                     # But don't flip if sub-agents are still running (their JSONLs are active,
                     # but the parent JSONL goes stale — parent state is driven by poll_loop)
-                    if cur_state == "working" and not any(
+                    has_running_agents = any(
                         a.get("state") == "running" for a in current.get("active_agents", [])
-                    ):
+                    )
+                    if cur_state == "working" and not has_running_agents:
                         stale = dict(current)
                         stale["status"] = "idle"
                         stale["state"] = "idle"
@@ -467,6 +480,18 @@ async def jsonl_watcher_loop() -> None:
                         stale["_stale"] = True
                         projects[name] = stale
                         _broadcast({"type": "update", "project_name": name, "data": stale, "pending_projects": _pending_projects})
+                    elif cur_state == "working" and has_running_agents:
+                        # Sub-agents running: parent JSONL is stale but session is active.
+                        # Still refresh stats periodically so ctx% stays current.
+                        stats_stale = _jsonl_mtimes.get(str(latest_jsonl)) != latest_mtime
+                        if stats_stale:
+                            updated = dict(current)
+                            hook_stats = updated.get("stats") or {}
+                            jsonl_stats = _get_project_stats(project_path, name)
+                            updated["stats"] = {**hook_stats, **jsonl_stats}
+                            updated["ts"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                            projects[name] = updated
+                            _broadcast({"type": "update", "project_name": name, "data": updated, "pending_projects": _pending_projects})
 
             # ── Pass 2: discover sessions not yet tracked ──────────────────────
             if CLAUDE_PROJECTS_DIR.is_dir():
