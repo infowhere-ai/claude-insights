@@ -158,7 +158,36 @@
     overflow: hidden;
   }
 
-  /* ── Project picker strip ── */
+  /* ── Activity bar (VSCode-style icon strip on far left) ── */
+  .activity-bar {
+    flex-shrink: 0;
+    width: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 0;
+    gap: 2px;
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .activity-bar-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.12s, color 0.12s;
+  }
+  .activity-bar-btn:hover { background: var(--bg-card); color: var(--text); }
+  .activity-bar-btn.active { color: var(--yellow); background: rgba(251,191,36,0.12); }
+
+  /* ── Project picker (now a left sidebar, placed between activity-bar and left-panel) ── */
   .left-panel-inner {
     flex: 1;
     display: flex;
@@ -173,7 +202,7 @@
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
     background: var(--bg-card);
     overflow: hidden;
     transition: width 0.15s ease, min-width 0.15s ease, opacity 0.15s ease;
@@ -275,13 +304,13 @@
     border-radius: 3px;
     font-size: 0.75rem;
     flex-shrink: 0;
-    opacity: 0;
+    opacity: 0.25;
     transition: opacity 0.1s, color 0.1s;
     line-height: 1;
   }
-  .picker-item:hover .picker-pin-btn { opacity: 1; }
+  .picker-item:hover .picker-pin-btn { opacity: 0.7; }
   .picker-item.pinned .picker-pin-btn { opacity: 1; color: var(--yellow); }
-  .picker-pin-btn:hover { color: var(--text); }
+  .picker-pin-btn:hover { opacity: 1 !important; color: var(--text); }
 
   .picker-section-label {
     font-family: var(--font-mono);
@@ -313,35 +342,7 @@
   .picker-toggle-btn:hover { background: var(--bg-card); color: var(--text); }
   .picker-toggle-btn.active { background: rgba(251,191,36,0.15); color: var(--yellow); }
 
-  /* ── Browse projects footer button ── */
-  .browse-projects-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: calc(100% - 24px);
-    margin: 8px 12px 12px;
-    padding: 10px 14px;
-    border: none;
-    border-radius: 7px;
-    background: rgba(99, 102, 241, 0.18);
-    color: #a5b4fc;
-    font-size: 0.88rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    flex-shrink: 0;
-    letter-spacing: 0.01em;
-  }
-  .browse-projects-btn:hover {
-    background: rgba(99, 102, 241, 0.30);
-    color: #c7d2fe;
-  }
-  .browse-projects-btn.active {
-    background: rgba(99, 102, 241, 0.35);
-    color: #e0e7ff;
-  }
-  .browse-projects-btn svg { opacity: 0.9; flex-shrink: 0; }
+  /* (browse-projects-btn removed — replaced by activity-bar) */
 
   /* ── Monitored roots info box ── */
 
@@ -565,6 +566,7 @@
   }
   .state-badge.working { background: rgba(63,185,80,.15); color: var(--green); }
   .state-badge.waiting { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .state-badge.compacting { background: rgba(139,92,246,.15); color: #a78bfa; }
   .state-badge.idle, .state-badge.stopped { background: rgba(125,133,144,.1); color: var(--text-muted); }
 
   .card-action {
@@ -633,6 +635,7 @@
   .files-section-collapsed .files-header-chevron { transform: rotate(-90deg); }
   .files-section-collapsed .files-toolbar,
   .files-section-collapsed .file-list { display: none; }
+  .file-list { max-height: 220px; overflow-y: auto; }
   .files-count {
     font-size: 0.77rem;
     color: var(--text-dim);
@@ -1119,7 +1122,37 @@
   }
 
   /* ── Context tab ── */
-  .ctx-focused { padding: 8px 12px; overflow-y: auto; }
+  .ctx-proj-tabs {
+    display: flex; align-items: center; gap: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto; flex-shrink: 0;
+    scrollbar-width: none;
+    position: sticky; top: 0; z-index: 2;
+    background: var(--bg-panel);
+  }
+  .ctx-proj-tabs::-webkit-scrollbar { display: none; }
+  .ctx-proj-tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600;
+    color: var(--text-dim); background: transparent; border: none;
+    border-bottom: 2px solid transparent; cursor: pointer;
+    white-space: nowrap; transition: color 0.12s, border-color 0.12s;
+    margin-bottom: -1px;
+  }
+  .ctx-proj-tab:hover { color: var(--text-muted); }
+  .ctx-proj-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .ctx-proj-tab .ctx-proj-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .ctx-proj-tab .ctx-proj-dot.working { background: var(--green); }
+  .ctx-proj-tab .ctx-proj-dot.waiting { background: #f9e2af; }
+  .ctx-proj-tab .ctx-proj-dot.idle    { background: var(--text-dim); }
+  .ctx-proj-tab .ctx-proj-pct {
+    font-size: 0.77rem; opacity: 0.75;
+  }
+  .ctx-proj-tab.active .ctx-proj-pct { opacity: 1; }
+  .ctx-focused { padding: 8px 12px; }
   .ctx-header { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
   .ctx-project-name { font-size: 1rem; font-weight: 700; font-family: var(--font-mono); color: var(--text); }
   .ctx-updated { font-size: 0.85rem; color: var(--text-dim); font-family: var(--font-mono); }
@@ -1988,6 +2021,24 @@
 
 <div class="workspace">
 
+  <!-- ── Activity bar (VSCode-style icon strip) ── -->
+  <div class="activity-bar">
+    <button class="activity-bar-btn" id="activity-bar-projects-btn" onclick="togglePicker()" title="All Projects">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ── Project picker sidebar (collapsible, between activity-bar and cards) ── -->
+  <div class="project-picker hidden" id="project-picker">
+    <div class="picker-header">
+      <span class="picker-header-title">All Projects</span>
+      <button class="picker-close-btn" onclick="togglePicker()" title="Close">✕</button>
+    </div>
+    <div class="picker-list" id="picker-list"></div>
+  </div>
+
   <!-- ── Left panel ── -->
   <div class="left-panel">
     <div class="left-panel-inner">
@@ -2001,24 +2052,7 @@
           <p style="font-family:var(--font-mono);font-size:0.77rem;color:var(--text-dim)">hooks write to .claude/status.json</p>
         </div>
       </div>
-
-      <!-- ── Project picker strip ── -->
-      <div class="project-picker hidden" id="project-picker">
-        <div class="picker-header">
-          <span class="picker-header-title">All Projects</span>
-          <button class="picker-close-btn" onclick="togglePicker()" title="Close">✕</button>
-        </div>
-        <div class="picker-list" id="picker-list"></div>
-      </div>
     </div>
-
-    <!-- ── Browse projects footer ── -->
-    <button class="browse-projects-btn" id="browse-projects-btn" onclick="togglePicker()" title="Browse all discovered projects">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5z"/>
-      </svg>
-      <span id="browse-btn-label">Browse all projects</span>
-    </button>
   </div>
 
   <!-- ── Resizer ── -->
@@ -2232,6 +2266,17 @@
   </div>
 </div>
 
+<!-- ── Agent detail modal ── -->
+<div class="modal-backdrop" id="agent-detail-modal" style="display:none">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:580px">
+    <div class="modal-header">
+      <div class="modal-title" id="agent-modal-title" style="font-size:0.88rem"></div>
+      <button class="modal-close" onclick="closeAgentModal()" title="Close (Esc)">×</button>
+    </div>
+    <div class="modal-body" id="agent-modal-body"></div>
+  </div>
+</div>
+
 <!-- ── Event modal ── -->
 <div class="modal-backdrop" id="event-modal" style="display:none" onclick="closeEventModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -2258,6 +2303,7 @@ if ('serviceWorker' in navigator) {
 
 let allProjects = {};
 let pendingProjects = [];
+let ctxSelectedProject = null; // which project is active in the Context sub-tab
 let expandedCards = (() => {
   try {
     const stored = JSON.parse(localStorage.getItem('cm-collapsed-cards') || '[]');
@@ -2312,7 +2358,7 @@ function fmt_tokens(n) {
 }
 
 function state_label(state) {
-  const labels = { working: '● WORKING', waiting: '⏳ WAITING', idle: 'IDLE', stopped: 'STOPPED' };
+  const labels = { working: '● WORKING', waiting: '⏳ WAITING', compacting: '⚡ COMPACTING', idle: 'IDLE', stopped: 'STOPPED' };
   return labels[state] || state?.toUpperCase() || 'UNKNOWN';
 }
 
@@ -2987,11 +3033,18 @@ function renderAgents(projectEl, agents) {
     row.className = 'agent-row';
     const task = (agent.task || 'Sub-agent').slice(0, 60);
     const tool = agent.current_tool ? `▶ ${agent.current_tool}` : (agent.state === 'done' ? `✓ ${agent.tools_used || 0} tools` : '');
+    // Store agent data for the modal
+    const storeKey = `${projectEl.dataset.name}::${agent.agent_id || agent.task || task}`;
+    _agentStore[storeKey] = agent;
     row.innerHTML = `
       <span class="agent-badge ${agent.state === 'running' ? 'running' : 'done'}">${agent.state === 'running' ? 'RUN' : 'DONE'}</span>
       <span class="agent-task">${escHtml(task)}</span>
-      ${tool ? `<span class="agent-tool">${escHtml(tool)}</span>` : ''}
+      ${tool ? `<span class="agent-tool" style="cursor:pointer" title="Click to see agent details" data-agent-key="${escAttr(storeKey)}">${escHtml(tool)}</span>` : ''}
     `;
+    if (tool) {
+      const toolSpan = row.querySelector('.agent-tool');
+      if (toolSpan) toolSpan.addEventListener('click', () => openAgentModal(storeKey));
+    }
     panel.appendChild(row);
   });
 
@@ -3148,12 +3201,10 @@ function togglePicker() {
   pickerOpen = !pickerOpen;
   const panel = document.getElementById('project-picker');
   const toolbarBtn = document.getElementById('picker-toggle-btn');
-  const browseBtn = document.getElementById('browse-projects-btn');
-  const browseLabel = document.getElementById('browse-btn-label');
+  const activityBtn = document.getElementById('activity-bar-projects-btn');
   if (panel) panel.classList.toggle('hidden', !pickerOpen);
   if (toolbarBtn) toolbarBtn.classList.toggle('active', pickerOpen);
-  if (browseBtn) browseBtn.classList.toggle('active', pickerOpen);
-  if (browseLabel) browseLabel.textContent = pickerOpen ? 'Close project browser' : 'Browse all projects';
+  if (activityBtn) activityBtn.classList.toggle('active', pickerOpen);
   if (pickerOpen) renderPicker();
 }
 
@@ -3415,7 +3466,7 @@ function renderAll() {
     .filter(name => pinnedProjects.has(name) && !activeNames.has(name) && !hiddenProjects.has(name))
     .sort((a, b) => a.localeCompare(b));
 
-  const active = visible.filter(([, d]) => d.state === 'working' || d.state === 'waiting').length;
+  const active = visible.filter(([, d]) => d.state === 'working' || d.state === 'waiting' || d.state === 'compacting').length;
   const hiddenCount = hiddenProjects.size;
   const filterNote = hiddenCount > 0 ? ` · ${hiddenCount} hidden` : '';
   const pinnedNote = pinnedPending.length > 0 ? ` · ${pinnedPending.length} pinned` : '';
@@ -3589,7 +3640,80 @@ document.getElementById('event-modal').addEventListener('click', function(e) {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') document.getElementById('event-modal').style.display = 'none';
+  if (e.key === 'Escape') {
+    document.getElementById('event-modal').style.display = 'none';
+    document.getElementById('agent-detail-modal').style.display = 'none';
+  }
+});
+
+// ── Agent detail modal ────────────────────────────────────────────────────────
+const _agentStore = {}; // "projectName::agentId" -> agent data
+
+function openAgentModal(key) {
+  const agent = _agentStore[key];
+  if (!agent) return;
+
+  const titleEl = document.getElementById('agent-modal-title');
+  const bodyEl = document.getElementById('agent-modal-body');
+
+  const running = agent.state === 'running';
+  const stateDot = running
+    ? '<span style="color:var(--green);margin-right:6px">● RUNNING</span>'
+    : '<span style="color:var(--text-dim);margin-right:6px">✓ DONE</span>';
+  titleEl.innerHTML = `${stateDot}<span style="color:var(--text)">${escHtml((agent.task || 'Sub-agent').slice(0, 80))}</span>`;
+
+  let html = '';
+
+  // Current action block (only when running)
+  if (running && agent.current_tool) {
+    html += `<div style="margin-bottom:12px;padding:8px 10px;background:var(--bg-card);border-radius:5px;border-left:2px solid var(--blue)">
+      <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Current action</div>
+      <div style="color:var(--blue);font-weight:600;font-size:12px">${escHtml(agent.current_tool)}</div>
+      ${agent.current_description ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px">${escHtml(agent.current_description)}</div>` : ''}
+    </div>`;
+  }
+
+  // Events timeline
+  const events = agent.events || [];
+  if (events.length > 0) {
+    html += `<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${events.length} event${events.length !== 1 ? 's' : ''}</div>`;
+    events.forEach(evt => {
+      const isErr = evt.status === 'error';
+      const icon = isErr ? '❌' : evt.hook === 'PostToolUse' ? '✅' : '▶';
+      const inputStr = evt.input ? JSON.stringify(evt.input, null, 2) : null;
+      html += `<div style="display:flex;gap:8px;margin-bottom:5px;padding:6px 8px;background:var(--bg-card);border-radius:4px">
+        <span style="flex-shrink:0;font-size:11px;margin-top:1px">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="color:var(--blue);font-size:11px;font-weight:600">${escHtml(evt.tool || '')}</span>
+            <span style="color:var(--text-dim);font-size:10px">${fmt_time(evt.timestamp)}</span>
+            ${evt.duration_ms ? `<span style="color:var(--text-dim);font-size:10px">${evt.duration_ms}ms</span>` : ''}
+          </div>
+          <div style="color:var(--text-secondary);font-size:11px;margin-top:2px">${escHtml(evt.message || '')}</div>
+          ${inputStr ? `<pre style="margin:4px 0 0;font-size:10px;color:var(--text-dim);white-space:pre-wrap;word-break:break-all;max-height:80px;overflow-y:auto;background:var(--bg);padding:4px 6px;border-radius:3px">${escHtml(inputStr)}</pre>` : ''}
+        </div>
+      </div>`;
+    });
+  } else {
+    html += `<div style="color:var(--text-dim);font-size:12px;padding:8px 0">No events recorded yet.</div>`;
+  }
+
+  // Footer: started / tools count
+  const meta = [];
+  if (agent.started_at) meta.push(`started ${fmt_time(agent.started_at)}`);
+  if (agent.tools_used) meta.push(`${agent.tools_used} tool call${agent.tools_used !== 1 ? 's' : ''}`);
+  if (meta.length) html += `<div style="margin-top:10px;font-size:10px;color:var(--text-dim)">${escHtml(meta.join(' · '))}</div>`;
+
+  bodyEl.innerHTML = html;
+  document.getElementById('agent-detail-modal').style.display = 'flex';
+}
+
+function closeAgentModal() {
+  document.getElementById('agent-detail-modal').style.display = 'none';
+}
+
+document.getElementById('agent-detail-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
 });
 
 // ── Resizer drag ──────────────────────────────────────────────────────────────
@@ -3683,7 +3807,19 @@ document.addEventListener('keydown', (e) => {
   };
 
   // ── Context window constants ───────────────────────────────────────────────
-  const CTX_WINDOW_DEFAULT = 167000; // ~167K = observed auto-compact threshold
+  // ~185K = more accurate observed auto-compact threshold for claude-sonnet-4-6
+  const CTX_WINDOW_DEFAULT = 185000;
+  const CTX_WINDOW_EXTENDED = 1048576; // 1M context window (claude-*[1m] models)
+
+  // Returns the best estimate of the auto-compact threshold for a given session.
+  // - If ctxTokens > 250k: model must be in extended (1M) context mode
+  // - If stored threshold from a real compaction > default: use it
+  // - Otherwise: use max(stored, default) to avoid stale low values from old sessions
+  function resolveCtxWindow(ctxTokens, storedThreshold) {
+    if (ctxTokens > 250000) return CTX_WINDOW_EXTENDED;
+    if (storedThreshold > 250000) return CTX_WINDOW_EXTENDED;
+    return Math.max(storedThreshold || 0, CTX_WINDOW_DEFAULT);
+  }
 
   function parseNextSession(message) {
     // Look for time patterns like "available at 7 PM", "until 10:30", "at 15:00", etc.
@@ -3733,8 +3869,8 @@ document.addEventListener('keydown', (e) => {
       const sessTotal = sessIn + sessOut;
       // session_ctx_tokens = last input_tokens from transcript = actual context window usage
       const ctxTokens = stats.session_ctx_tokens || sessIn;
-      // Use observed compact threshold as denominator; fall back to default ~167K
-      const ctxWindow = stats.compact_ctx_threshold || CTX_WINDOW_DEFAULT;
+      // Resolve context window size — handles standard 200k and extended 1M models
+      const ctxWindow = resolveCtxWindow(ctxTokens, stats.compact_ctx_threshold || 0);
       const ctxUsedPct = Math.min(100, Math.round((ctxTokens / ctxWindow) * 100));
       const ctxRemPct  = 100 - ctxUsedPct; // remaining until auto-compact (like Claude Code)
       // 0-50% used = green, 51-80% = yellow, 81-100% = red
@@ -4024,6 +4160,11 @@ document.addEventListener('keydown', (e) => {
   }
 
   // ── Contexto tab ───────────────────────────────────────────────────────────
+  window.switchCtxProject = function(name) {
+    ctxSelectedProject = name;
+    window.renderContextTab && window.renderContextTab();
+  };
+
   window.renderContextTab = function() {
     if (panelCollapsed) return;
     const activeTab = document.querySelector('.tab-btn.active');
@@ -4038,15 +4179,24 @@ document.addEventListener('keydown', (e) => {
       return;
     }
 
-    // Pick most active: working > waiting > idle; tie-break by updated_at desc
-    const PRIO = { working: 0, waiting: 1, idle: 2 };
-    const sorted = [...entries].sort(([, a], [, b]) => {
-      const ap = PRIO[a.state] ?? 99;
-      const bp = PRIO[b.state] ?? 99;
-      if (ap !== bp) return ap - bp;
-      return (b.updated_at || '').localeCompare(a.updated_at || '');
-    });
-    const [name, data] = sorted[0];
+    // Sort: working > waiting > idle; tie-break by updated_at desc
+    const PRIO = { working: 0, waiting: 1, compacting: 1, idle: 2 };
+    const hasPins = pinnedProjects.size > 0;
+    const sorted = [...entries]
+      .filter(([name]) => !hasPins || pinnedProjects.has(name))
+      .sort(([, a], [, b]) => {
+        const ap = PRIO[a.state] ?? 99;
+        const bp = PRIO[b.state] ?? 99;
+        if (ap !== bp) return ap - bp;
+        return (b.updated_at || '').localeCompare(a.updated_at || '');
+      });
+
+    // Keep selected project if still active, else default to most active
+    if (!ctxSelectedProject || !allProjects[ctxSelectedProject]) {
+      ctxSelectedProject = sorted[0][0];
+    }
+    const name = ctxSelectedProject;
+    const data = allProjects[name];
 
     const stats    = data.stats || {};
     const action   = data.current_action;
@@ -4059,8 +4209,8 @@ document.addEventListener('keydown', (e) => {
     const sessTotal = sessIn + sessOut;
     // session_ctx_tokens = last input_tokens from transcript = actual context window usage
     const ctxTokens = stats.session_ctx_tokens || sessIn;
-    // Use observed compact threshold as denominator; fall back to default ~167K
-    const ctxWindow  = stats.compact_ctx_threshold || CTX_WINDOW_DEFAULT;
+    // Resolve context window size — handles standard 200k and extended 1M models
+    const ctxWindow  = resolveCtxWindow(ctxTokens, stats.compact_ctx_threshold || 0);
     const ctxUsedPct = Math.min(100, Math.round((ctxTokens / ctxWindow) * 100));
     const ctxRemPct  = 100 - ctxUsedPct; // remaining until auto-compact
     const ctxCls     = ctxUsedPct >= 81 ? 'crit' : ctxUsedPct >= 51 ? 'warn' : 'ok';
@@ -4076,11 +4226,11 @@ document.addEventListener('keydown', (e) => {
     const weekOut   = stats.week_output_tokens || 0;
     const weekTotal = weekIn + weekOut;
 
-    // Sub-agents
-    const subTotal  = stats.sub_agents_total || 0;
-    const subActive = stats.sub_agent_active;
-    const agentsHtml = subTotal
-      ? `<span class="dash-agents">${subActive ? '⚡' : ''}${subTotal} agent${subTotal !== 1 ? 's' : ''}</span>`
+    // Sub-agents — use live active_agents list (not cumulative sub_agents_total)
+    const activeAgents = data.active_agents || [];
+    const runningAgents = activeAgents.filter(a => a.state === 'running').length;
+    const agentsHtml = runningAgents > 0
+      ? `<span class="dash-agents">⚡${runningAgents} agent${runningAgents !== 1 ? 's' : ''}</span>`
       : '';
 
     // Rate limit
@@ -4091,14 +4241,25 @@ document.addEventListener('keydown', (e) => {
         ? ` · next session: <strong>${escHtml(nextTime)}</strong>` : ''}</div>`;
     }
 
-    // Other projects (not the focused one)
-    const others = sorted.slice(1);
+    // Build project sub-tabs HTML
+    const tabsHtml = sorted.map(([n, d]) => {
+      const s = d.stats || {};
+      const ctxT = s.session_ctx_tokens || s.session_input_tokens || 0;
+      const ctxW = resolveCtxWindow(ctxT, s.compact_ctx_threshold || 0);
+      const pct  = ctxT > 0 ? Math.min(100, Math.round(ctxT / ctxW * 100)) : 0;
+      const pctCls = pct >= 81 ? 'crit' : pct >= 51 ? 'warn' : 'ok';
+      const pctLabel = ctxT > 0 ? `<span class="ctx-proj-pct ${pctCls}">${pct > 0 ? pct + '%' : '<1%'}</span>` : '';
+      const isSel = n === name;
+      return `<button class="ctx-proj-tab${isSel ? ' active' : ''}" onclick='switchCtxProject(${JSON.stringify(n)})'>
+        <span class="ctx-proj-dot ${d.state}"></span>${escHtml(n)}${pctLabel}
+      </button>`;
+    }).join('');
 
     el.innerHTML = `
+    <div class="ctx-proj-tabs">${tabsHtml}</div>
     <div class="ctx-focused">
       <div class="ctx-header">
         <span class="state-badge ${data.state}">${state_label(data.state)}</span>
-        <span class="ctx-project-name">${escHtml(name)}</span>
         ${modelShort ? `<span class="dash-model">${escHtml(modelShort)}</span>` : ''}
         ${agentsHtml}
         ${data.updated_at ? `<span class="ctx-updated">· ${fmt_time(data.updated_at)}</span>` : ''}
@@ -4164,11 +4325,6 @@ document.addEventListener('keydown', (e) => {
 
       ${stats.last_compact_at ? `
       <div class="ctx-compact-row">compact ${fmt_time(stats.last_compact_at)}${stats.last_compact_trigger ? ` · ${escHtml(stats.last_compact_trigger)}` : ''}</div>` : ''}
-
-      ${others.length > 0 ? `
-      <div class="ctx-other-projects">
-        ${others.map(([n, d]) => `<span class="ctx-other-badge ${d.state}" title="${escAttr(n)}">${escHtml(n)}</span>`).join('')}
-      </div>` : ''}
     </div>`;
   };
 

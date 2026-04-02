@@ -230,6 +230,7 @@ def _get_project_stats(project_path: Path, project_name: str) -> dict:
     session_input = 0
     session_output = 0
     session_cache_read = 0
+    last_input_tokens = 0   # input_tokens of the LAST assistant message = current ctx window size
     model = ""
     try:
         with latest.open(encoding="utf-8", errors="ignore") as f:
@@ -246,6 +247,13 @@ def _get_project_stats(project_path: Path, project_name: str) -> dict:
                     session_input += u.get("input_tokens", 0)
                     session_output += u.get("output_tokens", 0)
                     session_cache_read += u.get("cache_read_input_tokens", 0)
+                    # True context window size = uncached + cached_read + cache_creation
+                    # (input_tokens alone is 1 when everything is cached)
+                    last_input_tokens = (
+                        u.get("input_tokens", 0)
+                        + u.get("cache_read_input_tokens", 0)
+                        + u.get("cache_creation_input_tokens", 0)
+                    )
                     m = d["message"].get("model", "")
                     if m:
                         model = m
@@ -256,7 +264,9 @@ def _get_project_stats(project_path: Path, project_name: str) -> dict:
         "session_input_tokens": session_input,
         "session_output_tokens": session_output,
         "session_cache_read": session_cache_read,
-        "session_ctx_tokens": session_input + session_cache_read,
+        # last_input_tokens = input_tokens of the most recent API call = current context window usage
+        # (not the cumulative sum — each call reports its own context size)
+        "session_ctx_tokens": last_input_tokens,
         "model": model,
     }
     _jsonl_mtimes[cache_key] = latest_mtime
@@ -296,7 +306,11 @@ async def poll_loop() -> None:
                     if jsonl_mtime and jsonl_mtime > mtime and (now_ts - jsonl_mtime) <= JSONL_ACTIVE_SECONDS:
                         data["state"] = "working"
                         data["status"] = "working"
-                        data["notification"] = None  # Clear stale permission notification
+                        # Only clear a notification if JSONL is substantially newer (>2s).
+                        # A tiny margin (<2s) is just Claude Code writing "system" entries
+                        # immediately after firing the Notification hook — race condition.
+                        if (jsonl_mtime - mtime) > 2.0:
+                            data["notification"] = None
                         jsonl_tool = jsonl_info.get("tool")
                         if jsonl_tool:
                             data["current_action"] = {
@@ -333,6 +347,13 @@ async def poll_loop() -> None:
                         active_agents.sort(key=lambda a: a.get("started_at", ""))
                     data["active_agents"] = active_agents
 
+                    # If any sub-agent is running, parent is working regardless of status.json
+                    # (parent JSONL goes stale while agents run in their own JSONL files)
+                    if any(a.get("state") == "running" for a in active_agents):
+                        data["state"] = "working"
+                        data["status"] = "working"
+                        data["notification"] = None
+
                     # Accumulate event log
                     event = {
                         "timestamp": data.get("ts", datetime.datetime.utcnow().isoformat() + "Z"),
@@ -348,8 +369,13 @@ async def poll_loop() -> None:
                     data["events"] = list(events)
 
                     # Inject per-project token stats
+                    # Merge: JSONL provides base/fallback; hook stats (from status.json)
+                    # override with fresher real-time values (e.g. session_ctx_tokens
+                    # written by PreToolUse/Stop hooks from the CURRENT session's transcript).
                     project_path = _status_paths[name].parents[1]
-                    data["stats"] = _get_project_stats(project_path, name)
+                    hook_stats = data.get("stats") or {}
+                    jsonl_stats = _get_project_stats(project_path, name)
+                    data["stats"] = {**jsonl_stats, **hook_stats}
 
                     projects[name] = data
                     _broadcast({"type": "update", "project_name": name, "data": data, "pending_projects": _pending_projects})
@@ -409,7 +435,11 @@ async def jsonl_watcher_loop() -> None:
                         updated = dict(current)
                         updated["state"] = "working"
                         updated["status"] = "working"
-                        updated["notification"] = None  # Clear stale permission notification
+                        # Only clear a notification if JSONL is substantially newer (>2s).
+                        # A tiny margin is the race condition where Claude Code writes
+                        # "system" entries right after the Notification hook fires.
+                        if (latest_mtime - status_mtime) > 2.0:
+                            updated["notification"] = None
                         if tool:
                             updated["current_action"] = {
                                 "hook": "PreToolUse",
@@ -422,7 +452,11 @@ async def jsonl_watcher_loop() -> None:
                         _broadcast({"type": "update", "project_name": name, "data": updated, "pending_projects": _pending_projects})
                 else:
                     # JSONL stale — if we still think it's working, flip to idle
-                    if cur_state == "working":
+                    # But don't flip if sub-agents are still running (their JSONLs are active,
+                    # but the parent JSONL goes stale — parent state is driven by poll_loop)
+                    if cur_state == "working" and not any(
+                        a.get("state") == "running" for a in current.get("active_agents", [])
+                    ):
                         stale = dict(current)
                         stale["status"] = "idle"
                         stale["state"] = "idle"
@@ -502,7 +536,9 @@ async def startup() -> None:
                 active_agents.sort(key=lambda a: a.get("started_at", ""))
             data["active_agents"] = active_agents
             data["events"] = list(_project_events.get(name, []))
-            data["stats"] = _get_project_stats(path.parents[1], name)
+            hook_stats = data.get("stats") or {}
+            jsonl_stats = _get_project_stats(path.parents[1], name)
+            data["stats"] = {**jsonl_stats, **hook_stats}
             projects[name] = data
             _mtimes[str(path)] = path.stat().st_mtime
     asyncio.create_task(discovery_loop())
