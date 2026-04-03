@@ -2778,6 +2778,17 @@ function loadAllPendingFiles() {
   Object.keys(allProjects).forEach(name => loadPendingFiles(name));
 }
 
+// Debounced version for SSE updates — coalesces rapid successive calls per project
+// into a single fetch after 3s, preventing N HTTP calls per update cycle.
+const _pendingDebounceTimers = {};
+function loadPendingFilesDebounced(projectName) {
+  if (_pendingDebounceTimers[projectName]) return;
+  _pendingDebounceTimers[projectName] = setTimeout(() => {
+    delete _pendingDebounceTimers[projectName];
+    loadPendingFiles(projectName);
+  }, 3000);
+}
+
 // Refresh pending files every 10s
 setInterval(loadAllPendingFiles, 10000);
 
@@ -3584,7 +3595,7 @@ function connect() {
           if (pickerOpen) renderPicker();
         }
         renderAll();
-        loadPendingFiles(msg.project_name);
+        loadPendingFilesDebounced(msg.project_name);
         if (window.renderContextTab) window.renderContextTab();
         if (window.renderEventsTab) window.renderEventsTab();
         if (window.renderDebugTab) window.renderDebugTab();

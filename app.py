@@ -324,7 +324,7 @@ async def poll_loop() -> None:
                     project_path = path.parents[1]
                     agents_dir = project_path / ".claude" / "agents"
                     if agents_dir.is_dir():
-                        now_ts = time.time()
+                        agents_now = time.time()
                         for agent_file in agents_dir.glob("*.json"):
                             try:
                                 agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
@@ -337,7 +337,7 @@ async def poll_loop() -> None:
                                         try:
                                             from datetime import datetime
                                             ft = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
-                                            age = now_ts - ft.timestamp()
+                                            age = agents_now - ft.timestamp()
                                             if age < 300:  # 5 minutes
                                                 active_agents.append(agent_data)
                                         except Exception:
@@ -1016,9 +1016,9 @@ async def get_claude_md(project: str = Query(...)):
     return JSONResponse({"content": None, "path": None})
 
 
-@app.get("/api/account")
-async def get_account():
-    """Returns account settings and usage stats aggregated from session files."""
+def _get_account_sync() -> dict:
+    """Synchronous worker for account data — runs in a thread via asyncio.to_thread()
+    to avoid blocking the event loop during the JSONL file scan (can be 1700+ files)."""
     from datetime import datetime, timedelta
 
     home = Path.home()
@@ -1079,6 +1079,12 @@ async def get_account():
         "tokens_week": token_totals,
         "service_tier": service_tier,
     }
+
+
+@app.get("/api/account")
+async def get_account():
+    """Returns account settings and usage stats aggregated from session files."""
+    return await asyncio.to_thread(_get_account_sync)
 
 
 @app.delete("/api/file")
