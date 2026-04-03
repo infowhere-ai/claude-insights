@@ -51,6 +51,9 @@ _project_stats_cache: dict[str, dict] = {}  # project_name -> stats
 # JSONL watcher cache (state detection — reads only the tail)
 _jsonl_cache: dict[str, dict] = {}  # project_name -> {mtime, tool, jsonl_path}
 
+# Agents dir mtime cache — tracks when agents dir changes so we rescan independently of status.json
+_agents_dir_mtimes: dict[str, float] = {}  # project_name -> agents dir mtime
+
 # Config: extra roots (beyond PROJECTS_ROOT)
 _CONFIG_FILE = PROJECTS_ROOT / ".claude" / "monitor-roots.json"
 _extra_roots: list[Path] = []
@@ -331,15 +334,25 @@ async def poll_loop() -> None:
                         for agent_file in agents_dir.glob("*.json"):
                             try:
                                 agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
-                                # Include running agents + recently done agents (last 5 min)
                                 if agent_data.get("state") == "running":
-                                    active_agents.append(agent_data)
+                                    # Guard against stale "running" agents: if last_updated
+                                    # (or started_at) is older than 10 minutes, the parent
+                                    # session died without marking the agent done.
+                                    ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
+                                    stale = False
+                                    if ts_str:
+                                        try:
+                                            ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                                            stale = (agents_now - ts.timestamp()) > 600  # 10 min
+                                        except Exception:
+                                            pass
+                                    if not stale:
+                                        active_agents.append(agent_data)
                                 elif agent_data.get("state") == "done":
                                     finished_at = agent_data.get("finished_at", "")
                                     if finished_at:
                                         try:
-                                            from datetime import datetime
-                                            ft = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                                            ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
                                             age = agents_now - ft.timestamp()
                                             if age < 300:  # 5 minutes
                                                 active_agents.append(agent_data)
@@ -382,6 +395,56 @@ async def poll_loop() -> None:
 
                     projects[name] = data
                     _broadcast({"type": "update", "project_name": name, "data": data, "pending_projects": _pending_projects})
+            else:
+                # status.json didn't change — but check if agents dir changed independently.
+                # This catches agent files added/deleted without a status.json write.
+                project_path = path.parents[1]
+                agents_dir = project_path / ".claude" / "agents"
+                if agents_dir.is_dir():
+                    try:
+                        agents_dir_mtime = agents_dir.stat().st_mtime
+                    except OSError:
+                        agents_dir_mtime = 0.0
+                    if _agents_dir_mtimes.get(name) != agents_dir_mtime:
+                        _agents_dir_mtimes[name] = agents_dir_mtime
+                        # Re-scan agents and broadcast if list changed
+                        current = projects.get(name)
+                        if current is not None:
+                            agents_now = time.time()
+                            active_agents = []
+                            for agent_file in agents_dir.glob("*.json"):
+                                try:
+                                    agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+                                    if agent_data.get("state") == "running":
+                                        ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
+                                        stale = False
+                                        if ts_str:
+                                            try:
+                                                ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                                                stale = (agents_now - ts.timestamp()) > 600
+                                            except Exception:
+                                                pass
+                                        if not stale:
+                                            active_agents.append(agent_data)
+                                    elif agent_data.get("state") == "done":
+                                        finished_at = agent_data.get("finished_at", "")
+                                        if finished_at:
+                                            try:
+                                                ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                                                if (agents_now - ft.timestamp()) < 300:
+                                                    active_agents.append(agent_data)
+                                            except Exception:
+                                                pass
+                                except Exception:
+                                    pass
+                            active_agents.sort(key=lambda a: a.get("started_at", ""))
+                            prev_ids = {a.get("agent_id") for a in current.get("active_agents", [])}
+                            new_ids = {a.get("agent_id") for a in active_agents}
+                            if prev_ids != new_ids:
+                                updated = dict(current)
+                                updated["active_agents"] = active_agents
+                                projects[name] = updated
+                                _broadcast({"type": "update", "project_name": name, "data": updated, "pending_projects": _pending_projects})
 
         await asyncio.sleep(POLL_INTERVAL)
 
@@ -565,13 +628,21 @@ async def startup() -> None:
                     try:
                         agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
                         if agent_data.get("state") == "running":
-                            active_agents.append(agent_data)
+                            ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
+                            stale = False
+                            if ts_str:
+                                try:
+                                    ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                                    stale = (now_ts - ts.timestamp()) > 600
+                                except Exception:
+                                    pass
+                            if not stale:
+                                active_agents.append(agent_data)
                         elif agent_data.get("state") == "done":
                             finished_at = agent_data.get("finished_at", "")
                             if finished_at:
                                 try:
-                                    from datetime import datetime
-                                    ft = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                                    ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
                                     age = now_ts - ft.timestamp()
                                     if age < 300:
                                         active_agents.append(agent_data)

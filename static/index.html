@@ -1935,7 +1935,40 @@
   .agent-task { font-size: 11px; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .agent-tool { font-size: 10px; color: var(--blue); margin-left: auto; flex-shrink: 0; }
 
-  /* ── Agents tab ── */
+  /* ── Agents tab — project tabs (reuse ctx-proj-* classes) ── */
+  .agents-proj-tabs {
+    display: flex; align-items: center; gap: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto; flex-shrink: 0;
+    scrollbar-width: none;
+    position: sticky; top: 0; z-index: 2;
+    background: var(--bg-panel);
+  }
+  .agents-proj-tabs::-webkit-scrollbar { display: none; }
+  .agents-proj-tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600;
+    color: var(--text-dim); background: transparent; border: none;
+    border-bottom: 2px solid transparent; cursor: pointer;
+    white-space: nowrap; transition: color 0.12s, border-color 0.12s;
+    margin-bottom: -1px;
+  }
+  .agents-proj-tab:hover { color: var(--text-muted); }
+  .agents-proj-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .agents-proj-tab .agents-proj-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .agents-proj-tab .agents-proj-dot.running { background: var(--green); }
+  .agents-proj-tab .agents-proj-dot.idle    { background: var(--text-dim); }
+  .agents-proj-count {
+    font-size: 0.72rem; font-weight: 700;
+    background: rgba(74,222,128,.2); color: #4ade80;
+    border-radius: 8px; padding: 0 5px; line-height: 1.4;
+  }
+  .agents-proj-tab:not(.active) .agents-proj-count { opacity: 0.7; }
+  /* ── Agents list ── */
+  .agents-focused { padding: 8px 10px; }
   .agent-section { margin-bottom: 6px; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
   .agent-section-header { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--bg-card); cursor: pointer; user-select: none; }
   .agent-section-header:hover { background: var(--bg-card-hover); }
@@ -1946,7 +1979,6 @@
   .agent-sec-badge.done { background: rgba(148,163,184,.12); color: var(--text-dim); }
   .agent-sec-task { flex: 1; font-size: 0.78rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .agent-sec-meta { font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
-  .agent-sec-proj { font-size: 0.68rem; color: var(--text-dim); background: var(--bg); border-radius: 3px; padding: 1px 4px; flex-shrink: 0; }
   .agent-events-list { display: none; border-top: 1px solid var(--border); }
   .agent-section.expanded .agent-events-list { display: block; }
   .agents-tab-empty { color: var(--text-dim); font-size: 0.82rem; padding: 20px; text-align: center; }
@@ -2297,7 +2329,8 @@ if ('serviceWorker' in navigator) {
 
 let allProjects = {};
 let pendingProjects = [];
-let ctxSelectedProject = null; // which project is active in the Context sub-tab
+let ctxSelectedProject = null;    // which project is active in the Context sub-tab
+let agentsSelectedProject = null; // which project is active in the Agents sub-tab
 let expandedCards = (() => {
   try {
     const stored = JSON.parse(localStorage.getItem('cm-collapsed-cards') || '[]');
@@ -4557,6 +4590,86 @@ document.getElementById('agent-detail-modal').addEventListener('click', function
   };
 
   // ── Agents tab ─────────────────────────────────────────────────────────────
+  window.switchAgentsProject = function(name) {
+    agentsSelectedProject = name;
+    renderAgentsTab();
+  };
+
+  // Renders one agent as an expandable section. idx must be unique across all renders.
+  function renderAgentSection(agent, idx) {
+    const sectionId = `agent-sec-${idx}`;
+    const isRunning = agent.state === 'running';
+    const rawTask = agent.task || '(no description)';
+    const task = rawTask.length > 80 ? rawTask.slice(0, 80) + '…' : rawTask;
+
+    let meta = '';
+    if (agent.started_at) {
+      if (agent.state === 'done' && agent.finished_at) {
+        try {
+          const secs = Math.round((new Date(agent.finished_at) - new Date(agent.started_at)) / 1000);
+          meta = secs >= 60 ? Math.floor(secs / 60) + 'm ' + (secs % 60) + 's' : secs + 's';
+        } catch (e) { meta = ''; }
+      } else {
+        meta = fmt_time(agent.started_at);
+      }
+    }
+    const toolMeta = (agent.tools_used || 0) > 0 ? ` · ${agent.tools_used} tools` : '';
+
+    const events = agent.events || [];
+    let eventsHtml;
+    if (events.length === 0) {
+      eventsHtml = '<div style="color:var(--text-dim);font-size:0.75rem;padding:8px 12px;">No events recorded</div>';
+    } else {
+      eventsHtml = events.map((e, ei) => {
+        const eId = `agent-evt-${idx}-${ei}`;
+        const col = debugToolColor(e.tool);
+        const hookCls = { PreToolUse: 'debug-hook-pre', PostToolUse: 'debug-hook-post', Notification: 'debug-hook-notif' }[e.hook] || 'debug-hook-notif';
+        const statusCls = { success: 'debug-status-success', error: 'debug-status-error', working: 'debug-status-working', info: 'debug-status-info' }[e.status] || 'debug-status-info';
+        const dur = e.duration_ms != null
+          ? `<span class="debug-dur">${e.duration_ms < 1000 ? e.duration_ms + 'ms' : (e.duration_ms / 1000).toFixed(1) + 's'}</span>`
+          : '';
+        const toolBadge = e.tool
+          ? `<span class="debug-tool-badge dtool-${e.tool}" style="--tc:${col}">${escHtml(e.tool)}</span>`
+          : '';
+        const msgText = e.message ? (e.message.length > 100 ? e.message.slice(0, 100) + '…' : e.message) : '';
+        let detailHtml = '';
+        if (e.input && typeof e.input === 'object') {
+          const kvs = Object.entries(e.input)
+            .map(([k, v]) => `<div class="debug-kv-pair"><span class="debug-kv-key">${escHtml(k)}</span><span class="debug-kv-val">${escHtml(String(v))}</span></div>`)
+            .join('');
+          if (kvs) detailHtml += `<div class="debug-input-section">${kvs}</div>`;
+        }
+        if (e.output) {
+          const isErr = e.output.startsWith('ERR:');
+          const out = e.output.length > 800 ? e.output.slice(0, 800) + '…' : e.output;
+          detailHtml += `<pre class="debug-detail-code${isErr ? ' debug-detail-code-err' : ''}">${escHtml(out)}</pre>`;
+        }
+        return `<div class="debug-event" id="${eId}" onclick="window._debugToggleExpand('${eId}')">
+          <div class="debug-event-row">
+            <span class="debug-expand-arrow">▶</span>
+            <span class="debug-time">${fmt_time(e.timestamp)}</span>
+            <span class="${hookCls} debug-hook-badge">${e.hook || ''}</span>
+            ${toolBadge}
+            <span class="debug-status-dot ${statusCls}"></span>
+            <span class="debug-msg">${escHtml(msgText)}</span>
+            ${dur}
+          </div>
+          ${detailHtml ? `<div class="debug-event-detail">${detailHtml}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    return `<div class="agent-section" id="${sectionId}">
+      <div class="agent-section-header" onclick="document.getElementById('${sectionId}').classList.toggle('expanded')">
+        <span class="agent-sec-arrow">▶</span>
+        <span class="agent-sec-badge ${isRunning ? 'running' : 'done'}">${isRunning ? 'RUN' : 'DONE'}</span>
+        <span class="agent-sec-task">${escHtml(task)}</span>
+        <span class="agent-sec-meta">${escHtml(meta + toolMeta)}</span>
+      </div>
+      <div class="agent-events-list">${eventsHtml}</div>
+    </div>`;
+  }
+
   window.renderAgentsTab = function renderAgentsTab() {
     if (panelCollapsed) return;
     const activeTab = document.querySelector('.tab-btn.active');
@@ -4564,98 +4677,58 @@ document.getElementById('agent-detail-modal').addEventListener('click', function
     const listEl = document.getElementById('agents-tab-list');
     if (!listEl) return;
 
-    const allAgents = [];
-    for (const [name, data] of Object.entries(allProjects)) {
-      for (const agent of (data.active_agents || [])) {
-        allAgents.push({ ...agent, _project: name });
-      }
-    }
+    // Collect projects that have agents, sorted alphabetically
+    const projectsWithAgents = Object.entries(allProjects)
+      .filter(([, data]) => (data.active_agents || []).length > 0)
+      .sort(([a], [b]) => a.localeCompare(b));
 
-    if (allAgents.length === 0) {
+    if (projectsWithAgents.length === 0) {
       listEl.innerHTML = '<div class="agents-tab-empty">No active or recent agents.</div>';
+      agentsSelectedProject = null;
       return;
     }
 
-    allAgents.sort((a, b) => {
+    // Validate / auto-select project
+    const projNames = new Set(projectsWithAgents.map(([n]) => n));
+    if (!agentsSelectedProject || !projNames.has(agentsSelectedProject)) {
+      // Prefer the project with running agents, then alphabetically first
+      const withRunning = projectsWithAgents.find(([, d]) =>
+        (d.active_agents || []).some(a => a.state === 'running'));
+      agentsSelectedProject = withRunning ? withRunning[0] : projectsWithAgents[0][0];
+    }
+
+    // Build tabs
+    const tabsHtml = projectsWithAgents.map(([n, d]) => {
+      const agents = d.active_agents || [];
+      const runningCount = agents.filter(a => a.state === 'running').length;
+      const hasRunning = runningCount > 0;
+      const isSel = n === agentsSelectedProject;
+      const dotCls = hasRunning ? 'running' : 'idle';
+      const countBadge = agents.length > 0
+        ? `<span class="agents-proj-count">${agents.length}</span>`
+        : '';
+      return `<button class="agents-proj-tab${isSel ? ' active' : ''}" onclick='switchAgentsProject(${JSON.stringify(n)})'>
+        <span class="agents-proj-dot ${dotCls}"></span>${escHtml(n)}${countBadge}
+      </button>`;
+    }).join('');
+
+    // Build agent list for selected project
+    const selData = allProjects[agentsSelectedProject] || {};
+    const selAgents = [...(selData.active_agents || [])];
+    selAgents.sort((a, b) => {
       if (a.state === 'running' && b.state !== 'running') return -1;
       if (a.state !== 'running' && b.state === 'running') return 1;
       return (b.started_at || '').localeCompare(a.started_at || '');
     });
 
-    listEl.innerHTML = allAgents.map((agent, idx) => {
-      const sectionId = `agent-sec-${idx}`;
-      const isRunning = agent.state === 'running';
-      const rawTask = agent.task || '(no description)';
-      const task = rawTask.length > 80 ? rawTask.slice(0, 80) + '…' : rawTask;
+    const agentsHtml = selAgents.length === 0
+      ? '<div class="agents-tab-empty">No agents for this project.</div>'
+      : selAgents.map((agent, idx) => renderAgentSection(agent, `${agentsSelectedProject}-${idx}`)).join('');
 
-      let meta = '';
-      if (agent.started_at) {
-        if (agent.state === 'done' && agent.finished_at) {
-          try {
-            const secs = Math.round((new Date(agent.finished_at) - new Date(agent.started_at)) / 1000);
-            meta = secs >= 60 ? Math.floor(secs / 60) + 'm ' + (secs % 60) + 's' : secs + 's';
-          } catch (e) { meta = ''; }
-        } else {
-          meta = fmt_time(agent.started_at);
-        }
-      }
-      const toolMeta = (agent.tools_used || 0) > 0 ? ` · ${agent.tools_used} tools` : '';
-
-      const events = agent.events || [];
-      let eventsHtml;
-      if (events.length === 0) {
-        eventsHtml = '<div style="color:var(--text-dim);font-size:0.75rem;padding:8px 12px;">No events recorded</div>';
-      } else {
-        eventsHtml = events.map((e, ei) => {
-          const eId = `agent-evt-${idx}-${ei}`;
-          const col = debugToolColor(e.tool);
-          const hookCls = { PreToolUse: 'debug-hook-pre', PostToolUse: 'debug-hook-post', Notification: 'debug-hook-notif' }[e.hook] || 'debug-hook-notif';
-          const statusCls = { success: 'debug-status-success', error: 'debug-status-error', working: 'debug-status-working', info: 'debug-status-info' }[e.status] || 'debug-status-info';
-          const dur = e.duration_ms != null
-            ? `<span class="debug-dur">${e.duration_ms < 1000 ? e.duration_ms + 'ms' : (e.duration_ms / 1000).toFixed(1) + 's'}</span>`
-            : '';
-          const toolBadge = e.tool
-            ? `<span class="debug-tool-badge dtool-${e.tool}" style="--tc:${col}">${escHtml(e.tool)}</span>`
-            : '';
-          const msgText = e.message ? (e.message.length > 100 ? e.message.slice(0, 100) + '…' : e.message) : '';
-          let detailHtml = '';
-          if (e.input && typeof e.input === 'object') {
-            const kvs = Object.entries(e.input)
-              .map(([k, v]) => `<div class="debug-kv-pair"><span class="debug-kv-key">${escHtml(k)}</span><span class="debug-kv-val">${escHtml(String(v))}</span></div>`)
-              .join('');
-            if (kvs) detailHtml += `<div class="debug-input-section">${kvs}</div>`;
-          }
-          if (e.output) {
-            const isErr = e.output.startsWith('ERR:');
-            const out = e.output.length > 800 ? e.output.slice(0, 800) + '…' : e.output;
-            detailHtml += `<pre class="debug-detail-code${isErr ? ' debug-detail-code-err' : ''}">${escHtml(out)}</pre>`;
-          }
-          return `<div class="debug-event" id="${eId}" onclick="window._debugToggleExpand('${eId}')">
-            <div class="debug-event-row">
-              <span class="debug-expand-arrow">▶</span>
-              <span class="debug-time">${fmt_time(e.timestamp)}</span>
-              <span class="${hookCls} debug-hook-badge">${e.hook || ''}</span>
-              ${toolBadge}
-              <span class="debug-status-dot ${statusCls}"></span>
-              <span class="debug-msg">${escHtml(msgText)}</span>
-              ${dur}
-            </div>
-            ${detailHtml ? `<div class="debug-event-detail">${detailHtml}</div>` : ''}
-          </div>`;
-        }).join('');
-      }
-
-      return `<div class="agent-section" id="${sectionId}">
-        <div class="agent-section-header" onclick="document.getElementById('${sectionId}').classList.toggle('expanded')">
-          <span class="agent-sec-arrow">▶</span>
-          <span class="agent-sec-badge ${isRunning ? 'running' : 'done'}">${isRunning ? 'RUN' : 'DONE'}</span>
-          <span class="agent-sec-task">${escHtml(task)}</span>
-          <span class="agent-sec-meta">${escHtml(meta + toolMeta)}</span>
-          <span class="agent-sec-proj">${escHtml(agent._project)}</span>
-        </div>
-        <div class="agent-events-list">${eventsHtml}</div>
-      </div>`;
-    }).join('');
+    listEl.innerHTML = `
+      <div class="agents-proj-tabs">${tabsHtml}</div>
+      <div class="agents-focused">${agentsHtml}</div>
+    `;
   };
 
   // ── Skills tab ─────────────────────────────────────────────────────────────
