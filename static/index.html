@@ -1189,14 +1189,8 @@
     display: flex; align-items: center; gap: 6px;
     font-size: 0.85rem; font-family: var(--font-mono);
   }
-  .ctx-tok-row-label { width: 54px; flex-shrink: 0; color: var(--text-dim); }
-  .ctx-tok-row-val { width: 52px; flex-shrink: 0; text-align: right; color: var(--text); font-weight: 600; }
-  .ctx-tok-row-bar-wrap { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .ctx-tok-row-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
-  .ctx-tok-row-bar.input  { background: var(--green); }
-  .ctx-tok-row-bar.output { background: var(--blue); }
-  .ctx-tok-row-bar.cache  { background: #cba6f7; }
-  .ctx-tok-row-bar.cacheW { background: #f9e2af; }
+  .ctx-tok-row-label { width: 60px; flex-shrink: 0; color: var(--text-dim); }
+  .ctx-tok-row-val { flex-shrink: 0; color: var(--text); font-weight: 600; }
   /* Week summary row */
   .ctx-week-row {
     display: flex; align-items: baseline; gap: 8px; margin-top: 2px;
@@ -4201,8 +4195,9 @@ document.getElementById('agent-detail-modal').addEventListener('click', function
         return (b.updated_at || '').localeCompare(a.updated_at || '');
       });
 
-    // Keep selected project if still active, else default to most active
-    if (!ctxSelectedProject || !allProjects[ctxSelectedProject]) {
+    // Keep selected project if still visible in current filter, else default to first
+    const sortedNames = new Set(sorted.map(([n]) => n));
+    if (!ctxSelectedProject || !sortedNames.has(ctxSelectedProject)) {
       ctxSelectedProject = sorted[0][0];
     }
     const name = ctxSelectedProject;
@@ -4298,30 +4293,18 @@ document.getElementById('agent-detail-modal').addEventListener('click', function
         <div class="ctx-tok-row">
           <span class="ctx-tok-row-label">Input</span>
           <span class="ctx-tok-row-val ${ctxCls !== 'ok' ? ctxCls : ''}">${fmt_tokens(sessIn)}</span>
-          <div class="ctx-tok-row-bar-wrap">
-            <div class="ctx-tok-row-bar input" style="width:${Math.min(100, Math.round(sessIn / Math.max(sessIn, sessOut, sessCache, stats.session_cache_write || 0, 1) * 100))}%"></div>
-          </div>
         </div>
         <div class="ctx-tok-row">
           <span class="ctx-tok-row-label">Output</span>
           <span class="ctx-tok-row-val">${fmt_tokens(sessOut)}</span>
-          <div class="ctx-tok-row-bar-wrap">
-            <div class="ctx-tok-row-bar output" style="width:${Math.min(100, Math.round(sessOut / Math.max(sessIn, sessOut, sessCache, stats.session_cache_write || 0, 1) * 100))}%"></div>
-          </div>
         </div>
         ${sessCache > 0 ? `<div class="ctx-tok-row">
           <span class="ctx-tok-row-label">Cache rd</span>
           <span class="ctx-tok-row-val">${fmt_tokens(sessCache)}</span>
-          <div class="ctx-tok-row-bar-wrap">
-            <div class="ctx-tok-row-bar cache" style="width:${Math.min(100, Math.round(sessCache / Math.max(sessIn, sessOut, sessCache, stats.session_cache_write || 0, 1) * 100))}%"></div>
-          </div>
         </div>` : ''}
         ${(stats.session_cache_write || 0) > 0 ? `<div class="ctx-tok-row">
           <span class="ctx-tok-row-label">Cache wr</span>
           <span class="ctx-tok-row-val">${fmt_tokens(stats.session_cache_write)}</span>
-          <div class="ctx-tok-row-bar-wrap">
-            <div class="ctx-tok-row-bar cacheW" style="width:${Math.min(100, Math.round((stats.session_cache_write || 0) / Math.max(sessIn, sessOut, sessCache, stats.session_cache_write || 0, 1) * 100))}%"></div>
-          </div>
         </div>` : ''}
       </div>` : ''}
 

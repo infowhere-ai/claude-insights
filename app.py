@@ -304,13 +304,16 @@ async def poll_loop() -> None:
                     # status.json — meaning the hooks didn't capture this event.
                     # If status.json is newer (e.g. Stop hook wrote idle), trust it.
                     if jsonl_mtime and jsonl_mtime > mtime and (now_ts - jsonl_mtime) <= JSONL_ACTIVE_SECONDS:
-                        data["state"] = "working"
-                        data["status"] = "working"
-                        # Only clear a notification if JSONL is substantially newer (>2s).
-                        # A tiny margin (<2s) is just Claude Code writing "system" entries
-                        # immediately after firing the Notification hook — race condition.
-                        if (jsonl_mtime - mtime) > 2.0:
-                            data["notification"] = None
+                        # Don't override "compacting" — PreCompact hook set it and we must
+                        # preserve it until the new session's first hook fires.
+                        if data.get("state") != "compacting":
+                            data["state"] = "working"
+                            data["status"] = "working"
+                            # Only clear a notification if JSONL is substantially newer (>2s).
+                            # A tiny margin (<2s) is just Claude Code writing "system" entries
+                            # immediately after firing the Notification hook — race condition.
+                            if (jsonl_mtime - mtime) > 2.0:
+                                data["notification"] = None
                         jsonl_tool = jsonl_info.get("tool")
                         if jsonl_tool:
                             data["current_action"] = {
@@ -435,12 +438,17 @@ async def jsonl_watcher_loop() -> None:
                     stats_stale = _jsonl_mtimes.get(str(latest_jsonl)) != latest_mtime
                     if cur_state != "working" or cur_tool != tool or stats_stale:
                         updated = dict(current)
-                        updated["state"] = "working"
-                        updated["status"] = "working"
+                        # Don't override "compacting" — PreCompact hook set it and we must
+                        # preserve it until the new session's first hook fires.
+                        if cur_state != "compacting":
+                            updated["state"] = "working"
+                            updated["status"] = "working"
                         # Only clear a notification if JSONL is substantially newer (>2s).
                         # A tiny margin is the race condition where Claude Code writes
                         # "system" entries right after the Notification hook fires.
-                        if (latest_mtime - status_mtime) > 2.0:
+                        # Also: never clear notification while compacting (would remove
+                        # the "⚡ Compactando contexto" message set by PreCompact).
+                        if (latest_mtime - status_mtime) > 2.0 and cur_state != "compacting":
                             updated["notification"] = None
                         if tool:
                             updated["current_action"] = {
@@ -459,7 +467,15 @@ async def jsonl_watcher_loop() -> None:
                         if stats_stale:
                             hook_stats = updated.get("stats") or {}
                             jsonl_stats = _get_project_stats(project_path, name)
-                            updated["stats"] = {**hook_stats, **jsonl_stats}
+                            merged = {**hook_stats, **jsonl_stats}
+                            # Guard: if JSONL has no assistant messages yet (new session file),
+                            # _get_project_stats returns ctx=0 and model="". Don't let that
+                            # overwrite valid hook values — it would zero out the ctx% display.
+                            if not jsonl_stats.get("session_ctx_tokens") and hook_stats.get("session_ctx_tokens"):
+                                merged["session_ctx_tokens"] = hook_stats["session_ctx_tokens"]
+                            if not jsonl_stats.get("model") and hook_stats.get("model"):
+                                merged["model"] = hook_stats["model"]
+                            updated["stats"] = merged
                         projects[name] = updated
                         _broadcast({"type": "update", "project_name": name, "data": updated, "pending_projects": _pending_projects})
                 else:
@@ -488,7 +504,12 @@ async def jsonl_watcher_loop() -> None:
                             updated = dict(current)
                             hook_stats = updated.get("stats") or {}
                             jsonl_stats = _get_project_stats(project_path, name)
-                            updated["stats"] = {**hook_stats, **jsonl_stats}
+                            merged = {**hook_stats, **jsonl_stats}
+                            if not jsonl_stats.get("session_ctx_tokens") and hook_stats.get("session_ctx_tokens"):
+                                merged["session_ctx_tokens"] = hook_stats["session_ctx_tokens"]
+                            if not jsonl_stats.get("model") and hook_stats.get("model"):
+                                merged["model"] = hook_stats["model"]
+                            updated["stats"] = merged
                             updated["ts"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                             projects[name] = updated
                             _broadcast({"type": "update", "project_name": name, "data": updated, "pending_projects": _pending_projects})
