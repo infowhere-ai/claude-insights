@@ -14,3 +14,11 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Runtime
+.claude-monitor.log
+.claude-monitor.pid
+
+# Claude internal
+.claude/agents/
+.claude/weekly_tokens.json
