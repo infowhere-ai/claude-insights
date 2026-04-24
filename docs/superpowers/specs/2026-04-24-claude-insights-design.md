@@ -155,47 +155,65 @@ Não existe endpoint `/api/thinking` separado — `/api/session-detail` cobre am
 
 ## Layout Detalhado
 
+### Sistema de painéis — estilo IntelliJ
+
+A página usa sidebars laterais com ícones que toggleam painéis. Quando um painel fecha, os restantes expandem para preencher o espaço (CSS flex transition).
+
+**Sidebar esquerda** (controla coluna live):
+- 🧠 Raciocínio — thinking block expansível
+- 🔧 Ferramentas — feed de actividade cronológico
+- ⬤ Tokens — contexto %, Input / Output / Cache rd
+
+**Sidebar direita** (controla coluna histórico):
+- 📊 Stats — grid 2×2 da semana
+- 🎬 Sessões — lista de sessões recentes
+- 📁 Git — ficheiros para commit
+
+Ícone azul = painel aberto. Ícone cinzento = painel fechado.
+
+**Exemplos de configuração:**
+- Tudo aberto → layout completo (default)
+- Sessões fechadas → stats e git expandem na coluna direita
+- Ferramentas + Tokens fechados → thinking ocupa toda a coluna esquerda (modo leitura)
+
 ### Coluna esquerda — Live (56% da largura)
 
 ```
-┌─────────────────────────────────────────┐
-│ ● Live · <nome-do-projecto>             │
-├─────────────────────────────────────────┤
-│ 🧠 Raciocínio                           │
-│ "Primeiras linhas do último thinking..."│
-│ ▼ ver raciocínio completo (N palavras)  │
-├─────────────────────────────────────────┤
-│ 🔧 Ferramentas                          │
-│ 📖 Read    app.py           1.2s ✓     │
-│ ⚡ Bash    git log          0.4s ✓     │
-│ ✏️ Edit    index.html       em curso…  │  ← highlighted
-└─────────────────────────────────────────┘
+┌──┬──────────────────────────────────────┐
+│🧠│ ● Live · <nome-do-projecto>          │
+│🔧│ ┌─ 🧠 Raciocínio ─────────────────┐ │
+│⬤│ │ "Primeiras linhas..."            │ │
+│  │ │ ▼ ver completo (N palavras)      │ │
+│  │ ├─ 🔧 Ferramentas ────────────────┤ │
+│  │ │ 📖 Read   app.py      1.2s ✓    │ │
+│  │ │ ⚡ Bash   git log     0.4s ✓    │ │
+│  │ │ ✏️ Edit   index.html  em curso… │ │
+│  │ ├─ ⬤ sonnet-4-6  39% ████░░░ ───┤ │
+│  │ │ Input 14 · Output 876 · Cache 384k│ │
+│  │ └──────────────────────────────────┘ │
+└──┴──────────────────────────────────────┘
 ```
 
 ### Coluna direita — Histórico
 
 ```
-┌──────────────────────────┐
-│ 📊 Esta semana           │
-│ ┌──────┐ ┌──────┐        │
-│ │  12  │ │ 340k │        │
-│ │sessõ │ │token │        │
-│ └──────┘ └──────┘        │
-│ ┌──────┐ ┌──────┐        │
-│ │ Read │ │  78% │        │
-│ │ tool │ │cache │        │
-│ └──────┘ └──────┘        │
-├──────────────────────────┤
-│ 🎬 Sessões recentes      │
-│ ● claude-monitor   agora │
-│   copilot-meeting  ontem │
-│   infowhere-ai-p   23Abr │
-├──────────────────────────┤
-│ 📁 Para commit · 3 ▾    │
-│ M  app.py                │
-│ A  static/insights.html  │
-│ M  monitor-hook.sh       │
-└──────────────────────────┘
+┌──────────────────────────┬──┐
+│ 📊 Esta semana           │📊│
+│ ┌──────┐ ┌──────┐        │🎬│
+│ │  12  │ │ 340k │        │📁│
+│ └──────┘ └──────┘        │  │
+│ ┌──────┐ ┌──────┐        │  │
+│ │ Read │ │  78% │        │  │
+│ └──────┘ └──────┘        │  │
+├──────────────────────────┤  │
+│ 🎬 Sessões recentes      │  │
+│ ● claude-monitor   agora │  │
+│   copilot-meeting  ontem │  │
+├──────────────────────────┤  │
+│ 📁 Para commit · 3 ▾    │  │
+│ M  app.py                │  │
+│ A  static/insights.html  │  │
+└──────────────────────────┴──┘
 ```
 
 ### Replay de sessões
