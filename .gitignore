@@ -23,3 +23,4 @@ __pycache__/
 .claude/agents/
 .claude/weekly_tokens.json
 .superpowers/
+.worktrees/
