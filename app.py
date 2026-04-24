@@ -986,10 +986,9 @@ async def get_weekly_stats():
 @app.get("/api/sessions")
 async def get_sessions(project: str = Query(...)):
     """Lists JSONL sessions for a project, newest-first."""
-    sessions = _list_sessions(project)
-    if not sessions and project not in _status_paths:
+    if project not in _status_paths:
         return JSONResponse({"error": "project not found"}, status_code=404)
-    return sessions
+    return _list_sessions(project)
 
 
 def _parse_skill_md(content: str, name: str) -> dict:
