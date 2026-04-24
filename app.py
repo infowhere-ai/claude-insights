@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import fcntl
+import hashlib
 import json
 import os
 import pty
@@ -13,7 +14,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", str(Path(__file__).parent.parent)))
@@ -53,6 +54,9 @@ _jsonl_cache: dict[str, dict] = {}  # project_name -> {mtime, tool, jsonl_path}
 
 # Agents dir mtime cache — tracks when agents dir changes so we rescan independently of status.json
 _agents_dir_mtimes: dict[str, float] = {}  # project_name -> agents dir mtime
+
+# Thinking block cache — last detected thinking block per project (for SSE deduplication)
+_thinking_cache: dict[str, dict] = {}  # project_name -> {block_id, text, mtime}
 
 # Config: extra roots (beyond PROJECTS_ROOT)
 _CONFIG_FILE = PROJECTS_ROOT / ".claude" / "monitor-roots.json"
@@ -114,6 +118,40 @@ def _parse_jsonl_tail(jsonl_path: Path) -> dict:
         return {"tool": tool, "cwd": cwd}
     except Exception:
         return {}
+
+
+def _detect_latest_thinking(jsonl_path: Path) -> dict | None:
+    """Reads last 32 KB of JSONL, returns most recent non-empty thinking block.
+
+    block_id = MD5 hash of entry timestamp — stable for a given assistant turn,
+    changes when a new turn begins. Frontend uses block_id to distinguish
+    replace (same id = update to current block) vs append (new id = new block).
+    """
+    try:
+        with open(jsonl_path, "rb") as fh:
+            fh.seek(0, 2); size = fh.tell()
+            fh.seek(max(0, size - 32768))
+            raw = fh.read().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+    last = None
+    for line in raw.strip().split("\n"):
+        try:
+            d = json.loads(line)
+        except Exception:
+            continue
+        if d.get("type") != "assistant":
+            continue
+        ts = d.get("timestamp", "")
+        for c in (d.get("message", {}).get("content", []) or []):
+            if isinstance(c, dict) and c.get("type") == "thinking":
+                text = c.get("thinking", "").strip()
+                if text:
+                    block_id = hashlib.md5(ts.encode()).hexdigest()[:12]
+                    last = {"block_id": block_id, "text": text,
+                            "word_count": len(text.split()),
+                            "timestamp": ts}
+    return last
 
 
 def _load_roots_config() -> None:
@@ -619,6 +657,25 @@ async def jsonl_watcher_loop() -> None:
                     }
                     cached = _jsonl_cache[name]
 
+                    thinking = _detect_latest_thinking(latest_jsonl)
+                    if thinking:
+                        prev = _thinking_cache.get(name, {})
+                        if (prev.get("block_id") != thinking["block_id"] or
+                                prev.get("text") != thinking["text"]):
+                            _thinking_cache[name] = {
+                                "block_id": thinking["block_id"],
+                                "text": thinking["text"],
+                                "mtime": latest_mtime,
+                            }
+                            _broadcast({
+                                "type": "thinking",
+                                "project": name,
+                                "block_id": thinking["block_id"],
+                                "text": thinking["text"],
+                                "word_count": thinking["word_count"],
+                                "timestamp": thinking["timestamp"],
+                            })
+
                 age = now_ts - latest_mtime
                 tool = cached.get("tool") or ""
                 current = projects.get(name, {})
@@ -804,6 +861,11 @@ async def startup() -> None:
 @app.get("/health")
 async def health():
     return {"status": "ok", "projects_monitored": len(projects)}
+
+
+@app.get("/insights")
+async def insights_page():
+    return FileResponse("static/insights.html")
 
 
 @app.get("/api/version")
