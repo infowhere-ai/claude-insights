@@ -325,6 +325,96 @@ def _list_sessions(project_name: str) -> list[dict]:
     return sessions
 
 
+def _tool_input_summary(name: str, inp: dict) -> str:
+    if name in ("Read", "Write", "Edit"):
+        return inp.get("file_path", inp.get("path", ""))
+    if name == "Bash":
+        return inp.get("command", "")[:80]
+    if name in ("Glob", "Grep"):
+        return inp.get("pattern", inp.get("path", ""))
+    if name in ("WebFetch", "WebSearch"):
+        return inp.get("url", inp.get("query", ""))
+    for v in inp.values():
+        if isinstance(v, str):
+            return v[:80]
+    return ""
+
+
+def _parse_session_detail(jsonl_path: Path) -> dict:
+    thinking = []
+    tools = []
+    stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+    entries = []
+    try:
+        with jsonl_path.open(encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except Exception:
+                    continue
+    except OSError:
+        return {"thinking": [], "tools": [], "stats": stats}
+
+    # Index tool_results by id for duration + success
+    tool_results: dict[str, dict] = {}
+    for entry in entries:
+        if entry.get("type") != "user":
+            continue
+        for c in (entry.get("message", {}).get("content", []) or []):
+            if isinstance(c, dict) and c.get("type") == "tool_result":
+                tool_results[c.get("tool_use_id", "")] = {
+                    "timestamp": entry.get("timestamp"),
+                    "is_error": c.get("is_error", False),
+                }
+
+    for entry in entries:
+        if entry.get("type") != "assistant":
+            continue
+        msg = entry.get("message", {})
+        content = msg.get("content", [])
+        ts = entry.get("timestamp", "")
+        if not isinstance(content, list):
+            continue
+        u = msg.get("usage", {})
+        stats["input_tokens"]      += u.get("input_tokens", 0)
+        stats["output_tokens"]     += u.get("output_tokens", 0)
+        stats["cache_read_tokens"] += u.get("cache_read_input_tokens", 0)
+        m = msg.get("model", "")
+        if m:
+            stats["model"] = m
+        for c in content:
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") == "thinking":
+                text = c.get("thinking", "").strip()
+                if text:
+                    thinking.append({"text": text, "timestamp": ts,
+                                     "word_count": len(text.split())})
+            if c.get("type") == "tool_use":
+                tid = c.get("id", "")
+                result = tool_results.get(tid, {})
+                duration_ms = None
+                rts = result.get("timestamp")
+                if ts and rts:
+                    try:
+                        t1 = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                        t2 = datetime.datetime.fromisoformat(rts.replace("Z", "+00:00"))
+                        duration_ms = int((t2 - t1).total_seconds() * 1000)
+                    except Exception:
+                        pass
+                tools.append({
+                    "tool": c.get("name", ""),
+                    "input": _tool_input_summary(c.get("name", ""), c.get("input", {})),
+                    "duration_ms": duration_ms,
+                    "success": not result.get("is_error", False),
+                    "timestamp": ts,
+                })
+    return {"thinking": thinking[-5:], "tools": tools[-20:], "stats": stats}
+
+
 async def discovery_loop() -> None:
     while True:
         _discover()
@@ -989,6 +1079,19 @@ async def get_sessions(project: str = Query(...)):
     if project not in _status_paths:
         return JSONResponse({"error": "project not found"}, status_code=404)
     return _list_sessions(project)
+
+
+@app.get("/api/session-detail")
+async def get_session_detail(project: str = Query(...), session_id: str = Query(...)):
+    """Returns thinking blocks, tool events and stats for a session."""
+    if project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    project_path = _status_paths[project].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_path = CLAUDE_PROJECTS_DIR / encoded / f"{session_id}.jsonl"
+    if not jsonl_path.is_file():
+        return JSONResponse({"error": "session not found"}, status_code=404)
+    return _parse_session_detail(jsonl_path)
 
 
 def _parse_skill_md(content: str, name: str) -> dict:
