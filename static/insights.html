@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Insights</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #020817;
+    --bg-header: #0a0f1a;
+    --bg-panel: #0f172a;
+    --bg-panel-think: #0a1628;
+    --bg-panel-git: #080f08;
+    --bg-sidebar: #090e1a;
+    --bg-stat: #0a1628;
+    --border: #1e293b;
+    --border-think: #1e3a5f;
+    --border-git: #1a3a1a;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --text-dimmer: #475569;
+    --text-dimmest: #334155;
+    --blue: #3b82f6;
+    --cyan: #22d3ee;
+    --green: #22c55e;
+    --yellow: #fbbf24;
+    --red: #ef4444;
+    --purple: #a78bfa;
+    --amber: #f59e0b;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* -- Header -- */
+  #header {
+    flex-shrink: 0;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-think);
+    padding: 7px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 38px;
+  }
+  #header-title { font-size: 12px; color: var(--text); }
+  #header-title span { color: var(--blue); }
+  #header-nav { display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--text-dim); }
+  #header-nav a {
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  #header-nav a:hover { color: var(--text); }
+  #project-select {
+    background: var(--border);
+    border: none;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  /* -- Body -- */
+  #body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* -- Sidebars -- */
+  .sidebar {
+    width: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 4px;
+    background: var(--bg-sidebar);
+    flex-shrink: 0;
+  }
+  .sidebar.left { border-right: 1px solid var(--border); }
+  .sidebar.right { border-left: 1px solid var(--border); }
+
+  .sidebar-btn {
+    width: 22px; height: 22px;
+    border: none; background: none; cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim);
+    transition: color 0.15s, background 0.15s;
+  }
+  .sidebar-btn:hover { color: var(--text-muted); }
+  .sidebar-btn.active {
+    color: var(--blue);
+    background: rgba(59,130,246,0.12);
+  }
+
+  /* -- Main area -- */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* -- Columns -- */
+  #col-live {
+    flex: 0 0 56%;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 8px;
+    gap: 7px;
+  }
+  #col-hist {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 8px;
+    gap: 7px;
+  }
+
+  /* -- Live badge -- */
+  #live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    min-height: 16px;
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    background: var(--cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 5px var(--cyan);
+    flex-shrink: 0;
+  }
+  .live-dot.dim {
+    background: var(--text-dim);
+    box-shadow: none;
+  }
+
+  /* -- Panels -- */
+  .panel {
+    border-radius: 6px;
+    padding: 9px 12px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    margin: 0;
+  }
+  .panel.hidden { display: none !important; }
+  .panel.grow { flex: 1; min-height: 0; overflow-y: auto; }
+
+  .panel-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  /* -- Thinking panel -- */
+  #pane-think {
+    background: var(--bg-panel-think);
+    border-color: var(--border-think);
+  }
+  #pane-think .panel-label { color: var(--blue); }
+
+  .thinking-text {
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: pointer;
+    font-style: italic;
+  }
+  .thinking-text.collapsed {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* -- Tools panel -- */
+  #pane-tools .panel-label { color: var(--purple); }
+
+  .tool-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    padding: 3px 0;
+    border-bottom: 1px solid #0f172a;
+  }
+  .tool-row:last-child { border-bottom: none; }
+  .tool-icon { flex-shrink: 0; width: 18px; text-align: center; }
+  .tool-name { color: var(--text-muted); flex-shrink: 0; min-width: 36px; }
+  .tool-input {
+    color: var(--text-dim);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0 6px;
+  }
+  .tool-dur { color: var(--text-dimmer); flex-shrink: 0; font-size: 9px; }
+  .tool-status { flex-shrink: 0; font-size: 10px; }
+
+  /* -- Tokens panel -- */
+  #pane-tokens { background: #080d14; }
+  #pane-tokens .panel-label { color: var(--text-dim); }
+
+  .tok-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 4px 0;
+    overflow: hidden;
+  }
+  .tok-bar {
+    height: 100%;
+    border-radius: 2px;
+    width: 0%;
+    background: var(--green);
+    transition: width 0.3s, background 0.3s;
+  }
+  .tok-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .tok-cell-label { font-size: 9px; color: var(--text-dimmer); }
+  .tok-cell-val { font-size: 11px; color: var(--text-muted); }
+  .tok-cell-val.ok { color: var(--green); }
+  .tok-cell-val.cache { color: var(--purple); }
+
+  /* -- Stats panel -- */
+  #pane-stats .panel-label { color: var(--purple); }
+
+  .stat-card {
+    background: var(--bg-stat);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+  }
+  .stat-val {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .stat-lbl {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  /* -- Sessions panel -- */
+  #pane-sess .panel-label { color: var(--amber); }
+
+  .session-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #0f172a;
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.1s;
+  }
+  .session-row:last-child { border-bottom: none; }
+  .session-row:hover { color: var(--text-muted); }
+  .session-row.active { color: var(--cyan); }
+  .session-dot { margin-right: 4px; }
+
+  /* -- Git panel -- */
+  #pane-git {
+    background: var(--bg-panel-git);
+    border-color: var(--border-git);
+  }
+  #pane-git .panel-label { color: #86efac; }
+
+  .git-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 3px 0;
+    cursor: pointer;
+    transition: color 0.1s;
+  }
+  .git-row:hover { color: var(--text-muted); }
+  .git-status {
+    font-weight: 600;
+    min-width: 12px;
+    text-align: center;
+  }
+  .git-status.M { color: var(--yellow); }
+  .git-status.A { color: #86efac; }
+  .git-status.D { color: var(--red); }
+  .git-status.R { color: var(--purple); }
+  .git-status.unknown { color: var(--text-dim); }
+
+  /* -- Diff modal -- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-backdrop.hidden { display: none !important; }
+  .modal-box {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: min(800px, 90vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .modal-header button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    margin-left: 4px;
+    transition: color 0.1s, border-color 0.1s;
+  }
+  .modal-header button:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
+  .diff-body {
+    overflow-y: auto;
+    padding: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    flex: 1;
+  }
+  .diff-add { background: rgba(34,197,94,0.1); color: #86efac; }
+  .diff-del { background: rgba(239,68,68,0.1); color: #fca5a5; }
+  .diff-hunk { color: var(--text-dim); }
+  .diff-ctx { color: var(--text-dimmer); }
+
+  /* -- Scrollbar -- */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div id="header-title"><span>&#10022;</span> Claude Insights</div>
+  <div id="header-nav">
+    <a href="/">&#8592; Monitor</a>
+    <select id="project-select" onchange="switchProject(this.value)"></select>
+  </div>
+</div>
+
+<!-- Body -->
+<div id="body">
+
+  <!-- Left sidebar -->
+  <div class="sidebar left">
+    <button class="sidebar-btn active" id="btn-think" onclick="togglePanel('pane-think','btn-think')" title="Raciocinio">&#129504;</button>
+    <button class="sidebar-btn active" id="btn-tools" onclick="togglePanel('pane-tools','btn-tools')" title="Ferramentas">&#128295;</button>
+    <button class="sidebar-btn active" id="btn-tokens" onclick="togglePanel('pane-tokens','btn-tokens')" title="Tokens">&#11044;</button>
+  </div>
+
+  <!-- Main area -->
+  <div id="main">
+
+    <!-- Left column: Live -->
+    <div id="col-live">
+      <div id="live-badge">Nenhuma sessao activa</div>
+
+      <!-- Thinking -->
+      <div class="panel" id="pane-think">
+        <div class="panel-label">&#129504; Raciocinio</div>
+        <div id="thinking-text" class="thinking-text collapsed" onclick="toggleThinking()">
+          Aguardando raciocinio...
+        </div>
+        <div id="thinking-meta" style="font-size:10px;color:var(--text-dimmer)"></div>
+      </div>
+
+      <!-- Tools -->
+      <div class="panel grow" id="pane-tools">
+        <div class="panel-label">&#128295; Ferramentas</div>
+        <div id="tools-list"></div>
+      </div>
+
+      <!-- Tokens -->
+      <div class="panel" id="pane-tokens">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="panel-label" id="ctx-model" style="margin-bottom:0">&#11044; Tokens</div>
+          <span id="ctx-pct" style="font-size:11px;font-weight:700;color:var(--green)"></span>
+        </div>
+        <div class="tok-bar-wrap">
+          <div class="tok-bar" id="ctx-bar"></div>
+        </div>
+        <div class="tok-grid">
+          <div><div class="tok-cell-label">Input</div><div class="tok-cell-val ok" id="tok-input">-</div></div>
+          <div><div class="tok-cell-label">Output</div><div class="tok-cell-val" id="tok-output">-</div></div>
+          <div><div class="tok-cell-label">Cache rd</div><div class="tok-cell-val cache" id="tok-cache">-</div></div>
+          <div><div class="tok-cell-label">Contexto</div><div class="tok-cell-val" id="tok-ctx" style="color:var(--text-dim)">-</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: History -->
+    <div id="col-hist">
+
+      <!-- Stats -->
+      <div class="panel" id="pane-stats">
+        <div class="panel-label">&#128202; Esta semana</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="stat-card"><div class="stat-val" id="stat-sessions">-</div><div class="stat-lbl">Sessoes</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-tokens">-</div><div class="stat-lbl">Tokens</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-tool">-</div><div class="stat-lbl">Top Tool</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-cache">-</div><div class="stat-lbl">Cache hit</div></div>
+        </div>
+      </div>
+
+      <!-- Sessions -->
+      <div class="panel grow" id="pane-sess">
+        <div class="panel-label">&#127908; Sessoes recentes</div>
+        <div id="sessions-list"></div>
+      </div>
+
+      <!-- Git -->
+      <div class="panel" id="pane-git">
+        <div class="panel-label" id="git-label">&#128193; Para commit</div>
+        <div id="git-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right sidebar -->
+  <div class="sidebar right">
+    <button class="sidebar-btn active" id="btn-stats" onclick="togglePanel('pane-stats','btn-stats')" title="Stats">&#128202;</button>
+    <button class="sidebar-btn active" id="btn-sess" onclick="togglePanel('pane-sess','btn-sess')" title="Sessoes">&#127908;</button>
+    <button class="sidebar-btn active" id="btn-git" onclick="togglePanel('pane-git','btn-git')" title="Git">&#128193;</button>
+  </div>
+</div>
+
+<!-- Diff modal -->
+<div id="diff-modal" class="modal-backdrop hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="diff-filename"></span>
+      <div>
+        <button onclick="prevDiff()">&#8592;</button>
+        <button onclick="nextDiff()">&#8594;</button>
+        <button onclick="closeDiff()">&#10005;</button>
+      </div>
+    </div>
+    <div id="diff-body" class="diff-body"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // -- State --
+  var currentProject = null;
+  var currentSessionId = null;
+  var isLive = false;
+  var lastBlockId = null;
+  var pendingFiles = [];
+  var currentDiffIndex = 0;
+  var allProjects = {};
+  var es = null;
+
+  // -- Context window constants (from index.html) --
+  var CTX_WINDOW_DEFAULT = 185000;
+  var CTX_WINDOW_EXTENDED = 1048576;
+
+  function resolveCtxWindow(ctxTokens, storedThreshold) {
+    if (ctxTokens > 250000) return CTX_WINDOW_EXTENDED;
+    if (storedThreshold > 250000) return CTX_WINDOW_EXTENDED;
+    return Math.max(storedThreshold || 0, CTX_WINDOW_DEFAULT);
+  }
+
+  // -- Helpers --
+  function fmtTok(n) {
+    if (n == null || n === 0) return '-';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return Math.round(n / 1000) + 'k';
+    return String(n);
+  }
+
+  function timeAgo(isoStr) {
+    if (!isoStr) return '';
+    try {
+      var dt = new Date(isoStr);
+      var ms = Date.now() - dt.getTime();
+      var mins = Math.floor(ms / 60000);
+      if (mins < 1) return 'agora';
+      if (mins < 60) return 'ha ' + mins + 'min';
+      var hrs = Math.floor(mins / 60);
+      if (hrs < 24) return 'ha ' + hrs + 'h';
+      var days = Math.floor(hrs / 24);
+      if (days === 1) return 'ontem';
+      if (days < 7) return 'ha ' + days + 'd';
+      var months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      return dt.getDate() + ' ' + months[dt.getMonth()];
+    } catch (e) { return ''; }
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function setText(id, text) {
+    document.getElementById(id).textContent = text;
+  }
+
+  // -- Init --
+  function init() {
+    connectSSE();
+  }
+
+  function connectSSE() {
+    if (es) es.close();
+    es = new EventSource('/events');
+    es.onmessage = onSseMessage;
+    es.onerror = function() {
+      setTimeout(connectSSE, 3000);
+    };
+  }
+
+  function onSseMessage(e) {
+    var msg;
+    try { msg = JSON.parse(e.data); } catch (err) { return; }
+
+    if (msg.type === 'init') {
+      allProjects = msg.projects || {};
+      populateProjects(allProjects);
+      var names = Object.keys(allProjects);
+      var active = names.find(function(n) {
+        var p = allProjects[n];
+        return p && (p.state === 'working' || p.status === 'working');
+      });
+      if (active) switchProject(active);
+      else if (names.length > 0) switchProject(names[0]);
+      return;
+    }
+
+    if (msg.type === 'thinking') {
+      if (msg.project === currentProject && isLive) {
+        setThinkingLive(msg.text, msg.block_id, msg.word_count);
+      }
+      return;
+    }
+
+    if (msg.type === 'update') {
+      var projName = msg.project_name;
+      if (msg.data) allProjects[projName] = msg.data;
+      if (projName === currentProject && isLive) {
+        var stats = (msg.data && msg.data.stats) || {};
+        updateTokensFromStats(stats);
+        loadPendingFiles();
+      }
+      return;
+    }
+  }
+
+  // -- Projects --
+  function populateProjects(projects) {
+    var sel = document.getElementById('project-select');
+    sel.textContent = '';
+    Object.keys(projects).sort().forEach(function(n) {
+      var opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = n;
+      if (n === currentProject) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  window.switchProject = function(name) {
+    currentProject = name;
+    var sel = document.getElementById('project-select');
+    if (sel.value !== name) sel.value = name;
+    Promise.all([loadSessions(), loadStats(), loadPendingFiles()]);
+  };
+
+  // -- Sessions --
+  function loadSessions() {
+    if (!currentProject) return Promise.resolve();
+    return fetch('/api/sessions?project=' + encodeURIComponent(currentProject))
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .then(function(sessions) {
+        renderSessions(sessions);
+        var active = sessions.find(function(s) { return s.is_active; });
+        if (active) return selectSession(active.session_id, true);
+        if (sessions.length > 0) return selectSession(sessions[0].session_id, false);
+        showNoSession();
+      })
+      .catch(function() { renderSessions([]); showNoSession(); });
+  }
+
+  function renderSessions(sessions) {
+    var container = document.getElementById('sessions-list');
+    container.textContent = '';
+    if (!sessions || sessions.length === 0) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
+      empty.textContent = 'Sem sessoes.';
+      container.appendChild(empty);
+      return;
+    }
+    sessions.forEach(function(s) {
+      var row = document.createElement('div');
+      row.className = 'session-row' + (s.is_active ? ' active' : '');
+      row.setAttribute('data-id', s.session_id);
+      row.onclick = function() { selectSession(s.session_id, s.is_active); };
+
+      var left = document.createElement('span');
+      var dot = document.createElement('span');
+      dot.className = 'session-dot';
+      dot.style.color = s.is_active ? 'var(--green)' : 'var(--text-dimmer)';
+      dot.textContent = s.is_active ? '\u25CF' : '\u25CB';
+      left.appendChild(dot);
+      left.appendChild(document.createTextNode(currentProject));
+
+      var right = document.createElement('span');
+      right.textContent = s.is_active ? 'agora' : timeAgo(s.ended_at || s.started_at);
+
+      row.appendChild(left);
+      row.appendChild(right);
+      container.appendChild(row);
+    });
+  }
+
+  function selectSession(sessionId, live) {
+    if (!sessionId) return Promise.resolve();
+    currentSessionId = sessionId;
+    isLive = !!live;
+
+    // Update live badge
+    var badge = document.getElementById('live-badge');
+    badge.textContent = '';
+    var dot = document.createElement('div');
+    dot.className = isLive ? 'live-dot' : 'live-dot dim';
+    badge.appendChild(dot);
+    badge.appendChild(document.createTextNode(
+      (isLive ? ' Live \u00B7 ' : ' historico \u00B7 ') + currentProject
+    ));
+
+    // Highlight active session row
+    document.querySelectorAll('.session-row').forEach(function(el) {
+      el.classList.toggle('active', el.getAttribute('data-id') === sessionId);
+    });
+
+    // Load detail
+    return fetch('/api/session-detail?project=' + encodeURIComponent(currentProject) + '&session_id=' + encodeURIComponent(sessionId))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data) return;
+        renderThinking(data.thinking);
+        renderTools(data.tools);
+        updateTokensFromDetail(data.stats);
+      })
+      .catch(function() {});
+  }
+
+  function showNoSession() {
+    currentSessionId = null;
+    isLive = false;
+    var badge = document.getElementById('live-badge');
+    badge.textContent = '';
+    var span = document.createElement('span');
+    span.style.color = 'var(--text-dimmer)';
+    span.textContent = 'Nenhuma sessao activa \u2014 abre o Claude Code para comecar.';
+    badge.appendChild(span);
+    setText('thinking-text', 'Sem raciocinio.');
+    setText('thinking-meta', '');
+    var toolsList = document.getElementById('tools-list');
+    toolsList.textContent = '';
+    var msg = document.createElement('div');
+    msg.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
+    msg.textContent = 'Sem ferramentas.';
+    toolsList.appendChild(msg);
+    clearTokens();
+  }
+
+  // -- Stats --
+  function loadStats() {
+    if (!currentProject) return Promise.resolve();
+    return fetch('/api/insights-stats?project=' + encodeURIComponent(currentProject))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(s) {
+        if (!s) return;
+        setText('stat-sessions', s.sessions_count || 0);
+        setText('stat-tokens', fmtTok(s.total_tokens));
+        var toolEl = document.getElementById('stat-tool');
+        toolEl.textContent = s.top_tool || '-';
+        toolEl.style.fontSize = s.top_tool ? '13px' : '18px';
+        setText('stat-cache', (s.cache_hit_pct || 0) + '%');
+      })
+      .catch(function() {});
+  }
+
+  // -- Git / Pending files --
+  function loadPendingFiles() {
+    if (!currentProject) return Promise.resolve();
+    return fetch('/api/pending?project=' + encodeURIComponent(currentProject))
+      .then(function(r) { return r.ok ? r.json() : { files: [] }; })
+      .then(function(data) {
+        pendingFiles = data.files || [];
+        renderGit(pendingFiles);
+      })
+      .catch(function() { pendingFiles = []; renderGit([]); });
+  }
+
+  function renderGit(files) {
+    var label = document.getElementById('git-label');
+    label.textContent = '\uD83D\uDCC1 Para commit' + (files.length > 0 ? ' \u00B7 ' + files.length : '');
+
+    var container = document.getElementById('git-list');
+    container.textContent = '';
+    if (!files || files.length === 0) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
+      empty.textContent = 'Sem alteracoes.';
+      container.appendChild(empty);
+      return;
+    }
+    files.forEach(function(f, i) {
+      var row = document.createElement('div');
+      row.className = 'git-row';
+      row.onclick = function() { openDiff(i); };
+      var code = f.status_code || '?';
+      var statusSpan = document.createElement('span');
+      statusSpan.className = 'git-status ' + (['M','A','D','R'].indexOf(code) >= 0 ? code : 'unknown');
+      statusSpan.textContent = code;
+      var fileSpan = document.createElement('span');
+      fileSpan.textContent = f.rel_path || f.path;
+      row.appendChild(statusSpan);
+      row.appendChild(fileSpan);
+      container.appendChild(row);
+    });
+  }
+
+  // -- Thinking --
+  function setThinkingLive(text, blockId, wordCount) {
+    lastBlockId = blockId;
+    var el = document.getElementById('thinking-text');
+    el.textContent = text;
+    el.classList.add('collapsed');
+    setText('thinking-meta', (wordCount || 0) + ' palavras');
+  }
+
+  function renderThinking(arr) {
+    lastBlockId = null;
+    if (!arr || arr.length === 0) {
+      setText('thinking-text', 'Sem raciocinio nesta sessao.');
+      setText('thinking-meta', '');
+      return;
+    }
+    var last = arr[arr.length - 1];
+    var el = document.getElementById('thinking-text');
+    el.textContent = last.text;
+    el.classList.add('collapsed');
+    setText('thinking-meta', (last.word_count || 0) + ' palavras');
+  }
+
+  window.toggleThinking = function() {
+    document.getElementById('thinking-text').classList.toggle('collapsed');
+  };
+
+  // -- Tools --
+  var TOOL_ICONS = {
+    Read: '\uD83D\uDCD6', Write: '\u270F\uFE0F', Edit: '\u270F\uFE0F',
+    Bash: '\u26A1', Glob: '\uD83D\uDD0D', Grep: '\uD83D\uDD0D',
+    WebFetch: '\uD83C\uDF10', WebSearch: '\uD83C\uDF10',
+    Agent: '\uD83E\uDD16', TodoRead: '\uD83D\uDCCB', TodoWrite: '\uD83D\uDCCB',
+    ToolSearch: '\uD83D\uDD0D'
+  };
+
+  function renderTools(toolsArr) {
+    var container = document.getElementById('tools-list');
+    container.textContent = '';
+    if (!toolsArr || toolsArr.length === 0) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
+      empty.textContent = 'Sem ferramentas nesta sessao.';
+      container.appendChild(empty);
+      return;
+    }
+    var reversed = toolsArr.slice().reverse();
+    reversed.forEach(function(t) {
+      var row = document.createElement('div');
+      row.className = 'tool-row';
+
+      var iconEl = document.createElement('span');
+      iconEl.className = 'tool-icon';
+      iconEl.textContent = TOOL_ICONS[t.tool] || '\uD83D\uDD27';
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'tool-name';
+      nameEl.textContent = t.tool;
+
+      var inputEl = document.createElement('span');
+      inputEl.className = 'tool-input';
+      inputEl.textContent = t.input || '';
+
+      var durEl = document.createElement('span');
+      durEl.className = 'tool-dur';
+      durEl.textContent = t.duration_ms != null ? (t.duration_ms / 1000).toFixed(1) + 's' : '\u2026';
+
+      var statusEl = document.createElement('span');
+      statusEl.className = 'tool-status';
+      statusEl.style.color = t.success ? 'var(--green)' : 'var(--red)';
+      statusEl.textContent = t.success ? '\u2713' : '\u2717';
+
+      row.appendChild(iconEl);
+      row.appendChild(nameEl);
+      row.appendChild(inputEl);
+      row.appendChild(durEl);
+      row.appendChild(statusEl);
+      container.appendChild(row);
+    });
+  }
+
+  // -- Tokens --
+  function updateTokensFromDetail(stats) {
+    if (!stats) { clearTokens(); return; }
+    var inp = stats.input_tokens || 0;
+    var out = stats.output_tokens || 0;
+    var cache = stats.cache_read_tokens || 0;
+    var model = stats.model || '';
+    var modelShort = model.replace('claude-', '').replace(/-\d{8}$/, '');
+
+    setText('tok-input', fmtTok(inp));
+    setText('tok-output', fmtTok(out));
+    setText('tok-cache', fmtTok(cache));
+    setText('tok-ctx', fmtTok(inp + out));
+
+    var modelLabel = document.getElementById('ctx-model');
+    modelLabel.textContent = '\u2B24 ' + (modelShort || 'Tokens');
+
+    updateContextBar(inp + cache, 0);
+  }
+
+  function updateTokensFromStats(stats) {
+    if (!stats) return;
+    var inp = stats.session_input_tokens || stats.input_tokens || 0;
+    var out = stats.session_output_tokens || stats.output_tokens || 0;
+    var cache = stats.session_cache_read || stats.cache_read_tokens || 0;
+    var ctxTokens = stats.session_ctx_tokens || stats.context_tokens || 0;
+    var model = stats.model || '';
+    var modelShort = model.replace('claude-', '').replace(/-\d{8}$/, '');
+
+    setText('tok-input', fmtTok(inp));
+    setText('tok-output', fmtTok(out));
+    setText('tok-cache', fmtTok(cache));
+    setText('tok-ctx', fmtTok(ctxTokens || (inp + out)));
+
+    var modelLabel = document.getElementById('ctx-model');
+    modelLabel.textContent = '\u2B24 ' + (modelShort || 'Tokens');
+
+    updateContextBar(ctxTokens, stats.compact_ctx_threshold || 0);
+  }
+
+  function updateContextBar(ctxTokens, storedThreshold) {
+    var ctxWindow = resolveCtxWindow(ctxTokens, storedThreshold);
+    var pct = ctxTokens > 0 ? Math.min(100, Math.round((ctxTokens / ctxWindow) * 100)) : 0;
+    var bar = document.getElementById('ctx-bar');
+    var pctEl = document.getElementById('ctx-pct');
+    bar.style.width = pct + '%';
+
+    var color;
+    if (pct >= 81) color = 'var(--red)';
+    else if (pct >= 51) color = 'var(--yellow)';
+    else color = 'var(--green)';
+
+    bar.style.background = color;
+    pctEl.style.color = color;
+    pctEl.textContent = ctxTokens > 0 ? pct + '%' : '';
+  }
+
+  function clearTokens() {
+    ['tok-input','tok-output','tok-cache','tok-ctx'].forEach(function(id) { setText(id, '-'); });
+    document.getElementById('ctx-bar').style.width = '0%';
+    setText('ctx-pct', '');
+    document.getElementById('ctx-model').textContent = '\u2B24 Tokens';
+  }
+
+  // -- Panel toggle --
+  window.togglePanel = function(panelId, btnId) {
+    document.getElementById(panelId).classList.toggle('hidden');
+    document.getElementById(btnId).classList.toggle('active');
+    redistributeGrow();
+  };
+
+  function redistributeGrow() {
+    // Left column
+    var tools = document.getElementById('pane-tools');
+    var think = document.getElementById('pane-think');
+    var tokens = document.getElementById('pane-tokens');
+    [tools, think, tokens].forEach(function(p) { p.classList.remove('grow'); });
+    if (!tools.classList.contains('hidden')) tools.classList.add('grow');
+    else if (!think.classList.contains('hidden')) think.classList.add('grow');
+    else if (!tokens.classList.contains('hidden')) tokens.classList.add('grow');
+
+    // Right column
+    var sess = document.getElementById('pane-sess');
+    var stats = document.getElementById('pane-stats');
+    var git = document.getElementById('pane-git');
+    [sess, stats, git].forEach(function(p) { p.classList.remove('grow'); });
+    if (!sess.classList.contains('hidden')) sess.classList.add('grow');
+    else if (!stats.classList.contains('hidden')) stats.classList.add('grow');
+    else if (!git.classList.contains('hidden')) git.classList.add('grow');
+  }
+
+  // -- Diff modal --
+  window.openDiff = function(index) {
+    currentDiffIndex = index;
+    var f = pendingFiles[index];
+    if (!f) return;
+    loadDiff(f);
+    document.getElementById('diff-modal').classList.remove('hidden');
+  };
+
+  function loadDiff(fileObj) {
+    var filePath = fileObj.path || fileObj.rel_path;
+    setText('diff-filename', (fileObj.rel_path || filePath) + ' (' + (currentDiffIndex + 1) + '/' + pendingFiles.length + ')');
+    var body = document.getElementById('diff-body');
+    body.textContent = 'A carregar...';
+    body.style.color = 'var(--text-dimmer)';
+
+    fetch('/api/diff?project=' + encodeURIComponent(currentProject) + '&file=' + encodeURIComponent(filePath))
+      .then(function(r) { return r.text(); })
+      .then(function(text) {
+        // Try parsing as JSON (error response may wrap diff)
+        try {
+          var json = JSON.parse(text);
+          text = json.diff || text;
+        } catch (e) { /* raw diff text */ }
+        body.style.color = '';
+        renderDiffContent(text);
+      })
+      .catch(function() {
+        body.textContent = 'Erro ao carregar diff.';
+        body.style.color = 'var(--red)';
+      });
+  }
+
+  function renderDiffContent(raw) {
+    var body = document.getElementById('diff-body');
+    body.textContent = '';
+    body.style.color = '';
+    if (!raw || !raw.trim()) {
+      var msg = document.createElement('div');
+      msg.style.color = 'var(--text-dimmer)';
+      msg.textContent = 'Sem alteracoes (ficheiro limpo ou binario).';
+      body.appendChild(msg);
+      return;
+    }
+    raw.split('\n').forEach(function(line) {
+      var div = document.createElement('div');
+      if (line.startsWith('@@')) div.className = 'diff-hunk';
+      else if (line.charAt(0) === '+' && !line.startsWith('+++')) div.className = 'diff-add';
+      else if (line.charAt(0) === '-' && !line.startsWith('---')) div.className = 'diff-del';
+      else div.className = 'diff-ctx';
+      div.textContent = line;
+      body.appendChild(div);
+    });
+  }
+
+  window.closeDiff = function() {
+    document.getElementById('diff-modal').classList.add('hidden');
+  };
+
+  window.prevDiff = function() {
+    if (currentDiffIndex > 0) window.openDiff(currentDiffIndex - 1);
+  };
+
+  window.nextDiff = function() {
+    if (currentDiffIndex < pendingFiles.length - 1) window.openDiff(currentDiffIndex + 1);
+  };
+
+  // -- Keyboard --
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { window.closeDiff(); return; }
+    if (document.getElementById('diff-modal').classList.contains('hidden')) return;
+    if (e.key === 'ArrowLeft') window.prevDiff();
+    if (e.key === 'ArrowRight') window.nextDiff();
+  });
+
+  // -- Boot --
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+
+</body>
+</html>
