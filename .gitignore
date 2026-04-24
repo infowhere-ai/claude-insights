@@ -22,3 +22,4 @@ __pycache__/
 # Claude internal
 .claude/agents/
 .claude/weekly_tokens.json
+.superpowers/
