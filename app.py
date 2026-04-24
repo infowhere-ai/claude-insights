@@ -1094,6 +1094,62 @@ async def get_session_detail(project: str = Query(...), session_id: str = Query(
     return _parse_session_detail(jsonl_path)
 
 
+@app.get("/api/insights-stats")
+async def get_insights_stats(project: str = Query(...)):
+    """Aggregated metrics for the last 7 days."""
+    if project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    project_path = _status_paths[project].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = CLAUDE_PROJECTS_DIR / encoded
+    if not jsonl_dir.is_dir():
+        return {"sessions_count": 0, "total_tokens": 0,
+                "cache_hit_pct": 0, "top_tool": None, "top_tool_count": 0}
+    cutoff = time.time() - 7 * 24 * 3600
+    sessions_count = total_input = total_output = total_cache = 0
+    tool_counts: dict[str, int] = {}
+    try:
+        for f in jsonl_dir.glob("*.jsonl"):
+            try:
+                if f.stat().st_mtime < cutoff:
+                    continue
+                sessions_count += 1
+                with f.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            d = json.loads(line)
+                        except Exception:
+                            continue
+                        if d.get("type") == "assistant":
+                            u = d.get("message", {}).get("usage", {})
+                            total_input  += u.get("input_tokens", 0)
+                            total_output += u.get("output_tokens", 0)
+                            total_cache  += u.get("cache_read_input_tokens", 0)
+                            for c in d.get("message", {}).get("content", []):
+                                if isinstance(c, dict) and c.get("type") == "tool_use":
+                                    n = c.get("name", "")
+                                    if n:
+                                        tool_counts[n] = tool_counts.get(n, 0) + 1
+            except OSError:
+                continue
+    except OSError:
+        pass
+    total_tokens = total_input + total_output
+    total_real   = total_input + total_cache
+    cache_hit_pct = round(total_cache / total_real * 100) if total_real > 0 else 0
+    top_tool = max(tool_counts, key=tool_counts.get) if tool_counts else None
+    return {
+        "sessions_count": sessions_count,
+        "total_tokens": total_tokens,
+        "cache_hit_pct": cache_hit_pct,
+        "top_tool": top_tool,
+        "top_tool_count": tool_counts.get(top_tool, 0) if top_tool else 0,
+    }
+
+
 def _parse_skill_md(content: str, name: str) -> dict:
     """Parse SKILL.md: extract YAML frontmatter + first body paragraph + heading."""
     lines = content.splitlines()
