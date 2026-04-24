@@ -45,7 +45,7 @@ claude-monitor/
 ### Endpoints existentes reutilizados sem alteração
 
 - `GET /api/diff?project=&file=` — diff de um ficheiro (para o modal)
-- `GET /api/pending-files?project=` — ficheiros para commit (reimplementado em JS no insights.html — sem componente partilhado, `insights.html` é autónomo)
+- `GET /api/pending?project=` — ficheiros para commit (endpoint existente, reutilizado directamente no insights.html)
 
 ### SSE — extensão necessária
 
@@ -78,7 +78,7 @@ Response: [
 ]
 ```
 
-O `session_id` é o nome do directório em `~/.claude/projects/<encoded-path>/` — é um UUID gerado pelo Claude Code. Não é necessário gerar identificadores separados.
+O `session_id` é o stem (nome sem extensão) de um ficheiro `.jsonl` plano em `~/.claude/projects/<encoded-path>/` — ex: `272efe8e-8d74-4775-932a-d83c78db6d09`. É um UUID gerado pelo Claude Code. Não é necessário gerar identificadores separados. **Nota**: existem também subdirectorias com o mesmo UUID (sessões de subagentes) — devem ser ignoradas.
 
 O `started_at` é extraído do `timestamp` do primeiro evento no JSONL. O `ended_at` é o `timestamp` do último evento (null se `is_active: true`).
 
@@ -111,7 +111,7 @@ Response: {
 }
 ```
 
-Implementação: ler todos os ficheiros JSONL dentro do directório `session_id`, extrair thinking blocks e tool events, agregar stats de usage.
+Implementação: ler o ficheiro JSONL plano `<session_id>.jsonl` no directório do projecto, extrair thinking blocks e tool events, agregar stats de usage.
 
 #### `GET /api/insights-stats`
 
