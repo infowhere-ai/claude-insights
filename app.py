@@ -277,6 +277,54 @@ def _get_project_stats(project_path: Path, project_name: str) -> dict:
     return stats
 
 
+def _list_sessions(project_name: str) -> list[dict]:
+    """Lists root-level JSONL sessions for a project, newest-first."""
+    if project_name not in _status_paths:
+        return []
+    project_path = _status_paths[project_name].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = CLAUDE_PROJECTS_DIR / encoded
+    if not jsonl_dir.is_dir():
+        return []
+    now = time.time()
+    sessions = []
+    try:
+        for f in jsonl_dir.glob("*.jsonl"):
+            try:
+                mtime = f.stat().st_mtime
+                is_active = (now - mtime) <= JSONL_ACTIVE_SECONDS
+                started_at = ended_at = None
+                with f.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            d = json.loads(line)
+                            ts = d.get("timestamp")
+                            if ts and started_at is None:
+                                started_at = ts
+                            if ts:
+                                ended_at = ts
+                        except Exception:
+                            continue
+                sessions.append({
+                    "session_id": f.stem,
+                    "started_at": started_at,
+                    "ended_at": None if is_active else ended_at,
+                    "is_active": is_active,
+                    "_mtime": mtime,
+                })
+            except OSError:
+                continue
+    except OSError:
+        return []
+    sessions.sort(key=lambda s: s["_mtime"], reverse=True)
+    for s in sessions:
+        del s["_mtime"]
+    return sessions
+
+
 async def discovery_loop() -> None:
     while True:
         _discover()
@@ -933,6 +981,15 @@ async def get_weekly_stats():
         except Exception:
             pass
     return {"weekly": result}
+
+
+@app.get("/api/sessions")
+async def get_sessions(project: str = Query(...)):
+    """Lists JSONL sessions for a project, newest-first."""
+    sessions = _list_sessions(project)
+    if not sessions and project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    return sessions
 
 
 def _parse_skill_md(content: str, name: str) -> dict:
