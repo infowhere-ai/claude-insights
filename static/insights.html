@@ -596,12 +596,25 @@
       allProjects = msg.projects || {};
       populateProjects(allProjects);
       var names = Object.keys(allProjects);
-      var active = names.find(function(n) {
-        var p = allProjects[n];
-        return p && (p.state === 'working' || p.status === 'working');
-      });
-      if (active) switchProject(active);
-      else if (names.length > 0) switchProject(names[0]);
+      var saved = localStorage.getItem('insights-project');
+      // Priority: 1) saved project if it exists (working or not), 2) any working project, 3) most recently active
+      if (saved && names.indexOf(saved) !== -1) {
+        switchProject(saved);
+      } else {
+        var active = names.find(function(n) {
+          var p = allProjects[n];
+          return p && (p.state === 'working' || p.status === 'working');
+        });
+        if (active) switchProject(active);
+        else if (names.length > 0) {
+          var mostRecent = names.reduce(function(best, n) {
+            var ts = (allProjects[n] && allProjects[n].ts) || '';
+            var bestTs = (allProjects[best] && allProjects[best].ts) || '';
+            return ts > bestTs ? n : best;
+          });
+          switchProject(mostRecent);
+        }
+      }
       return;
     }
 
@@ -641,6 +654,7 @@
 
   window.switchProject = function(name) {
     currentProject = name;
+    localStorage.setItem('insights-project', name);
     var sel = document.getElementById('project-select');
     if (sel.value !== name) sel.value = name;
     return Promise.all([loadSessions(), loadStats(), loadPendingFiles()]);

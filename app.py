@@ -17,7 +17,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", str(Path(__file__).parent.parent)))
+def _default_projects_root() -> str:
+    """Returns the parent of the main git worktree, so worktrees resolve correctly.
+    Falls back to the script's parent directory if git is unavailable."""
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list"],
+            cwd=str(Path(__file__).parent),
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            first_line = result.stdout.splitlines()[0]
+            main_worktree = first_line.split()[0]
+            return str(Path(main_worktree).parent)
+    except Exception:
+        pass
+    return str(Path(__file__).parent.parent)
+
+PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", _default_projects_root()))
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "0.5"))
 DISCOVERY_INTERVAL = float(os.getenv("DISCOVERY_INTERVAL", "60.0"))
 JSONL_ACTIVE_SECONDS = float(os.getenv("JSONL_ACTIVE_SECONDS", "60.0"))  # session considered active if JSONL changed within this window
@@ -645,6 +662,20 @@ async def jsonl_watcher_loop() -> None:
                 project_path = sp.parents[1]
                 latest_jsonl, latest_mtime = _get_latest_jsonl(project_path)
                 if latest_jsonl is None:
+                    # No JSONL at all — if stuck in working state, flip to idle
+                    current = projects.get(name, {})
+                    cur_state = current.get("state") or current.get("status", "idle")
+                    if cur_state == "working":
+                        stale = dict(current)
+                        stale["status"] = "idle"
+                        stale["state"] = "idle"
+                        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        stale["ts"] = now_iso
+                        stale["updated_at"] = now_iso
+                        stale["message"] = "idle"
+                        stale["_stale"] = True
+                        projects[name] = stale
+                        _broadcast({"type": "update", "project_name": name, "data": stale, "pending_projects": _pending_projects})
                     continue
 
                 cached = _jsonl_cache.get(name, {})

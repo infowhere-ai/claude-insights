@@ -10,7 +10,11 @@ LOG_FILE="$SCRIPT_DIR/.claude-monitor.log"
 VENV="$SCRIPT_DIR/.venv"
 PORT="${PORT:-19001}"
 URL="http://localhost:$PORT"
-PROJECTS_ROOT="${PROJECTS_ROOT:-"$(dirname "$SCRIPT_DIR")"}"
+# Use the main worktree's parent as PROJECTS_ROOT so worktrees resolve correctly.
+# `git worktree list` always returns the main worktree first — its parent is the
+# projects root regardless of whether we're running from a worktree or not.
+_MAIN_WORKTREE="$(git -C "$SCRIPT_DIR" worktree list 2>/dev/null | head -1 | awk '{print $1}')"
+PROJECTS_ROOT="${PROJECTS_ROOT:-"$(dirname "${_MAIN_WORKTREE:-"$(dirname "$SCRIPT_DIR")"}")"}"
 
 green()  { echo -e "\033[0;32m$*\033[0m"; }
 yellow() { echo -e "\033[0;33m$*\033[0m"; }
