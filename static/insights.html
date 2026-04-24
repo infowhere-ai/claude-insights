@@ -607,7 +607,9 @@
 
     if (msg.type === 'thinking') {
       if (msg.project === currentProject && isLive) {
-        setThinkingLive(msg.text, msg.block_id, msg.word_count);
+        if (msg.text != null && msg.text !== '') {
+          setThinkingLive(msg.text, msg.block_id, msg.word_count);
+        }
       }
       return;
     }
@@ -641,7 +643,7 @@
     currentProject = name;
     var sel = document.getElementById('project-select');
     if (sel.value !== name) sel.value = name;
-    Promise.all([loadSessions(), loadStats(), loadPendingFiles()]);
+    return Promise.all([loadSessions(), loadStats(), loadPendingFiles()]);
   };
 
   // -- Sessions --
@@ -991,7 +993,7 @@
     body.style.color = 'var(--text-dimmer)';
 
     fetch('/api/diff?project=' + encodeURIComponent(currentProject) + '&file=' + encodeURIComponent(filePath))
-      .then(function(r) { return r.text(); })
+      .then(function(r) { return r.ok ? r.text() : Promise.reject('Erro ao carregar diff'); })
       .then(function(text) {
         // Try parsing as JSON (error response may wrap diff)
         try {
@@ -1001,7 +1003,7 @@
         body.style.color = '';
         renderDiffContent(text);
       })
-      .catch(function() {
+      .catch(function(err) {
         body.textContent = 'Erro ao carregar diff.';
         body.style.color = 'var(--red)';
       });
