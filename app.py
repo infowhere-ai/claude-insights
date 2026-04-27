@@ -467,7 +467,7 @@ def _parse_session_detail(jsonl_path: Path) -> dict:
                     "success": not result.get("is_error", False),
                     "timestamp": ts,
                 })
-    return {"thinking": thinking[-5:], "tools": tools[-20:], "stats": stats}
+    return {"thinking": thinking, "tools": tools[-20:], "stats": stats}
 
 
 async def discovery_loop() -> None:
@@ -500,14 +500,19 @@ async def poll_loop() -> None:
                     # status.json — meaning the hooks didn't capture this event.
                     # If status.json is newer (e.g. Stop hook wrote idle), trust it.
                     if jsonl_mtime and jsonl_mtime > mtime and (now_ts - jsonl_mtime) <= JSONL_ACTIVE_SECONDS:
-                        # Don't override "compacting" — PreCompact hook set it and we must
-                        # preserve it until the new session's first hook fires.
-                        if data.get("state") != "compacting":
+                        # Don't override "compacting" — PreCompact hook set it.
+                        # Don't override "waiting" — Notification hook set it; user hasn't responded.
+                        # Only flip to working when JSONL is substantially newer (>2s).
+                        cur_data_state = data.get("state") or data.get("status", "idle")
+                        notification_active = bool(data.get("notification")) and cur_data_state in ("waiting", "notification")
+                        if cur_data_state == "compacting":
+                            pass  # preserve compacting
+                        elif notification_active and (jsonl_mtime - mtime) <= 2.0:
+                            pass  # preserve waiting — race window after notification fired
+                        else:
                             data["state"] = "working"
                             data["status"] = "working"
                             # Only clear a notification if JSONL is substantially newer (>2s).
-                            # A tiny margin (<2s) is just Claude Code writing "system" entries
-                            # immediately after firing the Notification hook — race condition.
                             if (jsonl_mtime - mtime) > 2.0:
                                 data["notification"] = None
                         jsonl_tool = jsonl_info.get("tool")
@@ -729,7 +734,15 @@ async def jsonl_watcher_loop() -> None:
                         updated = dict(current)
                         # Don't override "compacting" — PreCompact hook set it and we must
                         # preserve it until the new session's first hook fires.
-                        if cur_state != "compacting":
+                        # Don't override "waiting" — Notification hook set it and the user
+                        # hasn't responded yet. Only clear when JSONL is substantially newer
+                        # (>2s), meaning Claude resumed after the user responded.
+                        notification_active = bool(updated.get("notification")) and cur_state in ("waiting", "notification")
+                        if cur_state == "compacting":
+                            pass  # preserve compacting
+                        elif notification_active and (latest_mtime - status_mtime) <= 2.0:
+                            pass  # preserve waiting — notification just fired, race window
+                        else:
                             updated["state"] = "working"
                             updated["status"] = "working"
                         # Only clear a notification if JSONL is substantially newer (>2s).
@@ -737,7 +750,7 @@ async def jsonl_watcher_loop() -> None:
                         # "system" entries right after the Notification hook fires.
                         # Also: never clear notification while compacting (would remove
                         # the "⚡ Compactando contexto" message set by PreCompact).
-                        if (latest_mtime - status_mtime) > 2.0 and cur_state != "compacting":
+                        if (latest_mtime - status_mtime) > 2.0 and cur_state not in ("compacting",):
                             updated["notification"] = None
                         if tool:
                             updated["current_action"] = {
@@ -1485,6 +1498,182 @@ def _get_account_sync() -> dict:
 async def get_account():
     """Returns account settings and usage stats aggregated from session files."""
     return await asyncio.to_thread(_get_account_sync)
+
+
+@app.get("/api/context-inspect")
+async def get_context_inspect(project: str = Query(...), session_id: str = Query(default="")):
+    """Returns context window breakdown: rules loaded + files read this session."""
+    if project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    project_path = _status_paths[project].parents[1]
+
+    # ── 1. Rules / system context ──────────────────────────────────────────
+    rules: list[dict] = []
+
+    def _add_rule(label: str, real_path: Path, category: str) -> None:
+        try:
+            size = real_path.stat().st_size
+            rules.append({
+                "label": label,
+                "real_path": str(real_path),
+                "size_bytes": size,
+                "tokens_est": size // 4,
+                "category": category,
+            })
+        except OSError:
+            pass
+
+    # Project CLAUDE.md (root + .claude/)
+    for candidate in [project_path / "CLAUDE.md", project_path / ".claude" / "CLAUDE.md"]:
+        if candidate.is_file():
+            _add_rule(candidate.name, candidate, "claude-md")
+
+    # Global CLAUDE.md
+    global_claude = Path.home() / ".claude" / "CLAUDE.md"
+    if global_claude.is_file():
+        _add_rule("~/.claude/CLAUDE.md", global_claude, "global")
+
+    # .claude/rules/ — handles both file symlinks and directory symlinks
+    # Common pattern: common -> standarts/common/rules/, private -> standarts/private/rules/
+    rules_dir = project_path / ".claude" / "rules"
+    if rules_dir.is_dir():
+        for entry in sorted(rules_dir.iterdir()):
+            try:
+                real = entry.resolve()
+                if real.is_file():
+                    # Direct file or file symlink
+                    label = entry.name
+                    try:
+                        label = str(real.relative_to(PROJECTS_ROOT))
+                    except ValueError:
+                        pass
+                    _add_rule(label, real, "rule")
+                elif real.is_dir():
+                    # Symlink pointing to a directory — scan all .md files within
+                    for md_file in sorted(real.rglob("*.md")):
+                        if md_file.is_file():
+                            label = md_file.name
+                            try:
+                                label = str(md_file.relative_to(PROJECTS_ROOT))
+                            except ValueError:
+                                pass
+                            _add_rule(label, md_file, "rule")
+            except OSError:
+                pass
+
+    # Global rules ~/.claude/rules/ — same logic
+    global_rules = Path.home() / ".claude" / "rules"
+    if global_rules.is_dir():
+        for entry in sorted(global_rules.iterdir()):
+            try:
+                real = entry.resolve()
+                if real.is_file():
+                    _add_rule(f"~/.claude/rules/{entry.name}", real, "global-rule")
+                elif real.is_dir():
+                    for md_file in sorted(real.rglob("*.md")):
+                        if md_file.is_file():
+                            _add_rule(f"~/.claude/rules/{entry.name}/{md_file.name}", md_file, "global-rule")
+            except OSError:
+                pass
+
+    rules.sort(key=lambda r: r["size_bytes"], reverse=True)
+    rules_total_bytes = sum(r["size_bytes"] for r in rules)
+
+    # ── 2. Files read in session (from JSONL) ─────────────────────────────
+    reads: list[dict] = []
+
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = CLAUDE_PROJECTS_DIR / encoded
+
+    # Pick session_id or latest
+    jsonl_path: Path | None = None
+    if session_id:
+        candidate = jsonl_dir / f"{session_id}.jsonl"
+        if candidate.is_file():
+            jsonl_path = candidate
+    if jsonl_path is None:
+        latest, _ = _get_latest_jsonl(project_path)
+        jsonl_path = latest
+
+    if jsonl_path and jsonl_path.is_file():
+        # Parse: index tool_use by id, then match tool_result
+        tool_uses: dict[str, dict] = {}  # id -> {name, input}
+        try:
+            with jsonl_path.open(encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        d = json.loads(line)
+                    except Exception:
+                        continue
+                    if d.get("type") == "assistant":
+                        for c in (d.get("message", {}).get("content", []) or []):
+                            if isinstance(c, dict) and c.get("type") == "tool_use":
+                                tool_uses[c["id"]] = {
+                                    "name": c.get("name", ""),
+                                    "input": c.get("input", {}),
+                                }
+                    elif d.get("type") == "user":
+                        for c in (d.get("message", {}).get("content", []) or []):
+                            if not isinstance(c, dict) or c.get("type") != "tool_result":
+                                continue
+                            tid = c.get("tool_use_id", "")
+                            tu = tool_uses.get(tid, {})
+                            tool_name = tu.get("name", "")
+                            if tool_name not in ("Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch"):
+                                continue
+                            # Compute result size
+                            result_content = c.get("content", "")
+                            if isinstance(result_content, list):
+                                result_text = "\n".join(
+                                    x.get("text", "") for x in result_content
+                                    if isinstance(x, dict)
+                                )
+                            else:
+                                result_text = str(result_content)
+                            size_bytes = len(result_text.encode("utf-8"))
+                            inp = tu.get("input", {})
+                            label = (
+                                inp.get("file_path") or inp.get("path") or
+                                inp.get("command", "")[:60] or
+                                inp.get("url") or inp.get("query") or
+                                inp.get("pattern") or ""
+                            )
+                            reads.append({
+                                "tool": tool_name,
+                                "label": label,
+                                "size_bytes": size_bytes,
+                                "tokens_est": size_bytes // 4,
+                                "is_error": c.get("is_error", False),
+                            })
+        except OSError:
+            pass
+
+    # Deduplicate Read/Write by path — keep largest (last read wins but size matters)
+    seen_reads: dict[str, int] = {}
+    deduped: list[dict] = []
+    for r in reads:
+        key = (r["tool"], r["label"])
+        if key in seen_reads:
+            if r["size_bytes"] > deduped[seen_reads[key]]["size_bytes"]:
+                deduped[seen_reads[key]] = r
+        else:
+            seen_reads[key] = len(deduped)
+            deduped.append(r)
+    reads = sorted(deduped, key=lambda r: r["size_bytes"], reverse=True)
+    reads_total_bytes = sum(r["size_bytes"] for r in reads)
+
+    return {
+        "rules": rules,
+        "rules_total_bytes": rules_total_bytes,
+        "rules_total_tokens_est": rules_total_bytes // 4,
+        "reads": reads[:60],  # top 60
+        "reads_total_bytes": reads_total_bytes,
+        "reads_total_tokens_est": reads_total_bytes // 4,
+        "session_id": str(jsonl_path.stem) if jsonl_path else None,
+    }
 
 
 @app.delete("/api/file")

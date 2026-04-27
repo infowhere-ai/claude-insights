@@ -168,6 +168,38 @@
     box-shadow: none;
   }
 
+  /* -- Status bar -- */
+  #status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    flex-shrink: 0;
+    background: var(--border);
+    min-height: 26px;
+    transition: background 0.2s;
+  }
+  #status-bar.working { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); }
+  #status-bar.waiting { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); }
+  #status-bar.idle    { background: var(--border); border: 1px solid transparent; }
+  #status-bar.stopped { background: var(--border); border: 1px solid transparent; }
+  #status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  #status-dot.working { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  #status-dot.waiting { background: var(--yellow); box-shadow: 0 0 5px var(--yellow); }
+  #status-dot.idle    { background: var(--text-dim); }
+  #status-dot.stopped { background: var(--text-dimmer); }
+  #status-label { font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+  #status-label.working { color: var(--green); }
+  #status-label.waiting { color: var(--yellow); }
+  #status-action { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  #status-action.tool { color: var(--blue); }
+
   /* -- Panels -- */
   .panel {
     border-radius: 6px;
@@ -395,6 +427,147 @@
   .diff-hunk { color: var(--text-dim); }
   .diff-ctx { color: var(--text-dimmer); }
 
+  /* -- Thinking history modal -- */
+  #think-modal .modal-box {
+    width: min(860px, 92vw);
+    max-height: 86vh;
+  }
+  .think-block {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+  }
+  .think-block:last-child { border-bottom: none; }
+  .think-block-hdr {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 9px;
+    color: var(--text-dimmer);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .think-block-hdr:hover { color: var(--text-dim); }
+  .think-block-num { color: var(--blue); font-weight: 700; }
+  .think-block-words { color: var(--purple); }
+  .think-block-toggle { margin-left: auto; font-size: 10px; }
+  .think-block-text {
+    font-size: 11px;
+    line-height: 1.65;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-style: italic;
+  }
+  .think-block-text.collapsed {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  #think-modal-meta {
+    font-size: 10px;
+    color: var(--text-dimmer);
+    padding: 2px 0 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  /* -- Context inspector panel -- */
+  #pane-ctx .panel-label { color: var(--text-dim); margin-bottom: 0; }
+
+  .ctx-usage-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    overflow: hidden;
+    margin: 7px 0 4px;
+    display: flex;
+    gap: 1px;
+  }
+  .ctx-seg {
+    height: 100%;
+    transition: width 0.3s;
+    min-width: 0;
+  }
+  .ctx-seg.fixed { background: var(--cyan); }
+  .ctx-seg.var   { background: var(--purple); }
+  .ctx-usage-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-dimmer);
+    margin-bottom: 4px;
+  }
+  .ctx-usage-label-fixed { color: var(--cyan); opacity: 0.85; }
+  .ctx-usage-label-var   { color: var(--purple); opacity: 0.85; }
+  .ctx-usage-label-free  { color: var(--text-dimmer); }
+
+  .ctx-box {
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .ctx-box-hdr {
+    padding: 5px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .ctx-box-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .ctx-box-sub {
+    font-size: 9px;
+    opacity: 0.65;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ctx-box-tok {
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  /* Fixed context box */
+  .ctx-box.ctx-fixed { border-color: rgba(34,211,238,0.25); }
+  .ctx-box.ctx-fixed .ctx-box-hdr { background: rgba(34,211,238,0.07); }
+  .ctx-box.ctx-fixed .ctx-box-title { color: var(--cyan); }
+  .ctx-box.ctx-fixed .ctx-box-tok  { color: var(--cyan); }
+  /* Variable context box */
+  .ctx-box.ctx-var { border-color: rgba(167,139,250,0.25); }
+  .ctx-box.ctx-var .ctx-box-hdr { background: rgba(167,139,250,0.07); }
+  .ctx-box.ctx-var .ctx-box-title { color: var(--purple); }
+  .ctx-box.ctx-var .ctx-box-tok  { color: var(--purple); }
+
+  .ctx-box-list {
+    padding: 3px 6px 5px;
+    max-height: 22vh;
+    overflow-y: auto;
+  }
+  .ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 0;
+    color: var(--text-dim);
+    border-bottom: 1px solid #0c1524;
+  }
+  .ctx-item:last-child { border-bottom: none; }
+  .ctx-item-icon { flex-shrink: 0; width: 14px; text-align: center; font-size: 9px; }
+  .ctx-item-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ctx-item-tok { flex-shrink: 0; font-size: 9px; color: var(--text-dimmer); min-width: 38px; text-align: right; }
+
   /* -- Scrollbar -- */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -421,6 +594,7 @@
     <button class="sidebar-btn active" id="btn-think" onclick="togglePanel('pane-think','btn-think')" title="Raciocinio">&#129504;</button>
     <button class="sidebar-btn active" id="btn-tools" onclick="togglePanel('pane-tools','btn-tools')" title="Ferramentas">&#128295;</button>
     <button class="sidebar-btn active" id="btn-tokens" onclick="togglePanel('pane-tokens','btn-tokens')" title="Tokens">&#11044;</button>
+    <button class="sidebar-btn" id="btn-ctx" onclick="togglePanel('pane-ctx','btn-ctx')" title="Contexto da sessao">&#8862;</button>
   </div>
 
   <!-- Main area -->
@@ -429,10 +603,18 @@
     <!-- Left column: Live -->
     <div id="col-live">
       <div id="live-badge">Nenhuma sessao activa</div>
+      <div id="status-bar" class="idle">
+        <div id="status-dot" class="idle"></div>
+        <span id="status-label" class="idle">IDLE</span>
+        <span id="status-action"></span>
+      </div>
 
       <!-- Thinking -->
       <div class="panel" id="pane-think">
-        <div class="panel-label">&#129504; Raciocinio</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="panel-label" style="margin-bottom:0">&#129504; Raciocinio</div>
+          <button id="btn-think-hist" onclick="openThinkingHistory()" title="Ver historico completo de raciocinio" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--blue);cursor:pointer;padding:2px 8px;border-radius:3px;font-family:var(--font-mono);font-size:10px;display:none;letter-spacing:0.5px">&#128221; hist</button>
+        </div>
         <div id="thinking-text" class="thinking-text collapsed" onclick="toggleThinking()">
           Aguardando raciocinio...
         </div>
@@ -460,6 +642,27 @@
           <div><div class="tok-cell-label">Cache rd</div><div class="tok-cell-val cache" id="tok-cache">-</div></div>
           <div><div class="tok-cell-label">Contexto</div><div class="tok-cell-val" id="tok-ctx" style="color:var(--text-dim)">-</div></div>
         </div>
+      </div>
+
+      <!-- Context inspector -->
+      <div class="panel hidden" id="pane-ctx">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="panel-label" style="margin-bottom:0">&#8862; Contexto da Sessao</div>
+          <span id="ctx-inspect-summary" style="font-size:9px;color:var(--text-dim)"></span>
+        </div>
+        <!-- Usage breakdown bar -->
+        <div id="ctx-breakdown-wrap" style="display:none">
+          <div class="ctx-usage-bar">
+            <div class="ctx-seg fixed" id="ctx-bar-fixed" style="width:0%"></div>
+            <div class="ctx-seg var"   id="ctx-bar-var"   style="width:0%"></div>
+          </div>
+          <div class="ctx-usage-labels">
+            <span class="ctx-usage-label-fixed" id="ctx-lbl-fixed"></span>
+            <span class="ctx-usage-label-var"   id="ctx-lbl-var"></span>
+            <span class="ctx-usage-label-free"  id="ctx-lbl-free"></span>
+          </div>
+        </div>
+        <div id="ctx-inspect-body"></div>
       </div>
     </div>
 
@@ -499,6 +702,21 @@
   </div>
 </div>
 
+<!-- Thinking history modal -->
+<div id="think-modal" class="modal-backdrop hidden" onclick="closeThinkingHistory(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span id="think-modal-title">&#129504; Historico de Raciocinio</span>
+      <div>
+        <button onclick="collapseAllThinking()">&#8722; colapsar</button>
+        <button onclick="expandAllThinking()">&#43; expandir</button>
+        <button onclick="closeThinkingHistory()">&#10005;</button>
+      </div>
+    </div>
+    <div class="diff-body" id="think-modal-body"></div>
+  </div>
+</div>
+
 <!-- Diff modal -->
 <div id="diff-modal" class="modal-backdrop hidden">
   <div class="modal-box">
@@ -527,6 +745,43 @@
   var currentDiffIndex = 0;
   var allProjects = {};
   var es = null;
+  var lastThinkingHistory = [];
+  var lastCtxTokens = 0;
+  var lastCtxWindow = 185000;
+
+  function updateStatusBar(projData) {
+    if (!projData) return;
+    var state = projData.state || projData.status || 'idle';
+    var action = projData.current_action;
+    var tool = (action && action.tool) || projData.tool || '';
+    var notif = projData.notification;
+    var notifMsg = notif && (typeof notif === 'string' ? notif : notif.message) || '';
+
+    var bar    = document.getElementById('status-bar');
+    var dot    = document.getElementById('status-dot');
+    var label  = document.getElementById('status-label');
+    var actEl  = document.getElementById('status-action');
+    if (!bar) return;
+
+    var cls = state === 'working' ? 'working' : state === 'waiting' ? 'waiting' : 'idle';
+    bar.className = cls;
+    dot.className = cls;
+    label.className = cls;
+
+    var LABELS = { working: '● WORKING', waiting: '⏳ AGUARDANDO', idle: 'IDLE', stopped: 'STOPPED', compacting: '⚡ COMPACTING' };
+    label.textContent = LABELS[state] || state.toUpperCase();
+
+    if (state === 'waiting' && notifMsg) {
+      actEl.className = '';
+      actEl.textContent = '— ' + notifMsg.slice(0, 120);
+    } else if (state === 'working' && tool) {
+      actEl.className = 'tool';
+      actEl.textContent = '— ' + tool;
+    } else {
+      actEl.className = '';
+      actEl.textContent = '';
+    }
+  }
 
   // -- Context window constants (from index.html) --
   var CTX_WINDOW_DEFAULT = 185000;
@@ -630,10 +885,48 @@
     if (msg.type === 'update') {
       var projName = msg.project_name;
       if (msg.data) allProjects[projName] = msg.data;
-      if (projName === currentProject && isLive) {
-        var stats = (msg.data && msg.data.stats) || {};
-        updateTokensFromStats(stats);
-        loadPendingFiles();
+      if (projName === currentProject) {
+        // Always update the status bar for the active project
+        updateStatusBar(msg.data);
+
+        var projState = (msg.data && (msg.data.state || msg.data.status)) || 'idle';
+        // If Claude just became active and we're not in live mode, reload sessions
+        // so the active session is detected and isLive is set to true.
+        if (!isLive && (projState === 'working' || projState === 'waiting')) {
+          var now2 = Date.now();
+          if (!window._lastSessionsReload || now2 - window._lastSessionsReload > 5000) {
+            window._lastSessionsReload = now2;
+            loadSessions();
+            return;
+          }
+        }
+        if (isLive) {
+          var stats = (msg.data && msg.data.stats) || {};
+          updateTokensFromStats(stats);
+          loadPendingFiles();
+          // Refresh session detail (tools list) while live — throttled to avoid hammering
+          var now = Date.now();
+          if (!window._lastSessionRefresh || now - window._lastSessionRefresh > 2000) {
+            window._lastSessionRefresh = now;
+            if (currentSessionId) {
+              fetch('/api/session-detail?project=' + encodeURIComponent(currentProject) + '&session_id=' + encodeURIComponent(currentSessionId))
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                  if (!data) return;
+                  renderThinking(data.thinking);
+                  renderTools(data.tools);
+                  updateTokensFromDetail(data.stats);
+                })
+                .catch(function() {});
+            }
+          }
+          // Refresh context inspector every 5s while live
+          var nowCtx = Date.now();
+          if (!window._lastCtxRefresh || nowCtx - window._lastCtxRefresh > 5000) {
+            window._lastCtxRefresh = nowCtx;
+            loadContextInspect();
+          }
+        }
       }
       return;
     }
@@ -657,6 +950,7 @@
     localStorage.setItem('insights-project', name);
     var sel = document.getElementById('project-select');
     if (sel.value !== name) sel.value = name;
+    updateStatusBar(allProjects[name] || null);
     return Promise.all([loadSessions(), loadStats(), loadPendingFiles()]);
   };
 
@@ -736,6 +1030,7 @@
         renderThinking(data.thinking);
         renderTools(data.tools);
         updateTokensFromDetail(data.stats);
+        loadContextInspect();
       })
       .catch(function() {});
   }
@@ -749,6 +1044,9 @@
     span.style.color = 'var(--text-dimmer)';
     span.textContent = 'Nenhuma sessao activa \u2014 abre o Claude Code para comecar.';
     badge.appendChild(span);
+    lastThinkingHistory = [];
+    var histBtn = document.getElementById('btn-think-hist');
+    if (histBtn) histBtn.style.display = 'none';
     setText('thinking-text', 'Sem raciocinio.');
     setText('thinking-meta', '');
     var toolsList = document.getElementById('tools-list');
@@ -829,16 +1127,20 @@
 
   function renderThinking(arr) {
     lastBlockId = null;
+    lastThinkingHistory = arr || [];
+    var histBtn = document.getElementById('btn-think-hist');
     if (!arr || arr.length === 0) {
       setText('thinking-text', 'Sem raciocinio nesta sessao.');
       setText('thinking-meta', '');
+      if (histBtn) histBtn.style.display = 'none';
       return;
     }
     var last = arr[arr.length - 1];
     var el = document.getElementById('thinking-text');
     el.textContent = last.text;
     el.classList.add('collapsed');
-    setText('thinking-meta', (last.word_count || 0) + ' palavras');
+    setText('thinking-meta', (last.word_count || 0) + ' palavras' + (arr.length > 1 ? ' \u00B7 bloco ' + arr.length + '/' + arr.length : ''));
+    if (histBtn) histBtn.style.display = arr.length > 1 ? '' : 'none';
   }
 
   window.toggleThinking = function() {
@@ -941,6 +1243,8 @@
 
   function updateContextBar(ctxTokens, storedThreshold) {
     var ctxWindow = resolveCtxWindow(ctxTokens, storedThreshold);
+    lastCtxTokens = ctxTokens;
+    lastCtxWindow = ctxWindow;
     var pct = ctxTokens > 0 ? Math.min(100, Math.round((ctxTokens / ctxWindow) * 100)) : 0;
     var bar = document.getElementById('ctx-bar');
     var pctEl = document.getElementById('ctx-pct');
@@ -963,11 +1267,171 @@
     document.getElementById('ctx-model').textContent = '\u2B24 Tokens';
   }
 
+  // -- Context inspector --
+  function loadContextInspect() {
+    if (!currentProject || !currentSessionId) return;
+    var pane = document.getElementById('pane-ctx');
+    if (!pane || pane.classList.contains('hidden')) return;
+    fetch('/api/context-inspect?project=' + encodeURIComponent(currentProject) + '&session_id=' + encodeURIComponent(currentSessionId))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) { if (data) renderContextInspect(data); })
+      .catch(function() {});
+  }
+
+  function renderContextInspect(data) {
+    var summEl = document.getElementById('ctx-inspect-summary');
+    var bodyEl = document.getElementById('ctx-inspect-body');
+    if (!bodyEl) return;
+    bodyEl.textContent = '';
+
+    var rulesTok = data.rules_total_tokens_est || 0;
+    var readsTok = data.reads_total_tokens_est || 0;
+    var grandTok = rulesTok + readsTok;
+    var ctxWin = lastCtxWindow || 185000;
+    var ctxUsed = lastCtxTokens || 0;
+
+    // Summary header
+    if (summEl) {
+      if (ctxUsed > 0) {
+        var usedPct = Math.min(100, Math.round((ctxUsed / ctxWin) * 100));
+        summEl.textContent = fmtTok(ctxUsed) + '/' + fmtTok(ctxWin) + ' (' + usedPct + '%)';
+      } else {
+        summEl.textContent = grandTok ? '~' + fmtTok(grandTok) + ' tok est' : '';
+      }
+    }
+
+    // Breakdown bar
+    var wrap = document.getElementById('ctx-breakdown-wrap');
+    if (wrap && ctxWin > 0) {
+      var fixedPct  = Math.min(100, (rulesTok / ctxWin) * 100);
+      var varPct    = Math.min(100 - fixedPct, (readsTok / ctxWin) * 100);
+      var freePct   = Math.max(0, 100 - fixedPct - varPct);
+      var fixedDisp = Math.min(100, ctxUsed > 0 ? (rulesTok / ctxUsed) * 100 : 0);
+      var varDisp   = Math.min(100 - fixedDisp, ctxUsed > 0 ? (readsTok / ctxUsed) * 100 : 0);
+
+      document.getElementById('ctx-bar-fixed').style.width = fixedPct.toFixed(1) + '%';
+      document.getElementById('ctx-bar-var').style.width   = varPct.toFixed(1)   + '%';
+
+      var freeLabel = ctxUsed > 0
+        ? fmtTok(Math.max(0, ctxWin - ctxUsed)) + ' livre'
+        : '~' + fmtTok(Math.max(0, ctxWin - rulesTok - readsTok)) + ' livre';
+
+      document.getElementById('ctx-lbl-fixed').textContent =
+        'fixo ~' + fmtTok(rulesTok) + ' (' + fixedPct.toFixed(0) + '%)';
+      document.getElementById('ctx-lbl-var').textContent =
+        'var ~' + fmtTok(readsTok) + ' (' + varPct.toFixed(0) + '%)';
+      document.getElementById('ctx-lbl-free').textContent = freeLabel;
+      wrap.style.display = '';
+    }
+
+    var CAT_ICONS = { 'claude-md': '\uD83D\uDCCB', 'global': '\uD83C\uDF10', 'rule': '\uD83D\uDCDC', 'global-rule': '\uD83C\uDF10' };
+    var TOOL_ICONS_CTX = { Read: '\uD83D\uDCD6', Write: '\u270F', Edit: '\u270F', Bash: '\u26A1', Glob: '\uD83D\uDD0D', Grep: '\uD83D\uDD0D', WebFetch: '\uD83C\uDF10' };
+
+    function buildBox(boxClass, title, subtitle, totalTok, items, getIcon, getLabel) {
+      var box = document.createElement('div');
+      box.className = 'ctx-box ' + boxClass;
+
+      // Header
+      var hdr = document.createElement('div');
+      hdr.className = 'ctx-box-hdr';
+
+      var titleEl = document.createElement('span');
+      titleEl.className = 'ctx-box-title';
+      titleEl.textContent = title;
+
+      var subEl = document.createElement('span');
+      subEl.className = 'ctx-box-sub';
+      subEl.textContent = subtitle + (items ? ' \u00B7 ' + items.length + ' item' + (items.length !== 1 ? 's' : '') : '');
+
+      var tokEl = document.createElement('span');
+      tokEl.className = 'ctx-box-tok';
+      tokEl.textContent = fmtTok(totalTok) + ' tok';
+
+      hdr.appendChild(titleEl);
+      hdr.appendChild(subEl);
+      hdr.appendChild(tokEl);
+      box.appendChild(hdr);
+
+      // List
+      var list = document.createElement('div');
+      list.className = 'ctx-box-list';
+
+      if (!items || items.length === 0) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'font-size:9px;color:var(--text-dimmer);padding:4px 2px';
+        empty.textContent = 'Nenhum item.';
+        list.appendChild(empty);
+      } else {
+        items.forEach(function(item) {
+          var row = document.createElement('div');
+          row.className = 'ctx-item';
+
+          var iconEl = document.createElement('span');
+          iconEl.className = 'ctx-item-icon';
+          iconEl.textContent = getIcon(item);
+
+          var lblEl = document.createElement('span');
+          lblEl.className = 'ctx-item-lbl';
+          var lbl = getLabel(item);
+          lblEl.textContent = lbl;
+          lblEl.title = item.real_path || item.label || lbl;
+          if (item.is_error) lblEl.style.color = 'var(--red)';
+
+          var tEl = document.createElement('span');
+          tEl.className = 'ctx-item-tok';
+          tEl.textContent = fmtTok(item.tokens_est);
+
+          row.appendChild(iconEl);
+          row.appendChild(lblEl);
+          row.appendChild(tEl);
+          list.appendChild(row);
+        });
+      }
+      box.appendChild(list);
+      return box;
+    }
+
+    // Fixed context box — rules loaded at session start
+    bodyEl.appendChild(buildBox(
+      'ctx-fixed',
+      'Fixo',
+      'CLAUDE.md + .claude/rules/ — carregado automaticamente',
+      rulesTok,
+      data.rules,
+      function(r) { return CAT_ICONS[r.category] || '\uD83D\uDCC4'; },
+      function(r) {
+        var lbl = r.label || '';
+        lbl = lbl.replace(/standarts\/(?:common|private|work)\/rules\//, '');
+        lbl = lbl.replace(/standarts\/(?:common|private|work)\//, '');
+        return lbl;
+      }
+    ));
+
+    // Variable context box — tool results accumulated during session
+    bodyEl.appendChild(buildBox(
+      'ctx-var',
+      'Variavel',
+      'Acumulado com cada Read/Bash',
+      readsTok,
+      data.reads,
+      function(r) { return TOOL_ICONS_CTX[r.tool] || '\uD83D\uDD27'; },
+      function(r) {
+        var lbl = r.label || '';
+        lbl = lbl.replace(/\/Users\/[^/]+\/desenvolvimento\/github-infowhere\/[^/]+\//, '');
+        lbl = lbl.replace(/\/Users\/[^/]+\//, '~/');
+        return lbl;
+      }
+    ));
+  }
+
   // -- Panel toggle --
   window.togglePanel = function(panelId, btnId) {
     document.getElementById(panelId).classList.toggle('hidden');
     document.getElementById(btnId).classList.toggle('active');
     redistributeGrow();
+    if (panelId === 'pane-ctx' && !document.getElementById(panelId).classList.contains('hidden')) {
+      loadContextInspect();
+    }
   };
 
   function redistributeGrow() {
@@ -975,8 +1439,10 @@
     var tools = document.getElementById('pane-tools');
     var think = document.getElementById('pane-think');
     var tokens = document.getElementById('pane-tokens');
-    [tools, think, tokens].forEach(function(p) { p.classList.remove('grow'); });
+    var ctx = document.getElementById('pane-ctx');
+    [tools, think, tokens, ctx].forEach(function(p) { if (p) p.classList.remove('grow'); });
     if (!tools.classList.contains('hidden')) tools.classList.add('grow');
+    else if (ctx && !ctx.classList.contains('hidden')) ctx.classList.add('grow');
     else if (!think.classList.contains('hidden')) think.classList.add('grow');
     else if (!tokens.classList.contains('hidden')) tokens.classList.add('grow');
 
@@ -1057,9 +1523,110 @@
     if (currentDiffIndex < pendingFiles.length - 1) window.openDiff(currentDiffIndex + 1);
   };
 
+  // -- Thinking history modal --
+  window.openThinkingHistory = function() {
+    var arr = lastThinkingHistory;
+    var body = document.getElementById('think-modal-body');
+    var title = document.getElementById('think-modal-title');
+    body.textContent = '';
+
+    if (!arr || arr.length === 0) {
+      var msg = document.createElement('div');
+      msg.style.cssText = 'color:var(--text-dimmer);font-size:11px;padding:12px 0';
+      msg.textContent = 'Sem raciocinio registado nesta sessao.';
+      body.appendChild(msg);
+      document.getElementById('think-modal').classList.remove('hidden');
+      return;
+    }
+
+    title.textContent = '\uD83E\uDDE0 Historico de Raciocinio \u00B7 ' + arr.length + ' bloco' + (arr.length !== 1 ? 's' : '');
+
+    var meta = document.createElement('div');
+    meta.id = 'think-modal-meta';
+    var totalWords = arr.reduce(function(s, b) { return s + (b.word_count || 0); }, 0);
+    meta.textContent = arr.length + ' blocos \u00B7 ' + totalWords.toLocaleString() + ' palavras no total';
+    body.appendChild(meta);
+
+    arr.slice().reverse().forEach(function(block, revIdx) {
+      var idx = arr.length - revIdx;
+      var div = document.createElement('div');
+      div.className = 'think-block';
+
+      var hdr = document.createElement('div');
+      hdr.className = 'think-block-hdr';
+
+      var numEl = document.createElement('span');
+      numEl.className = 'think-block-num';
+      numEl.textContent = '#' + idx;
+
+      var tsEl = document.createElement('span');
+      if (block.timestamp) {
+        try {
+          var d = new Date(block.timestamp);
+          tsEl.textContent = d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) { tsEl.textContent = ''; }
+      }
+
+      var wordsEl = document.createElement('span');
+      wordsEl.className = 'think-block-words';
+      wordsEl.textContent = (block.word_count || 0) + ' palavras';
+
+      var toggleEl = document.createElement('span');
+      toggleEl.className = 'think-block-toggle';
+      toggleEl.textContent = '\u25B2 colapsar';
+
+      hdr.appendChild(numEl);
+      if (tsEl.textContent) hdr.appendChild(tsEl);
+      hdr.appendChild(wordsEl);
+      hdr.appendChild(toggleEl);
+
+      var textEl = document.createElement('div');
+      textEl.className = 'think-block-text';
+      textEl.textContent = block.text || '';
+
+      hdr.onclick = function() {
+        textEl.classList.toggle('collapsed');
+        toggleEl.textContent = textEl.classList.contains('collapsed') ? '\u25BC expandir' : '\u25B2 colapsar';
+      };
+
+      div.appendChild(hdr);
+      div.appendChild(textEl);
+      body.appendChild(div);
+    });
+
+    document.getElementById('think-modal').classList.remove('hidden');
+  };
+
+  window.closeThinkingHistory = function(e) {
+    if (e && e.target !== document.getElementById('think-modal')) return;
+    document.getElementById('think-modal').classList.add('hidden');
+  };
+
+  window.expandAllThinking = function() {
+    document.querySelectorAll('.think-block-text').forEach(function(el) {
+      el.classList.remove('collapsed');
+    });
+    document.querySelectorAll('.think-block-toggle').forEach(function(el) {
+      el.textContent = '\u25B2 colapsar';
+    });
+  };
+
+  window.collapseAllThinking = function() {
+    document.querySelectorAll('.think-block-text').forEach(function(el) {
+      el.classList.add('collapsed');
+    });
+    document.querySelectorAll('.think-block-toggle').forEach(function(el) {
+      el.textContent = '\u25BC expandir';
+    });
+  };
+
   // -- Keyboard --
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { window.closeDiff(); return; }
+    if (e.key === 'Escape') {
+      window.closeDiff();
+      document.getElementById('think-modal').classList.add('hidden');
+      return;
+    }
     if (document.getElementById('diff-modal').classList.contains('hidden')) return;
     if (e.key === 'ArrowLeft') window.prevDiff();
     if (e.key === 'ArrowRight') window.nextDiff();

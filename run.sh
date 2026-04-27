@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # claude-monitor — start/stop/restart/status/help
-# Usage: ./run.sh <command> [--app]
+# Usage: ./run.sh <command> [--no-app]
 
 set -euo pipefail
 
@@ -10,6 +10,7 @@ LOG_FILE="$SCRIPT_DIR/.claude-monitor.log"
 VENV="$SCRIPT_DIR/.venv"
 PORT="${PORT:-19001}"
 URL="http://localhost:$PORT"
+OPEN_URL="$URL/insights"
 # Use the main worktree's parent as PROJECTS_ROOT so worktrees resolve correctly.
 # `git worktree list` always returns the main worktree first — its parent is the
 # projects root regardless of whether we're running from a worktree or not.
@@ -38,17 +39,17 @@ open_ui() {
         local chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
         local edge="/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
         if [ -x "$chrome" ]; then
-            "$chrome" --app="$URL" 2>/dev/null &
+            "$chrome" --app="$OPEN_URL" 2>/dev/null &
             green "✓ Opened as standalone app (Chrome)"
         elif [ -x "$edge" ]; then
-            "$edge" --app="$URL" 2>/dev/null &
+            "$edge" --app="$OPEN_URL" 2>/dev/null &
             green "✓ Opened as standalone app (Edge)"
         else
             yellow "Chrome/Edge not found — opening in default browser"
-            open "$URL" 2>/dev/null || true
+            open "$OPEN_URL" 2>/dev/null || true
         fi
     else
-        open "$URL" 2>/dev/null || true
+        open "$OPEN_URL" 2>/dev/null || true
     fi
 }
 
@@ -227,10 +228,10 @@ cmd_help() {
     echo "  Usage: $(basename "$0") <command> [options]"
     echo ""
     echo "  Commands:"
-    echo "    start [--app]   Start the server and open in the default browser"
-    echo "                    --app  open as a standalone app window (requires Chrome or Edge)"
+    echo "    start [--no-app]   Start the server and open as a standalone app window (requires Chrome or Edge)"
+    echo "                       --no-app  open in the default browser instead"
     echo "    stop            Stop the server"
-    echo "    restart [--app] Stop and start the server"
+    echo "    restart [--no-app] Stop and start the server"
     echo "    status          Show whether the server is running"
     echo "    help            Show this help message"
     echo ""
@@ -241,7 +242,7 @@ cmd_help() {
     echo ""
     echo "  Examples:"
     echo "    ./run.sh start"
-    echo "    ./run.sh start --app"
+    echo "    ./run.sh start --no-app"
     echo "    PORT=8080 ./run.sh start"
     echo ""
 }
@@ -253,8 +254,8 @@ if [ $# -eq 0 ]; then
 fi
 
 CMD="$1"
-OPEN_MODE="browser"
-[ "${2:-}" = "--app" ] && OPEN_MODE="app"
+OPEN_MODE="app"
+[ "${2:-}" = "--no-app" ] && OPEN_MODE="browser"
 
 case "$CMD" in
     start)   cmd_start "$OPEN_MODE" ;;
