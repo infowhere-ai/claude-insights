@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import difflib
 import fcntl
 import hashlib
 import json
@@ -395,6 +396,72 @@ def _tool_input_summary(name: str, inp: dict) -> str:
     return ""
 
 
+def _tool_detail(name: str, inp: dict) -> dict:
+    """Returns structured detail for a tool call, used in the insights modal."""
+    if name == "Bash":
+        return {
+            "type": "bash",
+            "command": inp.get("command", ""),
+            "description": inp.get("description", ""),
+        }
+    if name == "Edit":
+        file_path = inp.get("file_path", inp.get("path", ""))
+        old = inp.get("old_string", "")
+        new = inp.get("new_string", "")
+        diff_lines = list(difflib.unified_diff(
+            old.splitlines(keepends=True),
+            new.splitlines(keepends=True),
+            fromfile=f"a/{file_path}",
+            tofile=f"b/{file_path}",
+            lineterm="",
+        ))
+        return {
+            "type": "edit",
+            "file_path": file_path,
+            "diff": "".join(diff_lines),
+        }
+    if name == "Write":
+        content = inp.get("content", "")
+        return {
+            "type": "write",
+            "file_path": inp.get("file_path", inp.get("path", "")),
+            "content": content[:3000],
+            "total_chars": len(content),
+        }
+    if name == "Read":
+        return {
+            "type": "read",
+            "file_path": inp.get("file_path", inp.get("path", "")),
+            "limit": inp.get("limit"),
+            "offset": inp.get("offset"),
+        }
+    if name in ("Grep", "Glob"):
+        return {
+            "type": "search",
+            "tool": name,
+            "pattern": inp.get("pattern", ""),
+            "path": inp.get("path", ""),
+            "include": inp.get("include", ""),
+        }
+    if name in ("WebFetch", "WebSearch"):
+        return {
+            "type": "web",
+            "url": inp.get("url", ""),
+            "query": inp.get("query", ""),
+        }
+    if name == "Agent":
+        return {
+            "type": "agent",
+            "description": inp.get("description", ""),
+            "prompt": inp.get("prompt", inp.get("instructions", ""))[:500],
+        }
+    # Generic
+    return {
+        "type": "generic",
+        "fields": {k: str(v)[:500] for k, v in inp.items() if isinstance(v, str)},
+    }
+
+
 def _parse_session_detail(jsonl_path: Path) -> dict:
     thinking = []
     tools = []
@@ -450,6 +517,8 @@ def _parse_session_detail(jsonl_path: Path) -> dict:
                                      "word_count": len(text.split())})
             if c.get("type") == "tool_use":
                 tid = c.get("id", "")
+                tname = c.get("name", "")
+                tinput = c.get("input", {})
                 result = tool_results.get(tid, {})
                 duration_ms = None
                 rts = result.get("timestamp")
@@ -461,13 +530,14 @@ def _parse_session_detail(jsonl_path: Path) -> dict:
                     except Exception:
                         pass
                 tools.append({
-                    "tool": c.get("name", ""),
-                    "input": _tool_input_summary(c.get("name", ""), c.get("input", {})),
+                    "tool": tname,
+                    "input": _tool_input_summary(tname, tinput),
+                    "detail": _tool_detail(tname, tinput),
                     "duration_ms": duration_ms,
                     "success": not result.get("is_error", False),
                     "timestamp": ts,
                 })
-    return {"thinking": thinking, "tools": tools[-20:], "stats": stats}
+    return {"thinking": thinking, "tools": tools[-50:], "stats": stats}
 
 
 async def discovery_loop() -> None:
@@ -507,14 +577,16 @@ async def poll_loop() -> None:
                         notification_active = bool(data.get("notification")) and cur_data_state in ("waiting", "notification")
                         if cur_data_state == "compacting":
                             pass  # preserve compacting
-                        elif notification_active and (jsonl_mtime - mtime) <= 2.0:
-                            pass  # preserve waiting — race window after notification fired
+                        elif notification_active:
+                            # Notification hook fired before JSONL write completed (common).
+                            # JSONL newer than status.json does NOT mean Claude is working —
+                            # it means the hook fired first. Preserve "waiting" until a new
+                            # hook (PreToolUse after user responds) clears the notification.
+                            pass
                         else:
                             data["state"] = "working"
                             data["status"] = "working"
-                            # Only clear a notification if JSONL is substantially newer (>2s).
-                            if (jsonl_mtime - mtime) > 2.0:
-                                data["notification"] = None
+                            data["notification"] = None
                         jsonl_tool = jsonl_info.get("tool")
                         if jsonl_tool:
                             data["current_action"] = {
@@ -740,17 +812,14 @@ async def jsonl_watcher_loop() -> None:
                         notification_active = bool(updated.get("notification")) and cur_state in ("waiting", "notification")
                         if cur_state == "compacting":
                             pass  # preserve compacting
-                        elif notification_active and (latest_mtime - status_mtime) <= 2.0:
-                            pass  # preserve waiting — notification just fired, race window
+                        elif notification_active:
+                            # Notification hook fired before JSONL write completed (common).
+                            # JSONL newer than status.json does NOT mean Claude resumed —
+                            # preserve "waiting" until a new PreToolUse hook clears it.
+                            pass
                         else:
                             updated["state"] = "working"
                             updated["status"] = "working"
-                        # Only clear a notification if JSONL is substantially newer (>2s).
-                        # A tiny margin is the race condition where Claude Code writes
-                        # "system" entries right after the Notification hook fires.
-                        # Also: never clear notification while compacting (would remove
-                        # the "⚡ Compactando contexto" message set by PreCompact).
-                        if (latest_mtime - status_mtime) > 2.0 and cur_state not in ("compacting",):
                             updated["notification"] = None
                         if tool:
                             updated["current_action"] = {
@@ -1261,6 +1330,67 @@ async def get_insights_stats(project: str = Query(...)):
     }
 
 
+@app.get("/api/usage-window")
+async def get_usage_window(project: str = Query(...)):
+    """Tokens consumed in the current 5-hour rolling window."""
+    WINDOW_SECS = 5 * 3600
+    if project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    project_path = _status_paths[project].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = CLAUDE_PROJECTS_DIR / encoded
+    if not jsonl_dir.is_dir():
+        return {"window_tokens": 0, "window_start": None, "window_end": None, "sessions_in_window": 0}
+
+    now = time.time()
+    cutoff = now - WINDOW_SECS
+    window_tokens = 0
+    window_start_ts: float | None = None
+    sessions_in_window = 0
+
+    try:
+        for f in jsonl_dir.glob("*.jsonl"):
+            try:
+                mtime = f.stat().st_mtime
+                if mtime < cutoff:
+                    continue
+                sessions_in_window += 1
+                if window_start_ts is None or mtime < window_start_ts:
+                    window_start_ts = mtime
+                with f.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            d = json.loads(line)
+                        except Exception:
+                            continue
+                        if d.get("type") == "assistant":
+                            u = d.get("message", {}).get("usage", {})
+                            window_tokens += u.get("input_tokens", 0) + u.get("output_tokens", 0)
+            except OSError:
+                continue
+    except OSError:
+        pass
+
+    # Window anchored to when the oldest session in window started
+    window_start = window_start_ts or now
+    window_end = window_start + WINDOW_SECS
+    elapsed_secs = now - window_start
+    remaining_secs = max(0, window_end - now)
+
+    return {
+        "window_tokens": window_tokens,
+        "window_start": window_start,
+        "window_end": window_end,
+        "elapsed_secs": int(elapsed_secs),
+        "remaining_secs": int(remaining_secs),
+        "elapsed_pct": min(100, round((elapsed_secs / WINDOW_SECS) * 100)),
+        "sessions_in_window": sessions_in_window,
+    }
+
+
 def _parse_skill_md(content: str, name: str) -> dict:
     """Parse SKILL.md: extract YAML frontmatter + first body paragraph + heading."""
     lines = content.splitlines()
@@ -1732,6 +1862,28 @@ async def delete_file(project: str = Query(...), path: str = Query(...)):
         return {"deleted": str(file_path)}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/file-preview")
+async def get_file_preview(path: str = Query(...)):
+    """Return content of a .md file for the context inspector modal."""
+    MAX_CHARS = 50_000
+    fp = Path(path)
+    if not fp.suffix == ".md":
+        return JSONResponse({"error": "only .md files allowed"}, status_code=400)
+    if not fp.is_file():
+        return JSONResponse({"error": "file not found"}, status_code=404)
+    try:
+        content = fp.read_text(encoding="utf-8", errors="replace")
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    truncated = len(content) > MAX_CHARS
+    return {
+        "content": content[:MAX_CHARS],
+        "total": len(content),
+        "shown": min(len(content), MAX_CHARS),
+        "truncated": truncated,
+    }
 
 
 # Serve static — must be last to avoid conflicting with the routes above

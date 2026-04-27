@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -259,6 +261,7 @@
     border-bottom: 1px solid #0f172a;
   }
   .tool-row:last-child { border-bottom: none; }
+  .tool-row[style*="pointer"]:hover { background: rgba(59,130,246,0.06); border-radius: 3px; }
   .tool-icon { flex-shrink: 0; width: 18px; text-align: center; }
   .tool-name { color: var(--text-muted); flex-shrink: 0; min-width: 36px; }
   .tool-input {
@@ -310,6 +313,19 @@
     padding: 8px;
     text-align: center;
   }
+  .renewal-bar-wrap {
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 5px 0 2px;
+  }
+  .renewal-bar {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--cyan);
+    transition: width 0.5s, background 0.3s;
+  }
   .stat-val {
     font-size: 18px;
     font-weight: 600;
@@ -321,6 +337,16 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-top: 2px;
+  }
+  .stat-hint {
+    font-size: 9px;
+    color: var(--text-dim);
+    border-top: 1px solid rgba(100, 116, 139, 0.2);
+    margin-top: 5px;
+    padding-top: 4px;
+    line-height: 1.4;
+    text-transform: none;
+    letter-spacing: 0;
   }
 
   /* -- Git panel -- */
@@ -547,9 +573,32 @@
     border-bottom: 1px solid #0c1524;
   }
   .ctx-item:last-child { border-bottom: none; }
+  .ctx-item[style*="pointer"]:hover { background: rgba(34,211,238,0.06); border-radius: 3px; }
   .ctx-item-icon { flex-shrink: 0; width: 14px; text-align: center; font-size: 9px; }
   .ctx-item-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ctx-item-tok { flex-shrink: 0; font-size: 9px; color: var(--text-dimmer); min-width: 38px; text-align: right; }
+
+  /* -- Markdown preview -- */
+  .md-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.7; color: var(--text-muted); }
+  .md-body h1, .md-body h2, .md-body h3, .md-body h4 { color: var(--text); margin: 1.2em 0 0.4em; font-weight: 600; }
+  .md-body h1 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .md-body h2 { font-size: 15px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .md-body h3 { font-size: 13px; color: var(--cyan); }
+  .md-body h4 { font-size: 12px; color: var(--purple); }
+  .md-body p { margin: 0.5em 0; }
+  .md-body ul, .md-body ol { padding-left: 1.4em; margin: 0.4em 0; }
+  .md-body li { margin: 0.2em 0; }
+  .md-body code { background: rgba(59,130,246,0.12); color: var(--cyan); padding: 1px 5px; border-radius: 3px; font-family: var(--font-mono); font-size: 11px; }
+  .md-body pre { background: #080d14; border: 1px solid var(--border); border-radius: 5px; padding: 10px; overflow-x: auto; margin: 8px 0; }
+  .md-body pre code { background: none; padding: 0; color: var(--text-muted); font-size: 11px; }
+  .md-body blockquote { border-left: 3px solid var(--blue); margin: 6px 0; padding: 4px 12px; color: var(--text-dim); }
+  .md-body table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 11px; }
+  .md-body th { background: rgba(30,41,59,0.8); color: var(--text); padding: 5px 8px; text-align: left; border: 1px solid var(--border); }
+  .md-body td { padding: 4px 8px; border: 1px solid var(--border); color: var(--text-muted); }
+  .md-body tr:nth-child(even) td { background: rgba(15,23,42,0.4); }
+  .md-body hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+  .md-body strong { color: var(--text); }
+  .md-body a { color: var(--blue); text-decoration: none; }
 
   /* -- Scrollbar -- */
   ::-webkit-scrollbar { width: 6px; }
@@ -635,17 +684,57 @@
 
       <!-- Stats -->
       <div class="panel" id="pane-stats">
-        <div class="panel-label">&#128202; Actividade</div>
+        <div class="panel-label">&#128202; Activity</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div class="stat-card"><div class="stat-val" id="stat-sessions">-</div><div class="stat-lbl">Sessoes</div></div>
-          <div class="stat-card"><div class="stat-val" id="stat-tokens">-</div><div class="stat-lbl">Tokens (7d)</div></div>
-          <div class="stat-card"><div class="stat-val" id="stat-tool">-</div><div class="stat-lbl">Top Tool (7d)</div></div>
-          <div class="stat-card"><div class="stat-val" id="stat-cache">-</div><div class="stat-lbl">Cache hit (7d)</div></div>
+
+          <!-- Sessions -->
+          <div class="stat-card">
+            <div class="stat-val" id="stat-sessions">-</div>
+            <div class="stat-lbl">Sessions</div>
+            <div class="stat-hint">total historic conversations</div>
+          </div>
+
+          <!-- Tokens 7d -->
+          <div class="stat-card">
+            <div class="stat-val" id="stat-tokens">-</div>
+            <div class="stat-lbl">Tokens 7d</div>
+            <div class="stat-hint" id="stat-tokens-hint">input + output this week</div>
+          </div>
+
+          <!-- Session tokens -->
+          <div class="stat-card">
+            <div class="stat-val" id="stat-session-tokens">-</div>
+            <div class="stat-lbl">This session</div>
+            <div class="stat-hint">input + output tokens</div>
+          </div>
+
+          <!-- Top Tool -->
+          <div class="stat-card">
+            <div class="stat-val" id="stat-tool" style="font-size:14px">-</div>
+            <div class="stat-lbl">Top Tool</div>
+            <div class="stat-hint" id="stat-tool-hint">most used this week</div>
+          </div>
+
+          <!-- 5h Renewal Window (full width) -->
+          <div class="stat-card" style="grid-column:1/-1;padding-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1px">
+              <div class="stat-lbl" style="margin-top:0">&#8635; 5h Renewal Window</div>
+              <div style="font-size:9px;color:var(--text-dim)" id="renewal-countdown">-</div>
+            </div>
+            <div class="renewal-bar-wrap">
+              <div class="renewal-bar" id="renewal-bar" style="width:0%"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-dimmer);margin-top:2px">
+              <span id="renewal-tokens">-</span>
+              <span id="renewal-sessions">-</span>
+            </div>
+          </div>
+
         </div>
       </div>
 
       <!-- Context inspector -->
-      <div class="panel grow hidden" id="pane-ctx">
+      <div class="panel grow" id="pane-ctx">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div class="panel-label" style="margin-bottom:0">&#128270; Contexto da Sessao</div>
           <span id="ctx-inspect-summary" style="font-size:9px;color:var(--text-dim)"></span>
@@ -676,7 +765,7 @@
   <!-- Right sidebar -->
   <div class="sidebar right">
     <button class="sidebar-btn active" id="btn-stats" onclick="togglePanel('pane-stats','btn-stats')" title="Stats">&#128202;</button>
-    <button class="sidebar-btn" id="btn-ctx" onclick="togglePanel('pane-ctx','btn-ctx')" title="Contexto da sessao">&#128270;</button>
+    <button class="sidebar-btn active" id="btn-ctx" onclick="togglePanel('pane-ctx','btn-ctx')" title="Contexto da sessao">&#128270;</button>
     <button class="sidebar-btn active" id="btn-git" onclick="togglePanel('pane-git','btn-git')" title="Git">&#128193;</button>
   </div>
 </div>
@@ -693,6 +782,17 @@
       </div>
     </div>
     <div class="diff-body" id="think-modal-body"></div>
+  </div>
+</div>
+
+<!-- Tool detail modal -->
+<div id="tool-modal" class="modal-backdrop hidden" onclick="closeToolModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()" style="width:min(720px,90vw)">
+    <div class="modal-header">
+      <span id="tool-modal-title"></span>
+      <button onclick="closeToolModal()">&#10005;</button>
+    </div>
+    <div id="tool-modal-body" class="diff-body" style="font-size:11px;line-height:1.6"></div>
   </div>
 </div>
 
@@ -811,6 +911,7 @@
   // -- Init --
   function init() {
     connectSSE();
+    startRenewalTicker();
   }
 
   function connectSSE() {
@@ -910,6 +1011,11 @@
             window._lastStatsRefresh = nowCtx;
             loadStats();
           }
+          // Refresh usage window every 60s while live
+          if (!window._lastWindowRefresh || nowCtx - window._lastWindowRefresh > 60000) {
+            window._lastWindowRefresh = nowCtx;
+            loadUsageWindow();
+          }
         }
       }
       return;
@@ -935,7 +1041,7 @@
     var sel = document.getElementById('project-select');
     if (sel.value !== name) sel.value = name;
     updateStatusBar(allProjects[name] || null);
-    return Promise.all([loadSessions(), loadStats(), loadPendingFiles()]);
+    return Promise.all([loadSessions(), loadStats(), loadPendingFiles(), loadUsageWindow()]);
   };
 
   // -- Sessions --
@@ -1013,6 +1119,9 @@
         renderThinking(data.thinking);
         renderTools(data.tools);
         updateTokensFromDetail(data.stats);
+        // Session tokens in activity panel
+        var sessTok = data.stats ? (data.stats.input_tokens || 0) + (data.stats.output_tokens || 0) : 0;
+        setText('stat-session-tokens', sessTok > 0 ? fmtTok(sessTok) : '-');
         loadContextInspect();
       })
       .catch(function() {});
@@ -1042,6 +1151,26 @@
   }
 
   // -- Stats --
+  function setDonut(arcId, pct) {
+    var arc = document.getElementById(arcId);
+    if (!arc) return;
+    var p = Math.min(100, Math.max(0, pct));
+    arc.setAttribute('stroke-dasharray', p.toFixed(1) + ' ' + (100 - p).toFixed(1));
+    // Color: green < 60%, yellow < 85%, red >= 85%
+    var color = p < 60 ? 'var(--blue)' : p < 85 ? 'var(--yellow)' : 'var(--red, #ef4444)';
+    arc.setAttribute('stroke', color);
+  }
+
+  window.promptPlanLimit = function() {
+    var current = localStorage.getItem('cm_plan_tokens') || '';
+    var val = prompt('Token limit for your plan per week\n(e.g. 5000000 for 5M, 0 to clear):', current);
+    if (val === null) return;
+    var n = parseInt(val.replace(/[^0-9]/g, ''));
+    if (n > 0) localStorage.setItem('cm_plan_tokens', n);
+    else localStorage.removeItem('cm_plan_tokens');
+    loadStats();
+  };
+
   function loadStats() {
     if (!currentProject) return Promise.resolve();
     return fetch('/api/insights-stats?project=' + encodeURIComponent(currentProject))
@@ -1050,12 +1179,76 @@
         if (!s) return;
         setText('stat-sessions', s.sessions_count || 0);
         setText('stat-tokens', fmtTok(s.total_tokens));
-        var toolEl = document.getElementById('stat-tool');
-        toolEl.textContent = s.top_tool || '-';
-        toolEl.style.fontSize = s.top_tool ? '13px' : '18px';
-        setText('stat-cache', (s.cache_hit_pct || 0) + '%');
+        setText('stat-tokens-hint', 'input + output this week');
+        var toolName = s.top_tool || '-';
+        setText('stat-tool', toolName);
+        setText('stat-tool-hint', s.top_tool_count ? s.top_tool_count + ' calls this week' : 'no tool data');
       })
       .catch(function() {});
+  }
+
+  // -- Usage window (5h renewal) --
+  var _renewalData = null;
+  var _renewalTimer = null;
+
+  function loadUsageWindow() {
+    if (!currentProject) return Promise.resolve();
+    return fetch('/api/usage-window?project=' + encodeURIComponent(currentProject))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) {
+        if (!d) return;
+        _renewalData = d;
+        updateRenewalBar();
+      })
+      .catch(function() {});
+  }
+
+  function updateRenewalBar() {
+    var d = _renewalData;
+    var bar = document.getElementById('renewal-bar');
+    var countdown = document.getElementById('renewal-countdown');
+    var tokensEl = document.getElementById('renewal-tokens');
+    var sessionsEl = document.getElementById('renewal-sessions');
+    if (!bar || !countdown) return;
+
+    if (!d || d.sessions_in_window === 0) {
+      bar.style.width = '0%';
+      countdown.textContent = 'no active sessions';
+      countdown.style.color = 'var(--text-dimmer)';
+      if (tokensEl) tokensEl.textContent = '-';
+      if (sessionsEl) sessionsEl.textContent = '-';
+      return;
+    }
+
+    // Recalculate remaining based on current time (ticker updates every second)
+    var now = Date.now() / 1000;
+    var windowStart = d.window_start || now;
+    var windowEnd = d.window_end || (windowStart + 5 * 3600);
+    var windowDur = 5 * 3600;
+    var elapsed = now - windowStart;
+    var remaining = Math.max(0, windowEnd - now);
+    var pct = Math.min(100, (elapsed / windowDur) * 100);
+
+    bar.style.width = pct.toFixed(1) + '%';
+    var color = pct < 60 ? 'var(--cyan)' : pct < 85 ? 'var(--yellow)' : 'var(--red)';
+    bar.style.background = color;
+
+    // Countdown text
+    var remMins = Math.floor(remaining / 60);
+    var remHrs = Math.floor(remMins / 60);
+    remMins = remMins % 60;
+    countdown.textContent = remaining <= 0
+      ? 'window expired'
+      : remHrs + 'h ' + String(remMins).padStart(2, '0') + 'm remaining';
+    countdown.style.color = remaining <= 0 ? 'var(--text-dimmer)' : color;
+
+    if (tokensEl) tokensEl.textContent = fmtTok(d.window_tokens) + ' tokens';
+    if (sessionsEl) sessionsEl.textContent = d.sessions_in_window + ' session' + (d.sessions_in_window !== 1 ? 's' : '');
+  }
+
+  function startRenewalTicker() {
+    if (_renewalTimer) clearInterval(_renewalTimer);
+    _renewalTimer = setInterval(updateRenewalBar, 1000);
   }
 
   // -- Git / Pending files --
@@ -1153,6 +1346,11 @@
     reversed.forEach(function(t) {
       var row = document.createElement('div');
       row.className = 'tool-row';
+      if (t.detail) {
+        row.style.cursor = 'pointer';
+        row.title = 'Click to see details';
+        row.onclick = function() { openToolDetail(t); };
+      }
 
       var iconEl = document.createElement('span');
       iconEl.className = 'tool-icon';
@@ -1222,6 +1420,10 @@
     var modelLabel = document.getElementById('ctx-model');
     modelLabel.textContent = '\u2B24 ' + (modelShort || 'Tokens');
 
+    // Update session tokens in activity panel
+    var sessTok = inp + out;
+    if (sessTok > 0) setText('stat-session-tokens', fmtTok(sessTok));
+
     updateContextBar(ctxTokens, stats.compact_ctx_threshold || 0, true);
   }
 
@@ -1256,8 +1458,6 @@
   // -- Context inspector --
   function loadContextInspect() {
     if (!currentProject || !currentSessionId) return;
-    var pane = document.getElementById('pane-ctx');
-    if (!pane || pane.classList.contains('hidden')) return;
     fetch('/api/context-inspect?project=' + encodeURIComponent(currentProject) + '&session_id=' + encodeURIComponent(currentSessionId))
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(data) { if (data) renderContextInspect(data); })
@@ -1354,8 +1554,17 @@
           lblEl.className = 'ctx-item-lbl';
           var lbl = getLabel(item);
           lblEl.textContent = lbl;
-          lblEl.title = item.real_path || item.label || lbl;
+          var realPath = item.real_path || item.label || lbl;
+          lblEl.title = realPath;
           if (item.is_error) lblEl.style.color = 'var(--red)';
+          // Make .md files clickable
+          if (realPath && realPath.endsWith('.md')) {
+            row.style.cursor = 'pointer';
+            row.title = 'Click to preview ' + realPath.split('/').pop();
+            row.onclick = (function(p, label) {
+              return function() { openFilePreview(p, label); };
+            })(realPath, lbl);
+          }
 
           var tEl = document.createElement('span');
           tEl.className = 'ctx-item-tok';
@@ -1598,11 +1807,148 @@
     });
   };
 
+  // -- File preview modal (for .md context items) --
+  window.openFilePreview = function(filePath, label) {
+    var title = document.getElementById('tool-modal-title');
+    var body = document.getElementById('tool-modal-body');
+    body.textContent = '';
+    title.textContent = '\uD83D\uDCCB ' + (label || filePath.split('/').pop());
+    body.style.cssText = 'font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text-muted)';
+
+    var loading = document.createElement('div');
+    loading.style.color = 'var(--text-dimmer)';
+    loading.textContent = 'Loading…';
+    body.appendChild(loading);
+    document.getElementById('tool-modal').classList.remove('hidden');
+
+    fetch('/api/file-preview?path=' + encodeURIComponent(filePath))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) {
+        body.textContent = '';
+        if (!d || !d.content) {
+          body.textContent = 'Could not read file.';
+          body.style.color = 'var(--text-dimmer)';
+          return;
+        }
+        var mdDiv = document.createElement('div');
+        mdDiv.className = 'md-body';
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+          mdDiv.innerHTML = DOMPurify.sanitize(marked.parse(d.content));
+        } else {
+          mdDiv.style.whiteSpace = 'pre-wrap';
+          mdDiv.textContent = d.content;
+        }
+        body.appendChild(mdDiv);
+        if (d.truncated) {
+          var note = document.createElement('div');
+          note.style.cssText = 'color:var(--text-dimmer);font-size:9px;margin-top:8px;border-top:1px solid var(--border);padding-top:4px';
+          note.textContent = '… truncated at ' + d.shown + ' of ' + d.total + ' chars';
+          body.appendChild(note);
+        }
+      })
+      .catch(function() {
+        body.textContent = 'Error loading file.';
+      });
+  };
+
+  // -- Tool detail modal --
+  window.openToolDetail = function(t) {
+    var d = t.detail;
+    if (!d) return;
+    var title = document.getElementById('tool-modal-title');
+    var body = document.getElementById('tool-modal-body');
+    body.textContent = '';
+
+    var ICONS = { bash: '\u26A1', edit: '\u270F\uFE0F', write: '\u270F\uFE0F', read: '\uD83D\uDCD6',
+                  search: '\uD83D\uDD0D', web: '\uD83C\uDF10', agent: '\uD83E\uDD16', generic: '\uD83D\uDD27' };
+    title.textContent = (ICONS[d.type] || '') + ' ' + t.tool + (t.input ? ' \u00B7 ' + t.input : '');
+
+    function line(label, val, color) {
+      if (!val) return;
+      var row = document.createElement('div');
+      row.style.cssText = 'padding:2px 0;border-bottom:1px solid #1e293b;display:flex;gap:8px;align-items:baseline';
+      var lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dimmer);flex-shrink:0;min-width:72px';
+      lbl.textContent = label;
+      var v = document.createElement('span');
+      v.style.cssText = 'color:' + (color || 'var(--text-muted)') + ';word-break:break-all;white-space:pre-wrap';
+      v.textContent = val;
+      row.appendChild(lbl);
+      row.appendChild(v);
+      body.appendChild(row);
+    }
+
+    function pre(text, color) {
+      if (!text) return;
+      var el = document.createElement('pre');
+      el.style.cssText = 'white-space:pre-wrap;word-break:break-word;color:' + (color || 'var(--text-muted)') + ';margin:8px 0 0;font-family:var(--font-mono);font-size:11px;line-height:1.6';
+      el.textContent = text;
+      body.appendChild(el);
+    }
+
+    if (d.type === 'bash') {
+      line('command', d.command, 'var(--cyan)');
+      if (d.description) line('note', d.description);
+    } else if (d.type === 'edit') {
+      line('file', d.file_path);
+      if (d.diff) {
+        var diffWrap = document.createElement('div');
+        diffWrap.style.marginTop = '8px';
+        d.diff.split('\n').forEach(function(ln) {
+          var div = document.createElement('div');
+          if (ln.startsWith('@@')) div.className = 'diff-hunk';
+          else if (ln.charAt(0) === '+' && !ln.startsWith('+++')) div.className = 'diff-add';
+          else if (ln.charAt(0) === '-' && !ln.startsWith('---')) div.className = 'diff-del';
+          else div.className = 'diff-ctx';
+          div.textContent = ln;
+          diffWrap.appendChild(div);
+        });
+        body.appendChild(diffWrap);
+      } else {
+        var noChange = document.createElement('div');
+        noChange.style.cssText = 'color:var(--text-dimmer);font-size:10px;margin-top:8px';
+        noChange.textContent = 'No diff available.';
+        body.appendChild(noChange);
+      }
+    } else if (d.type === 'write') {
+      line('file', d.file_path);
+      if (d.total_chars) line('size', d.total_chars + ' chars');
+      if (d.content) pre(d.content + (d.total_chars > 3000 ? '\n\n… (' + (d.total_chars - 3000) + ' more chars)' : ''));
+    } else if (d.type === 'read') {
+      line('file', d.file_path);
+      if (d.limit != null) line('limit', String(d.limit));
+      if (d.offset != null) line('offset', String(d.offset));
+    } else if (d.type === 'search') {
+      line('tool', d.tool);
+      if (d.pattern) line('pattern', d.pattern, 'var(--yellow)');
+      if (d.path) line('path', d.path);
+      if (d.include) line('include', d.include);
+    } else if (d.type === 'web') {
+      if (d.url) line('url', d.url, 'var(--blue)');
+      if (d.query) line('query', d.query);
+    } else if (d.type === 'agent') {
+      if (d.description) pre(d.description);
+      if (d.prompt) { line('prompt', ''); pre(d.prompt, 'var(--text-dim)'); }
+    } else {
+      Object.keys(d.fields || {}).forEach(function(k) {
+        line(k, d.fields[k]);
+      });
+    }
+
+    document.getElementById('tool-modal').classList.remove('hidden');
+  };
+
+  window.closeToolModal = function(e) {
+    if (e && e.target !== document.getElementById('tool-modal')) return;
+    document.getElementById('tool-modal').classList.add('hidden');
+  };
+
   // -- Keyboard --
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       window.closeDiff();
       document.getElementById('think-modal').classList.add('hidden');
+      document.getElementById('tool-modal').classList.add('hidden');
       return;
     }
     if (document.getElementById('diff-modal').classList.contains('hidden')) return;
