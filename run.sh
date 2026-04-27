@@ -11,7 +11,8 @@ VENV="$SCRIPT_DIR/.venv"
 PORT="${PORT:-19001}"
 URL="http://localhost:$PORT"
 # Use the main worktree's parent as PROJECTS_ROOT so worktrees resolve correctly.
-# `git worktree list` always returns the main worktree first.
+# `git worktree list` always returns the main worktree first — its parent is the
+# projects root regardless of whether we're running from a worktree or not.
 _MAIN_WORKTREE="$(git -C "$SCRIPT_DIR" worktree list 2>/dev/null | head -1 | awk '{print $1}')"
 PROJECTS_ROOT="${PROJECTS_ROOT:-"$(dirname "${_MAIN_WORKTREE:-"$(dirname "$SCRIPT_DIR")"}")"}"
 
@@ -149,9 +150,9 @@ cmd_start() {
     if [ -f "$PID_FILE" ]; then
         PID="$(cat "$PID_FILE")"
         if kill -0 "$PID" 2>/dev/null; then
-            info "Killing existing process (PID $PID)..."
-            kill "$PID" 2>/dev/null || true
-            sleep 0.5
+            yellow "claude-monitor is already running (PID $PID) — $URL"
+            open_ui "$open_mode"
+            return 0
         fi
         rm -f "$PID_FILE"
     fi

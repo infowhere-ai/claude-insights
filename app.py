@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import fcntl
+import hashlib
 import json
 import os
 import pty
@@ -13,10 +14,27 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", str(Path(__file__).parent.parent)))
+def _default_projects_root() -> str:
+    """Returns the parent of the main git worktree, so worktrees resolve correctly.
+    Falls back to the script's parent directory if git is unavailable."""
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list"],
+            cwd=str(Path(__file__).parent),
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            first_line = result.stdout.splitlines()[0]
+            main_worktree = first_line.split()[0]
+            return str(Path(main_worktree).parent)
+    except Exception:
+        pass
+    return str(Path(__file__).parent.parent)
+
+PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", _default_projects_root()))
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "0.5"))
 DISCOVERY_INTERVAL = float(os.getenv("DISCOVERY_INTERVAL", "60.0"))
 JSONL_ACTIVE_SECONDS = float(os.getenv("JSONL_ACTIVE_SECONDS", "60.0"))  # session considered active if JSONL changed within this window
@@ -53,6 +71,9 @@ _jsonl_cache: dict[str, dict] = {}  # project_name -> {mtime, tool, jsonl_path}
 
 # Agents dir mtime cache — tracks when agents dir changes so we rescan independently of status.json
 _agents_dir_mtimes: dict[str, float] = {}  # project_name -> agents dir mtime
+
+# Thinking block cache — last detected thinking block per project (for SSE deduplication)
+_thinking_cache: dict[str, dict] = {}  # project_name -> {block_id, text, mtime}
 
 # Config: extra roots (beyond PROJECTS_ROOT)
 _CONFIG_FILE = PROJECTS_ROOT / ".claude" / "monitor-roots.json"
@@ -114,6 +135,40 @@ def _parse_jsonl_tail(jsonl_path: Path) -> dict:
         return {"tool": tool, "cwd": cwd}
     except Exception:
         return {}
+
+
+def _detect_latest_thinking(jsonl_path: Path) -> dict | None:
+    """Reads last 32 KB of JSONL, returns most recent non-empty thinking block.
+
+    block_id = MD5 hash of entry timestamp — stable for a given assistant turn,
+    changes when a new turn begins. Frontend uses block_id to distinguish
+    replace (same id = update to current block) vs append (new id = new block).
+    """
+    try:
+        with open(jsonl_path, "rb") as fh:
+            fh.seek(0, 2); size = fh.tell()
+            fh.seek(max(0, size - 32768))
+            raw = fh.read().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+    last = None
+    for line in raw.strip().split("\n"):
+        try:
+            d = json.loads(line)
+        except Exception:
+            continue
+        if d.get("type") != "assistant":
+            continue
+        ts = d.get("timestamp", "")
+        for c in (d.get("message", {}).get("content", []) or []):
+            if isinstance(c, dict) and c.get("type") == "thinking":
+                text = c.get("thinking", "").strip()
+                if text:
+                    block_id = hashlib.md5(ts.encode()).hexdigest()[:12]
+                    last = {"block_id": block_id, "text": text,
+                            "word_count": len(text.split()),
+                            "timestamp": ts}
+    return last
 
 
 def _load_roots_config() -> None:
@@ -275,6 +330,144 @@ def _get_project_stats(project_path: Path, project_name: str) -> dict:
     _jsonl_mtimes[cache_key] = latest_mtime
     _project_stats_cache[project_name] = stats
     return stats
+
+
+def _list_sessions(project_name: str) -> list[dict]:
+    """Lists root-level JSONL sessions for a project, newest-first."""
+    if project_name not in _status_paths:
+        return []
+    project_path = _status_paths[project_name].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = CLAUDE_PROJECTS_DIR / encoded
+    if not jsonl_dir.is_dir():
+        return []
+    now = time.time()
+    sessions = []
+    try:
+        for f in jsonl_dir.glob("*.jsonl"):
+            try:
+                mtime = f.stat().st_mtime
+                is_active = (now - mtime) <= JSONL_ACTIVE_SECONDS
+                started_at = ended_at = None
+                with f.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            d = json.loads(line)
+                            ts = d.get("timestamp")
+                            if ts and started_at is None:
+                                started_at = ts
+                            if ts:
+                                ended_at = ts
+                        except Exception:
+                            continue
+                sessions.append({
+                    "session_id": f.stem,
+                    "started_at": started_at,
+                    "ended_at": None if is_active else ended_at,
+                    "is_active": is_active,
+                    "_mtime": mtime,
+                })
+            except OSError:
+                continue
+    except OSError:
+        return []
+    sessions.sort(key=lambda s: s["_mtime"], reverse=True)
+    for s in sessions:
+        del s["_mtime"]
+    return sessions
+
+
+def _tool_input_summary(name: str, inp: dict) -> str:
+    if name in ("Read", "Write", "Edit"):
+        return inp.get("file_path", inp.get("path", ""))
+    if name == "Bash":
+        return inp.get("command", "")[:80]
+    if name in ("Glob", "Grep"):
+        return inp.get("pattern", inp.get("path", ""))
+    if name in ("WebFetch", "WebSearch"):
+        return inp.get("url", inp.get("query", ""))
+    for v in inp.values():
+        if isinstance(v, str):
+            return v[:80]
+    return ""
+
+
+def _parse_session_detail(jsonl_path: Path) -> dict:
+    thinking = []
+    tools = []
+    stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+    entries = []
+    try:
+        with jsonl_path.open(encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except Exception:
+                    continue
+    except OSError:
+        return {"thinking": [], "tools": [], "stats": stats}
+
+    # Index tool_results by id for duration + success
+    tool_results: dict[str, dict] = {}
+    for entry in entries:
+        if entry.get("type") != "user":
+            continue
+        for c in (entry.get("message", {}).get("content", []) or []):
+            if isinstance(c, dict) and c.get("type") == "tool_result":
+                tool_results[c.get("tool_use_id", "")] = {
+                    "timestamp": entry.get("timestamp"),
+                    "is_error": c.get("is_error", False),
+                }
+
+    for entry in entries:
+        if entry.get("type") != "assistant":
+            continue
+        msg = entry.get("message", {})
+        content = msg.get("content", [])
+        ts = entry.get("timestamp", "")
+        if not isinstance(content, list):
+            continue
+        u = msg.get("usage", {})
+        stats["input_tokens"]      += u.get("input_tokens", 0)
+        stats["output_tokens"]     += u.get("output_tokens", 0)
+        stats["cache_read_tokens"] += u.get("cache_read_input_tokens", 0)
+        m = msg.get("model", "")
+        if m:
+            stats["model"] = m
+        for c in content:
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") == "thinking":
+                text = c.get("thinking", "").strip()
+                if text:
+                    thinking.append({"text": text, "timestamp": ts,
+                                     "word_count": len(text.split())})
+            if c.get("type") == "tool_use":
+                tid = c.get("id", "")
+                result = tool_results.get(tid, {})
+                duration_ms = None
+                rts = result.get("timestamp")
+                if ts and rts:
+                    try:
+                        t1 = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                        t2 = datetime.datetime.fromisoformat(rts.replace("Z", "+00:00"))
+                        duration_ms = int((t2 - t1).total_seconds() * 1000)
+                    except Exception:
+                        pass
+                tools.append({
+                    "tool": c.get("name", ""),
+                    "input": _tool_input_summary(c.get("name", ""), c.get("input", {})),
+                    "duration_ms": duration_ms,
+                    "success": not result.get("is_error", False),
+                    "timestamp": ts,
+                })
+    return {"thinking": thinking[-5:], "tools": tools[-20:], "stats": stats}
 
 
 async def discovery_loop() -> None:
@@ -469,6 +662,20 @@ async def jsonl_watcher_loop() -> None:
                 project_path = sp.parents[1]
                 latest_jsonl, latest_mtime = _get_latest_jsonl(project_path)
                 if latest_jsonl is None:
+                    # No JSONL at all — if stuck in working state, flip to idle
+                    current = projects.get(name, {})
+                    cur_state = current.get("state") or current.get("status", "idle")
+                    if cur_state == "working":
+                        stale = dict(current)
+                        stale["status"] = "idle"
+                        stale["state"] = "idle"
+                        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        stale["ts"] = now_iso
+                        stale["updated_at"] = now_iso
+                        stale["message"] = "idle"
+                        stale["_stale"] = True
+                        projects[name] = stale
+                        _broadcast({"type": "update", "project_name": name, "data": stale, "pending_projects": _pending_projects})
                     continue
 
                 cached = _jsonl_cache.get(name, {})
@@ -480,6 +687,25 @@ async def jsonl_watcher_loop() -> None:
                         "jsonl_path": str(latest_jsonl),
                     }
                     cached = _jsonl_cache[name]
+
+                    thinking = _detect_latest_thinking(latest_jsonl)
+                    if thinking:
+                        prev = _thinking_cache.get(name, {})
+                        if (prev.get("block_id") != thinking["block_id"] or
+                                prev.get("text") != thinking["text"]):
+                            _thinking_cache[name] = {
+                                "block_id": thinking["block_id"],
+                                "text": thinking["text"],
+                                "mtime": latest_mtime,
+                            }
+                            _broadcast({
+                                "type": "thinking",
+                                "project": name,
+                                "block_id": thinking["block_id"],
+                                "text": thinking["text"],
+                                "word_count": thinking["word_count"],
+                                "timestamp": thinking["timestamp"],
+                            })
 
                 age = now_ts - latest_mtime
                 tool = cached.get("tool") or ""
@@ -666,6 +892,11 @@ async def startup() -> None:
 @app.get("/health")
 async def health():
     return {"status": "ok", "projects_monitored": len(projects)}
+
+
+@app.get("/insights")
+async def insights_page():
+    return FileResponse("static/insights.html")
 
 
 @app.get("/api/version")
@@ -933,6 +1164,83 @@ async def get_weekly_stats():
         except Exception:
             pass
     return {"weekly": result}
+
+
+@app.get("/api/sessions")
+async def get_sessions(project: str = Query(...)):
+    """Lists JSONL sessions for a project, newest-first."""
+    if project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    return _list_sessions(project)
+
+
+@app.get("/api/session-detail")
+async def get_session_detail(project: str = Query(...), session_id: str = Query(...)):
+    """Returns thinking blocks, tool events and stats for a session."""
+    if project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    project_path = _status_paths[project].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_path = CLAUDE_PROJECTS_DIR / encoded / f"{session_id}.jsonl"
+    if not jsonl_path.is_file():
+        return JSONResponse({"error": "session not found"}, status_code=404)
+    return _parse_session_detail(jsonl_path)
+
+
+@app.get("/api/insights-stats")
+async def get_insights_stats(project: str = Query(...)):
+    """Aggregated metrics for the last 7 days."""
+    if project not in _status_paths:
+        return JSONResponse({"error": "project not found"}, status_code=404)
+    project_path = _status_paths[project].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = CLAUDE_PROJECTS_DIR / encoded
+    if not jsonl_dir.is_dir():
+        return {"sessions_count": 0, "total_tokens": 0,
+                "cache_hit_pct": 0, "top_tool": None, "top_tool_count": 0}
+    cutoff = time.time() - 7 * 24 * 3600
+    sessions_count = total_input = total_output = total_cache = 0
+    tool_counts: dict[str, int] = {}
+    try:
+        for f in jsonl_dir.glob("*.jsonl"):
+            try:
+                if f.stat().st_mtime < cutoff:
+                    continue
+                sessions_count += 1
+                with f.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            d = json.loads(line)
+                        except Exception:
+                            continue
+                        if d.get("type") == "assistant":
+                            u = d.get("message", {}).get("usage", {})
+                            total_input  += u.get("input_tokens", 0)
+                            total_output += u.get("output_tokens", 0)
+                            total_cache  += u.get("cache_read_input_tokens", 0)
+                            for c in d.get("message", {}).get("content", []):
+                                if isinstance(c, dict) and c.get("type") == "tool_use":
+                                    n = c.get("name", "")
+                                    if n:
+                                        tool_counts[n] = tool_counts.get(n, 0) + 1
+            except OSError:
+                continue
+    except OSError:
+        pass
+    total_tokens = total_input + total_output
+    total_real   = total_input + total_cache
+    cache_hit_pct = round(total_cache / total_real * 100) if total_real > 0 else 0
+    top_tool = max(tool_counts, key=tool_counts.get) if tool_counts else None
+    return {
+        "sessions_count": sessions_count,
+        "total_tokens": total_tokens,
+        "cache_hit_pct": cache_hit_pct,
+        "top_tool": top_tool,
+        "top_tool_count": tool_counts.get(top_tool, 0) if top_tool else 0,
+    }
 
 
 def _parse_skill_md(content: str, name: str) -> dict:
