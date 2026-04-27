@@ -70,7 +70,7 @@
     transition: color 0.15s;
   }
   #header-nav a:hover { color: var(--text); }
-  #project-select {
+  #project-select, #session-select {
     background: var(--border);
     border: none;
     padding: 2px 8px;
@@ -81,6 +81,7 @@
     cursor: pointer;
     outline: none;
   }
+  #session-select { max-width: 240px; }
 
   /* -- Body -- */
   #body {
@@ -127,7 +128,7 @@
 
   /* -- Columns -- */
   #col-live {
-    flex: 0 0 56%;
+    flex: 0 0 62%;
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -321,24 +322,6 @@
     letter-spacing: 0.5px;
     margin-top: 2px;
   }
-
-  /* -- Sessions panel -- */
-  #pane-sess .panel-label { color: var(--amber); }
-
-  .session-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-    border-bottom: 1px solid #0f172a;
-    font-size: 10px;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: color 0.1s;
-  }
-  .session-row:last-child { border-bottom: none; }
-  .session-row:hover { color: var(--text-muted); }
-  .session-row.active { color: var(--cyan); }
-  .session-dot { margin-right: 4px; }
 
   /* -- Git panel -- */
   #pane-git {
@@ -583,6 +566,8 @@
   <div id="header-nav">
     <a href="/">&#8592; Monitor</a>
     <select id="project-select" onchange="switchProject(this.value)"></select>
+    <span style="font-size:10px;color:var(--text-dimmer);font-family:var(--font-mono)">Sessao</span>
+    <select id="session-select" onchange="onSessionSelectChange(this.value)"></select>
   </div>
 </div>
 
@@ -594,7 +579,6 @@
     <button class="sidebar-btn active" id="btn-think" onclick="togglePanel('pane-think','btn-think')" title="Raciocinio">&#129504;</button>
     <button class="sidebar-btn active" id="btn-tools" onclick="togglePanel('pane-tools','btn-tools')" title="Ferramentas">&#128295;</button>
     <button class="sidebar-btn active" id="btn-tokens" onclick="togglePanel('pane-tokens','btn-tokens')" title="Tokens">&#11044;</button>
-    <button class="sidebar-btn" id="btn-ctx" onclick="togglePanel('pane-ctx','btn-ctx')" title="Contexto da sessao">&#8862;</button>
   </div>
 
   <!-- Main area -->
@@ -644,10 +628,26 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- Right column: History -->
+    <div id="col-hist">
+
+      <!-- Stats -->
+      <div class="panel" id="pane-stats">
+        <div class="panel-label">&#128202; Actividade</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="stat-card"><div class="stat-val" id="stat-sessions">-</div><div class="stat-lbl">Sessoes</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-tokens">-</div><div class="stat-lbl">Tokens (7d)</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-tool">-</div><div class="stat-lbl">Top Tool (7d)</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-cache">-</div><div class="stat-lbl">Cache hit (7d)</div></div>
+        </div>
+      </div>
+
       <!-- Context inspector -->
-      <div class="panel hidden" id="pane-ctx">
+      <div class="panel grow hidden" id="pane-ctx">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="panel-label" style="margin-bottom:0">&#8862; Contexto da Sessao</div>
+          <div class="panel-label" style="margin-bottom:0">&#128270; Contexto da Sessao</div>
           <span id="ctx-inspect-summary" style="font-size:9px;color:var(--text-dim)"></span>
         </div>
         <!-- Usage breakdown bar -->
@@ -664,27 +664,6 @@
         </div>
         <div id="ctx-inspect-body"></div>
       </div>
-    </div>
-
-    <!-- Right column: History -->
-    <div id="col-hist">
-
-      <!-- Stats -->
-      <div class="panel" id="pane-stats">
-        <div class="panel-label">&#128202; Esta semana</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div class="stat-card"><div class="stat-val" id="stat-sessions">-</div><div class="stat-lbl">Sessoes</div></div>
-          <div class="stat-card"><div class="stat-val" id="stat-tokens">-</div><div class="stat-lbl">Tokens</div></div>
-          <div class="stat-card"><div class="stat-val" id="stat-tool">-</div><div class="stat-lbl">Top Tool</div></div>
-          <div class="stat-card"><div class="stat-val" id="stat-cache">-</div><div class="stat-lbl">Cache hit</div></div>
-        </div>
-      </div>
-
-      <!-- Sessions -->
-      <div class="panel grow" id="pane-sess">
-        <div class="panel-label">&#127908; Sessoes recentes</div>
-        <div id="sessions-list"></div>
-      </div>
 
       <!-- Git -->
       <div class="panel" id="pane-git">
@@ -697,7 +676,7 @@
   <!-- Right sidebar -->
   <div class="sidebar right">
     <button class="sidebar-btn active" id="btn-stats" onclick="togglePanel('pane-stats','btn-stats')" title="Stats">&#128202;</button>
-    <button class="sidebar-btn active" id="btn-sess" onclick="togglePanel('pane-sess','btn-sess')" title="Sessoes">&#127908;</button>
+    <button class="sidebar-btn" id="btn-ctx" onclick="togglePanel('pane-ctx','btn-ctx')" title="Contexto da sessao">&#128270;</button>
     <button class="sidebar-btn active" id="btn-git" onclick="togglePanel('pane-git','btn-git')" title="Git">&#128193;</button>
   </div>
 </div>
@@ -926,6 +905,11 @@
             window._lastCtxRefresh = nowCtx;
             loadContextInspect();
           }
+          // Refresh stats every 30s while live
+          if (!window._lastStatsRefresh || nowCtx - window._lastStatsRefresh > 30000) {
+            window._lastStatsRefresh = nowCtx;
+            loadStats();
+          }
         }
       }
       return;
@@ -969,38 +953,38 @@
       .catch(function() { renderSessions([]); showNoSession(); });
   }
 
+  // Map session_id -> is_active for use in onSessionSelectChange
+  var _sessionsMap = {};
+
   function renderSessions(sessions) {
-    var container = document.getElementById('sessions-list');
-    container.textContent = '';
+    var sel = document.getElementById('session-select');
+    sel.textContent = '';
+    _sessionsMap = {};
     if (!sessions || sessions.length === 0) {
-      var empty = document.createElement('div');
-      empty.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
-      empty.textContent = 'Sem sessoes.';
-      container.appendChild(empty);
+      var opt = document.createElement('option');
+      opt.textContent = 'Sem sessoes';
+      opt.disabled = true;
+      sel.appendChild(opt);
       return;
     }
     sessions.forEach(function(s) {
-      var row = document.createElement('div');
-      row.className = 'session-row' + (s.is_active ? ' active' : '');
-      row.setAttribute('data-id', s.session_id);
-      row.onclick = function() { selectSession(s.session_id, s.is_active); };
-
-      var left = document.createElement('span');
-      var dot = document.createElement('span');
-      dot.className = 'session-dot';
-      dot.style.color = s.is_active ? 'var(--green)' : 'var(--text-dimmer)';
-      dot.textContent = s.is_active ? '\u25CF' : '\u25CB';
-      left.appendChild(dot);
-      left.appendChild(document.createTextNode(currentProject));
-
-      var right = document.createElement('span');
-      right.textContent = s.is_active ? 'agora' : timeAgo(s.ended_at || s.started_at);
-
-      row.appendChild(left);
-      row.appendChild(right);
-      container.appendChild(row);
+      _sessionsMap[s.session_id] = s.is_active;
+      var opt = document.createElement('option');
+      opt.value = s.session_id;
+      var d = new Date(s.ended_at || s.started_at);
+      var pad = function(n) { return String(n).padStart(2,'0'); };
+      var label = (s.is_active ? '● ' : '○ ') +
+        d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' +
+        pad(d.getHours()) + ':' + pad(d.getMinutes());
+      opt.textContent = label;
+      sel.appendChild(opt);
     });
   }
+
+  window.onSessionSelectChange = function(sessionId) {
+    if (!sessionId) return;
+    selectSession(sessionId, !!_sessionsMap[sessionId]);
+  };
 
   function selectSession(sessionId, live) {
     if (!sessionId) return Promise.resolve();
@@ -1017,10 +1001,9 @@
       (isLive ? ' Live \u00B7 ' : ' historico \u00B7 ') + currentProject
     ));
 
-    // Highlight active session row
-    document.querySelectorAll('.session-row').forEach(function(el) {
-      el.classList.toggle('active', el.getAttribute('data-id') === sessionId);
-    });
+    // Sync session combobox
+    var sel = document.getElementById('session-select');
+    if (sel) sel.value = sessionId;
 
     // Load detail
     return fetch('/api/session-detail?project=' + encodeURIComponent(currentProject) + '&session_id=' + encodeURIComponent(sessionId))
@@ -1217,8 +1200,9 @@
 
     var modelLabel = document.getElementById('ctx-model');
     modelLabel.textContent = '\u2B24 ' + (modelShort || 'Tokens');
-
-    updateContextBar(inp + cache, 0);
+    // Don't call updateContextBar here — cache_read_tokens is cumulative (50M+)
+    // and would corrupt the bar. Bar is updated only by updateTokensFromStats
+    // which has the real session_ctx_tokens value.
   }
 
   function updateTokensFromStats(stats) {
@@ -1238,13 +1222,15 @@
     var modelLabel = document.getElementById('ctx-model');
     modelLabel.textContent = '\u2B24 ' + (modelShort || 'Tokens');
 
-    updateContextBar(ctxTokens, stats.compact_ctx_threshold || 0);
+    updateContextBar(ctxTokens, stats.compact_ctx_threshold || 0, true);
   }
 
-  function updateContextBar(ctxTokens, storedThreshold) {
+  function updateContextBar(ctxTokens, storedThreshold, trackForInspect) {
     var ctxWindow = resolveCtxWindow(ctxTokens, storedThreshold);
-    lastCtxTokens = ctxTokens;
-    lastCtxWindow = ctxWindow;
+    if (trackForInspect) {
+      lastCtxTokens = ctxTokens;
+      lastCtxWindow = ctxWindow;
+    }
     var pct = ctxTokens > 0 ? Math.min(100, Math.round((ctxTokens / ctxWindow) * 100)) : 0;
     var bar = document.getElementById('ctx-bar');
     var pctEl = document.getElementById('ctx-pct');
@@ -1300,27 +1286,21 @@
       }
     }
 
-    // Breakdown bar
+    // Breakdown bar — use actual ctx tokens if available (from SSE stats), else estimate
     var wrap = document.getElementById('ctx-breakdown-wrap');
-    if (wrap && ctxWin > 0) {
-      var fixedPct  = Math.min(100, (rulesTok / ctxWin) * 100);
-      var varPct    = Math.min(100 - fixedPct, (readsTok / ctxWin) * 100);
-      var freePct   = Math.max(0, 100 - fixedPct - varPct);
-      var fixedDisp = Math.min(100, ctxUsed > 0 ? (rulesTok / ctxUsed) * 100 : 0);
-      var varDisp   = Math.min(100 - fixedDisp, ctxUsed > 0 ? (readsTok / ctxUsed) * 100 : 0);
+    if (wrap) {
+      var denom = ctxUsed > 0 ? ctxWin : Math.max(ctxWin, rulesTok + readsTok);
+      var fixedPct = Math.min(100, (rulesTok / denom) * 100);
+      var varPct   = Math.min(100 - fixedPct, (readsTok / denom) * 100);
+      var freeAmt  = ctxUsed > 0 ? Math.max(0, ctxWin - ctxUsed) : Math.max(0, ctxWin - rulesTok - readsTok);
+      var fixedPct0 = Math.round((rulesTok / denom) * 100);
+      var varPct0   = Math.round((readsTok / denom) * 100);
 
       document.getElementById('ctx-bar-fixed').style.width = fixedPct.toFixed(1) + '%';
       document.getElementById('ctx-bar-var').style.width   = varPct.toFixed(1)   + '%';
-
-      var freeLabel = ctxUsed > 0
-        ? fmtTok(Math.max(0, ctxWin - ctxUsed)) + ' livre'
-        : '~' + fmtTok(Math.max(0, ctxWin - rulesTok - readsTok)) + ' livre';
-
-      document.getElementById('ctx-lbl-fixed').textContent =
-        'fixo ~' + fmtTok(rulesTok) + ' (' + fixedPct.toFixed(0) + '%)';
-      document.getElementById('ctx-lbl-var').textContent =
-        'var ~' + fmtTok(readsTok) + ' (' + varPct.toFixed(0) + '%)';
-      document.getElementById('ctx-lbl-free').textContent = freeLabel;
+      document.getElementById('ctx-lbl-fixed').textContent = 'fixo ~' + fmtTok(rulesTok) + ' (' + fixedPct0 + '%)';
+      document.getElementById('ctx-lbl-var').textContent   = 'var ~' + fmtTok(readsTok)  + ' (' + varPct0   + '%)';
+      document.getElementById('ctx-lbl-free').textContent  = '~' + fmtTok(freeAmt) + ' livre';
       wrap.style.display = '';
     }
 
@@ -1411,7 +1391,7 @@
     bodyEl.appendChild(buildBox(
       'ctx-var',
       'Variavel',
-      'Acumulado com cada Read/Bash',
+      'Resultados de Read/Bash/Grep acumulados na conversa',
       readsTok,
       data.reads,
       function(r) { return TOOL_ICONS_CTX[r.tool] || '\uD83D\uDD27'; },
@@ -1435,23 +1415,21 @@
   };
 
   function redistributeGrow() {
-    // Left column
+    // Left column: think | tools | tokens
     var tools = document.getElementById('pane-tools');
     var think = document.getElementById('pane-think');
     var tokens = document.getElementById('pane-tokens');
-    var ctx = document.getElementById('pane-ctx');
-    [tools, think, tokens, ctx].forEach(function(p) { if (p) p.classList.remove('grow'); });
+    [tools, think, tokens].forEach(function(p) { p.classList.remove('grow'); });
     if (!tools.classList.contains('hidden')) tools.classList.add('grow');
-    else if (ctx && !ctx.classList.contains('hidden')) ctx.classList.add('grow');
     else if (!think.classList.contains('hidden')) think.classList.add('grow');
     else if (!tokens.classList.contains('hidden')) tokens.classList.add('grow');
 
-    // Right column
-    var sess = document.getElementById('pane-sess');
+    // Right column: stats | ctx | git
     var stats = document.getElementById('pane-stats');
+    var ctx = document.getElementById('pane-ctx');
     var git = document.getElementById('pane-git');
-    [sess, stats, git].forEach(function(p) { p.classList.remove('grow'); });
-    if (!sess.classList.contains('hidden')) sess.classList.add('grow');
+    [stats, ctx, git].forEach(function(p) { p.classList.remove('grow'); });
+    if (ctx && !ctx.classList.contains('hidden')) ctx.classList.add('grow');
     else if (!stats.classList.contains('hidden')) stats.classList.add('grow');
     else if (!git.classList.contains('hidden')) git.classList.add('grow');
   }

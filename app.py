@@ -1209,15 +1209,19 @@ async def get_insights_stats(project: str = Query(...)):
     encoded = str(project_path).replace("/", "-")
     jsonl_dir = CLAUDE_PROJECTS_DIR / encoded
     if not jsonl_dir.is_dir():
-        return {"sessions_count": 0, "total_tokens": 0,
+        return {"sessions_count": 0, "sessions_7d": 0, "total_tokens": 0,
                 "cache_hit_pct": 0, "top_tool": None, "top_tool_count": 0}
     cutoff = time.time() - 7 * 24 * 3600
-    sessions_count = total_input = total_output = total_cache = 0
+    sessions_total = 0   # all-time session count
+    sessions_count = 0   # last-7-days session count (for token aggregation)
+    total_input = total_output = total_cache = 0
     tool_counts: dict[str, int] = {}
     try:
         for f in jsonl_dir.glob("*.jsonl"):
             try:
-                if f.stat().st_mtime < cutoff:
+                mtime = f.stat().st_mtime
+                sessions_total += 1
+                if mtime < cutoff:
                     continue
                 sessions_count += 1
                 with f.open(encoding="utf-8", errors="ignore") as fh:
@@ -1248,7 +1252,8 @@ async def get_insights_stats(project: str = Query(...)):
     cache_hit_pct = round(total_cache / total_real * 100) if total_real > 0 else 0
     top_tool = max(tool_counts, key=tool_counts.get) if tool_counts else None
     return {
-        "sessions_count": sessions_count,
+        "sessions_count": sessions_total,
+        "sessions_7d": sessions_count,
         "total_tokens": total_tokens,
         "cache_hit_pct": cache_hit_pct,
         "top_tool": top_tool,
@@ -1651,18 +1656,14 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
         except OSError:
             pass
 
-    # Deduplicate Read/Write by path — keep largest (last read wins but size matters)
-    seen_reads: dict[str, int] = {}
-    deduped: list[dict] = []
-    for r in reads:
+    # Deduplicate — keep most recently accessed per (tool, label), sort by recency
+    last_pos: dict[tuple, int] = {}
+    items: dict[tuple, dict] = {}
+    for i, r in enumerate(reads):
         key = (r["tool"], r["label"])
-        if key in seen_reads:
-            if r["size_bytes"] > deduped[seen_reads[key]]["size_bytes"]:
-                deduped[seen_reads[key]] = r
-        else:
-            seen_reads[key] = len(deduped)
-            deduped.append(r)
-    reads = sorted(deduped, key=lambda r: r["size_bytes"], reverse=True)
+        last_pos[key] = i
+        items[key] = r  # always overwrite with most recent occurrence
+    reads = [items[k] for k in sorted(last_pos, key=lambda k: last_pos[k], reverse=True)]
     reads_total_bytes = sum(r["size_bytes"] for r in reads)
 
     return {
