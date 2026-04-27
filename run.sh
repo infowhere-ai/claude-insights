@@ -10,7 +10,10 @@ LOG_FILE="$SCRIPT_DIR/.claude-monitor.log"
 VENV="$SCRIPT_DIR/.venv"
 PORT="${PORT:-19001}"
 URL="http://localhost:$PORT"
-PROJECTS_ROOT="${PROJECTS_ROOT:-"$(dirname "$SCRIPT_DIR")"}"
+# Use the main worktree's parent as PROJECTS_ROOT so worktrees resolve correctly.
+# `git worktree list` always returns the main worktree first.
+_MAIN_WORKTREE="$(git -C "$SCRIPT_DIR" worktree list 2>/dev/null | head -1 | awk '{print $1}')"
+PROJECTS_ROOT="${PROJECTS_ROOT:-"$(dirname "${_MAIN_WORKTREE:-"$(dirname "$SCRIPT_DIR")"}")"}"
 
 green()  { echo -e "\033[0;32m$*\033[0m"; }
 yellow() { echo -e "\033[0;33m$*\033[0m"; }
@@ -146,9 +149,9 @@ cmd_start() {
     if [ -f "$PID_FILE" ]; then
         PID="$(cat "$PID_FILE")"
         if kill -0 "$PID" 2>/dev/null; then
-            yellow "claude-monitor is already running (PID $PID) — $URL"
-            open_ui "$open_mode"
-            return 0
+            info "Killing existing process (PID $PID)..."
+            kill "$PID" 2>/dev/null || true
+            sleep 0.5
         fi
         rm -f "$PID_FILE"
     fi
