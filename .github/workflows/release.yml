@@ -197,7 +197,7 @@ jobs:
 
   publish-deb:
     name: Build and publish .deb to Nexus APT
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [release]
 
     steps:
@@ -233,6 +233,8 @@ jobs:
     needs: [release]
 
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/checkout@v4
         with:
           repository: infowhere-be/homebrew-claude-insights
