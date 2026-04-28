@@ -5,47 +5,42 @@ on:
     branches: [main]
 
 jobs:
-  # ── 1. Build binaries ──────────────────────────────────────────────────────
+  # ── 1. Build macOS universal binary (arm64 + x86_64) ──────────────────────
 
   build-macos:
-    name: Build macOS binary (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - arch: arm64
-            runner: macos-latest          # Apple Silicon runners are arm64
-          - arch: x86_64
-            runner: macos-13              # Last Intel runner
+    name: Build macOS universal binary
+    runs-on: macos-latest   # arm64 runner; setup-python installs universal2 Python
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python (universal2)
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies + PyInstaller
-        run: |
-          pip install fastapi "uvicorn[standard]" pyinstaller httpx anyio
+        run: pip install fastapi "uvicorn[standard]" pyinstaller httpx anyio
 
-      - name: Build binary
+      - name: Build universal binary
         run: |
           pyinstaller \
             --onefile \
             --name claude-insights \
             --add-data "static:static" \
+            --target-architecture universal2 \
             app.py
 
       - name: Rename binary
-        run: mv dist/claude-insights dist/claude-insights-macos-${{ matrix.arch }}
+        run: mv dist/claude-insights dist/claude-insights-macos-universal
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-macos-${{ matrix.arch }}
-          path: dist/claude-insights-macos-${{ matrix.arch }}
+          name: binary-macos-universal
+          path: dist/claude-insights-macos-universal
+
+  # ── 2. Build Linux binary (x86_64) ────────────────────────────────────────
 
   build-linux:
     name: Build Linux binary (x86_64)
@@ -60,8 +55,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies + PyInstaller
-        run: |
-          pip install fastapi "uvicorn[standard]" pyinstaller httpx anyio
+        run: pip install fastapi "uvicorn[standard]" pyinstaller httpx anyio
 
       - name: Build binary
         run: |
@@ -80,7 +74,7 @@ jobs:
           name: binary-linux-x86_64
           path: dist/claude-insights-linux-x86_64
 
-  # ── 2. Build Python wheel ──────────────────────────────────────────────────
+  # ── 3. Build Python wheel ──────────────────────────────────────────────────
 
   build-wheel:
     name: Build Python wheel
@@ -105,7 +99,7 @@ jobs:
           name: python-wheel
           path: dist/*.whl
 
-  # ── 3. Create GitHub Release ───────────────────────────────────────────────
+  # ── 4. Create GitHub Release ───────────────────────────────────────────────
 
   release:
     name: Create GitHub Release
@@ -116,7 +110,7 @@ jobs:
 
     outputs:
       version: ${{ steps.version.outputs.version }}
-      upload_url: ${{ steps.release.outputs.upload_url }}
+      sha_macos_universal: ${{ steps.sha.outputs.sha_macos_universal }}
 
     steps:
       - uses: actions/checkout@v4
@@ -135,13 +129,10 @@ jobs:
       - name: Compute SHA256 checksums
         id: sha
         run: |
-          SHA_ARM64=$(sha256sum artifacts/binary-macos-arm64/claude-insights-macos-arm64 | awk '{print $1}')
-          SHA_X86_64=$(sha256sum artifacts/binary-macos-x86_64/claude-insights-macos-x86_64 | awk '{print $1}')
-          echo "sha_macos_arm64=$SHA_ARM64" >> "$GITHUB_OUTPUT"
-          echo "sha_macos_x86_64=$SHA_X86_64" >> "$GITHUB_OUTPUT"
+          SHA=$(sha256sum artifacts/binary-macos-universal/claude-insights-macos-universal | awk '{print $1}')
+          echo "sha_macos_universal=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Create release
-        id: release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
@@ -149,8 +140,7 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, 'b') || contains(steps.version.outputs.version, 'a') || contains(steps.version.outputs.version, 'rc') }}
           files: |
-            artifacts/binary-macos-arm64/claude-insights-macos-arm64
-            artifacts/binary-macos-x86_64/claude-insights-macos-x86_64
+            artifacts/binary-macos-universal/claude-insights-macos-universal
             artifacts/binary-linux-x86_64/claude-insights-linux-x86_64
             artifacts/python-wheel/*.whl
           body: |
@@ -177,10 +167,9 @@ jobs:
             ### SHA256 checksums
             | File | SHA256 |
             |------|--------|
-            | claude-insights-macos-arm64 | `${{ steps.sha.outputs.sha_macos_arm64 }}` |
-            | claude-insights-macos-x86_64 | `${{ steps.sha.outputs.sha_macos_x86_64 }}` |
+            | claude-insights-macos-universal | `${{ steps.sha.outputs.sha_macos_universal }}` |
 
-  # ── 4. Publish to Nexus PyPI ───────────────────────────────────────────────
+  # ── 5. Publish to Nexus PyPI ───────────────────────────────────────────────
 
   publish-pypi:
     name: Publish to Nexus PyPI
@@ -203,7 +192,7 @@ jobs:
             --password "${{ secrets.NEXUS_PASSWORD }}" \
             dist/*.whl
 
-  # ── 5. Publish .deb to Nexus APT ──────────────────────────────────────────
+  # ── 6. Publish .deb to Nexus APT ──────────────────────────────────────────
 
   publish-deb:
     name: Build and publish .deb to Nexus APT
@@ -220,17 +209,22 @@ jobs:
           path: artifacts/
 
       - name: Build .deb package
-        run: |
-          VERSION="${{ needs.release.outputs.version }}"
-          bash dist/build-deb.sh "artifacts/claude-insights-linux-x86_64" "$VERSION"
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: bash dist/build-deb.sh "artifacts/claude-insights-linux-x86_64" "$VERSION"
 
       - name: Publish to Nexus APT
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          NEXUS_USER: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASS: ${{ secrets.NEXUS_PASSWORD }}
+          NEXUS_APT_URL: ${{ secrets.NEXUS_APT_URL }}
         run: |
-          curl -u "${{ secrets.NEXUS_USERNAME }}:${{ secrets.NEXUS_PASSWORD }}" \
-            --upload-file dist/claude-insights_*.deb \
-            "${{ secrets.NEXUS_APT_URL }}/claude-insights_${VERSION}_amd64.deb"
+          curl -u "${NEXUS_USER}:${NEXUS_PASS}" \
+            --upload-file "dist/claude-insights_${VERSION}_amd64.deb" \
+            "${NEXUS_APT_URL}/claude-insights_${VERSION}_amd64.deb"
 
-  # ── 6. Update Homebrew formula ─────────────────────────────────────────────
+  # ── 7. Update Homebrew formula ─────────────────────────────────────────────
 
   update-homebrew:
     name: Update Homebrew formula
@@ -245,17 +239,21 @@ jobs:
           path: homebrew-tap
 
       - name: Regenerate formula
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          SHA_UNIVERSAL: ${{ needs.release.outputs.sha_macos_universal }}
         run: |
-          VERSION="${{ needs.release.outputs.version }}"
-          SHA_ARM64="${{ needs.release.outputs.sha_macos_arm64 }}"
-          SHA_X86_64="${{ needs.release.outputs.sha_macos_x86_64 }}"
-          bash dist/update-homebrew-formula.sh "$VERSION" "$SHA_ARM64" "$SHA_X86_64" homebrew-tap/Formula/claude-insights.rb
+          bash dist/update-homebrew-formula.sh \
+            "$VERSION" "$SHA_UNIVERSAL" \
+            homebrew-tap/Formula/claude-insights.rb
 
       - name: Commit and push formula
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
           cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/claude-insights.rb
-          git commit -m "chore: update claude-insights to v${{ needs.release.outputs.version }}"
+          git commit -m "chore: update claude-insights to v${VERSION}"
           git push
