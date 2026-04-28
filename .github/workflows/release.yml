@@ -5,9 +5,9 @@ on:
     branches: [main]
 
 jobs:
-  # ── 1a. Build macOS binary (arm64) ─────────────────────────────────────────
+  # ── 1. Build macOS binary (arm64) ──────────────────────────────────────────
 
-  build-macos-arm64:
+  build-macos:
     name: Build macOS binary (arm64)
     runs-on: macos-latest
 
@@ -38,40 +38,6 @@ jobs:
         with:
           name: binary-macos-arm64
           path: dist/claude-insights-macos-arm64
-
-  # ── 1b. Build macOS binary (x86_64) ────────────────────────────────────────
-
-  build-macos-x86_64:
-    name: Build macOS binary (x86_64)
-    runs-on: macos-13
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies + PyInstaller
-        run: pip install fastapi "uvicorn[standard]" pyinstaller httpx anyio
-
-      - name: Build binary
-        run: |
-          pyinstaller \
-            --onefile \
-            --name claude-insights \
-            --add-data "static:static" \
-            app.py
-
-      - name: Rename binary
-        run: mv dist/claude-insights dist/claude-insights-macos-x86_64
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: binary-macos-x86_64
-          path: dist/claude-insights-macos-x86_64
 
   # ── 2. Build Linux binary (x86_64) ────────────────────────────────────────
 
@@ -137,14 +103,13 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-macos-arm64, build-macos-x86_64, build-linux, build-wheel]
+    needs: [build-macos, build-linux, build-wheel]
     permissions:
       contents: write
 
     outputs:
       version: ${{ steps.version.outputs.version }}
       sha_macos_arm64: ${{ steps.sha.outputs.sha_macos_arm64 }}
-      sha_macos_x86_64: ${{ steps.sha.outputs.sha_macos_x86_64 }}
 
     steps:
       - uses: actions/checkout@v4
@@ -163,10 +128,8 @@ jobs:
       - name: Compute SHA256 checksums
         id: sha
         run: |
-          SHA_ARM64=$(sha256sum artifacts/binary-macos-arm64/claude-insights-macos-arm64 | awk '{print $1}')
-          SHA_X86=$(sha256sum artifacts/binary-macos-x86_64/claude-insights-macos-x86_64 | awk '{print $1}')
-          echo "sha_macos_arm64=$SHA_ARM64" >> "$GITHUB_OUTPUT"
-          echo "sha_macos_x86_64=$SHA_X86" >> "$GITHUB_OUTPUT"
+          SHA=$(sha256sum artifacts/binary-macos-arm64/claude-insights-macos-arm64 | awk '{print $1}')
+          echo "sha_macos_arm64=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -177,7 +140,6 @@ jobs:
           prerelease: ${{ contains(steps.version.outputs.version, 'b') || contains(steps.version.outputs.version, 'a') || contains(steps.version.outputs.version, 'rc') }}
           files: |
             artifacts/binary-macos-arm64/claude-insights-macos-arm64
-            artifacts/binary-macos-x86_64/claude-insights-macos-x86_64
             artifacts/binary-linux-x86_64/claude-insights-linux-x86_64
             artifacts/python-wheel/*.whl
           body: |
@@ -185,7 +147,7 @@ jobs:
 
             ### Install
 
-            **macOS (Homebrew)**
+            **macOS — Apple Silicon (Homebrew)**
             ```bash
             brew tap infowhere-be/claude-insights
             brew install claude-insights
@@ -196,16 +158,17 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/infowhere-be/claude-monitor/main/install.sh | bash
             ```
 
-            **Python (pipx)**
+            **Python — all platforms (pipx)**
             ```bash
             pipx install claude-insights
             ```
+
+            > macOS Intel users: use `pipx install claude-insights` (no native binary for Intel yet).
 
             ### SHA256 checksums
             | File | SHA256 |
             |------|--------|
             | claude-insights-macos-arm64 | `${{ steps.sha.outputs.sha_macos_arm64 }}` |
-            | claude-insights-macos-x86_64 | `${{ steps.sha.outputs.sha_macos_x86_64 }}` |
 
   # ── 5. Publish to Nexus PyPI ───────────────────────────────────────────────
 
@@ -280,10 +243,9 @@ jobs:
         env:
           VERSION: ${{ needs.release.outputs.version }}
           SHA_ARM64: ${{ needs.release.outputs.sha_macos_arm64 }}
-          SHA_X86_64: ${{ needs.release.outputs.sha_macos_x86_64 }}
         run: |
           bash dist/update-homebrew-formula.sh \
-            "$VERSION" "$SHA_ARM64" "$SHA_X86_64" \
+            "$VERSION" "$SHA_ARM64" \
             homebrew-tap/Formula/claude-insights.rb
 
       - name: Commit and push formula
