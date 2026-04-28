@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -228,6 +229,19 @@
     color: var(--text-dim);
     margin-bottom: 2px;
   }
+
+  /* -- Drag handle -- */
+  .drag-handle {
+    cursor: grab;
+    color: var(--text-dimmest);
+    font-size: 11px;
+    padding: 0 4px 0 0;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  .panel.sortable-ghost { opacity: 0.35; }
+  .panel.sortable-chosen { box-shadow: 0 0 0 1px var(--blue); }
 
   /* -- Thinking panel -- */
   #pane-think {
@@ -2192,8 +2206,62 @@
     if (e.key === 'ArrowRight') window.nextDiff();
   });
 
+  // -- Panel drag-and-drop (SortableJS) --
+  var STORAGE_KEY_LEFT  = 'ci-panel-order-left';
+  var STORAGE_KEY_RIGHT = 'ci-panel-order-right';
+
+  function savePanelOrder() {
+    var left  = Array.from(document.getElementById('col-live').querySelectorAll('.panel')).map(function(p) { return p.id; });
+    var right = Array.from(document.getElementById('col-hist').querySelectorAll('.panel')).map(function(p) { return p.id; });
+    localStorage.setItem(STORAGE_KEY_LEFT,  JSON.stringify(left));
+    localStorage.setItem(STORAGE_KEY_RIGHT, JSON.stringify(right));
+  }
+
+  function restorePanelOrder() {
+    [{ key: STORAGE_KEY_LEFT, colId: 'col-live' }, { key: STORAGE_KEY_RIGHT, colId: 'col-hist' }].forEach(function(cfg) {
+      var saved = JSON.parse(localStorage.getItem(cfg.key) || 'null');
+      if (!saved) return;
+      var col = document.getElementById(cfg.colId);
+      saved.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el.parentElement === col) col.appendChild(el);
+      });
+    });
+  }
+
+  function initSortable() {
+    // Inject drag handle into every panel header
+    document.querySelectorAll('.panel').forEach(function(panel) {
+      var handle = document.createElement('span');
+      handle.className = 'drag-handle';
+      handle.innerHTML = '&#8942;&#8942;'; // ⋮⋮
+      handle.title = 'Drag to reorder';
+      var firstChild = panel.firstElementChild;
+      if (firstChild) panel.insertBefore(handle, firstChild);
+    });
+
+    var opts = {
+      handle: '.drag-handle',
+      draggable: '.panel',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      onEnd: function() {
+        redistributeGrow();
+        savePanelOrder();
+      }
+    };
+
+    Sortable.create(document.getElementById('col-live'), opts);
+    Sortable.create(document.getElementById('col-hist'), opts);
+  }
+
   // -- Boot --
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', function() {
+    restorePanelOrder();
+    init();
+    initSortable();
+  });
 })();
 </script>
 
