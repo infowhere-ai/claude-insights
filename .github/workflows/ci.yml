@@ -1,0 +1,88 @@
+name: ci
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-backend:
+    name: Backend tests (pytest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi "uvicorn[standard]" httpx pytest pytest-asyncio pytest-cov anyio
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/backend/ \
+            --cov=. \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-config=pyproject.toml \
+            -v
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 1
+
+  test-bats:
+    name: Shell tests (bats)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats-core
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y bats
+
+      - name: Run hook tests
+        run: bats tests/hook/test_monitor_hook.bats
+
+      - name: Run install tests
+        run: bats tests/install/test_install.bats
+
+  sonar:
+    name: SonarQube quality gate
+    runs-on: self-hosted
+    needs: [test-backend]
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-xml
+
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube quality gate check
+        uses: SonarSource/sonarqube-quality-gate-action@v1.1.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
