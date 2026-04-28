@@ -11,12 +11,22 @@ class ClaudeInsights < Formula
   license "MIT"
 
   on_macos do
-    url "https://github.com/infowhere-be/claude-monitor/releases/download/vFORMULA_VERSION/claude-insights-macos-universal"
-    sha256 "FORMULA_SHA256_UNIVERSAL"
+    on_arm do
+      url "https://github.com/infowhere-be/claude-monitor/releases/download/vFORMULA_VERSION/claude-insights-macos-arm64"
+      sha256 "FORMULA_SHA256_ARM64"
+    end
+    on_intel do
+      url "https://github.com/infowhere-be/claude-monitor/releases/download/vFORMULA_VERSION/claude-insights-macos-x86_64"
+      sha256 "FORMULA_SHA256_X86_64"
+    end
   end
 
   def install
-    bin.install "claude-insights-macos-universal" => "claude-insights"
+    if Hardware::CPU.arm?
+      bin.install "claude-insights-macos-arm64" => "claude-insights"
+    else
+      bin.install "claude-insights-macos-x86_64" => "claude-insights"
+    end
   end
 
   def caveats
