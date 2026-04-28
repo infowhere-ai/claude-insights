@@ -186,6 +186,7 @@
   }
   #status-bar.working { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); }
   #status-bar.waiting { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); }
+  #status-bar.compacting { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.35); }
   #status-bar.idle    { background: var(--border); border: 1px solid transparent; }
   #status-bar.stopped { background: var(--border); border: 1px solid transparent; }
   #status-dot {
@@ -195,11 +196,13 @@
   }
   #status-dot.working { background: var(--green); box-shadow: 0 0 5px var(--green); }
   #status-dot.waiting { background: var(--yellow); box-shadow: 0 0 5px var(--yellow); }
+  #status-dot.compacting { background: var(--purple); box-shadow: 0 0 8px var(--purple); animation: pulse-dot 1s ease-in-out infinite; }
   #status-dot.idle    { background: var(--text-dim); }
   #status-dot.stopped { background: var(--text-dimmer); }
   #status-label { font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
   #status-label.working { color: var(--green); }
   #status-label.waiting { color: var(--yellow); }
+  #status-label.compacting { color: var(--purple); }
   #status-action { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
   #status-action.tool { color: var(--blue); }
 
@@ -434,6 +437,92 @@
   .diff-add { background: rgba(34,197,94,0.1); color: #86efac; }
   .diff-del { background: rgba(239,68,68,0.1); color: #fca5a5; }
   .diff-hunk { color: var(--text-dim); }
+
+  /* -- About modal -- */
+  #about-modal .modal-box {
+    width: 340px;
+    max-height: none;
+    border-radius: 12px;
+    border-color: #1e293b;
+    background: linear-gradient(160deg, #0d1527 0%, #0a0f1a 100%);
+  }
+  #about-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 24px 24px;
+    gap: 0;
+    text-align: center;
+  }
+  #about-logo {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  #about-appname {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    line-height: 1.1;
+  }
+  #about-appname span { color: var(--blue); }
+  #about-subtitle {
+    font-size: 10px;
+    color: var(--text-dimmer);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 4px;
+    margin-bottom: 18px;
+  }
+  #about-divider {
+    width: 100%;
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 18px;
+  }
+  .about-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 11px;
+    padding: 3px 0;
+  }
+  .about-row-label { color: var(--text-dim); }
+  .about-row-value { color: var(--text); font-weight: 500; }
+  #about-copy {
+    margin-top: 18px;
+    font-size: 10px;
+    color: var(--text-dimmer);
+  }
+  #about-close-btn {
+    margin-top: 18px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 5px 22px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: color 0.1s, border-color 0.1s;
+  }
+  #about-close-btn:hover { color: var(--text); border-color: var(--text-dim); }
+  #about-btn {
+    background: none;
+    border: none;
+    color: var(--text-dimmer);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    line-height: 1;
+    transition: color 0.15s;
+    font-family: var(--font-sans);
+  }
+  #about-btn:hover { color: var(--text-dim); }
   .diff-ctx { color: var(--text-dimmer); }
 
   /* -- Thinking history modal -- */
@@ -502,6 +591,7 @@
     min-width: 0;
   }
   .ctx-seg.fixed { background: var(--cyan); }
+  .ctx-seg.conv  { background: var(--yellow); }
   .ctx-seg.var   { background: var(--purple); }
   .ctx-usage-labels {
     display: flex;
@@ -511,6 +601,7 @@
     margin-bottom: 4px;
   }
   .ctx-usage-label-fixed { color: var(--cyan); opacity: 0.85; }
+  .ctx-usage-label-conv  { color: var(--yellow); opacity: 0.85; }
   .ctx-usage-label-var   { color: var(--purple); opacity: 0.85; }
   .ctx-usage-label-free  { color: var(--text-dimmer); }
 
@@ -557,6 +648,11 @@
   .ctx-box.ctx-var .ctx-box-hdr { background: rgba(167,139,250,0.07); }
   .ctx-box.ctx-var .ctx-box-title { color: var(--purple); }
   .ctx-box.ctx-var .ctx-box-tok  { color: var(--purple); }
+  /* Conversation context box */
+  .ctx-box.ctx-conv { border-color: rgba(250,204,21,0.25); }
+  .ctx-box.ctx-conv .ctx-box-hdr { background: rgba(250,204,21,0.07); }
+  .ctx-box.ctx-conv .ctx-box-title { color: var(--yellow); }
+  .ctx-box.ctx-conv .ctx-box-tok  { color: var(--yellow); }
 
   .ctx-box-list {
     padding: 3px 6px 5px;
@@ -615,8 +711,9 @@
   <div id="header-nav">
     <a href="/">&#8592; Monitor</a>
     <select id="project-select" onchange="switchProject(this.value)"></select>
-    <span style="font-size:10px;color:var(--text-dimmer);font-family:var(--font-mono)">Sessao</span>
+    <span style="font-size:10px;color:var(--text-dimmer);font-family:var(--font-mono)">Session</span>
     <select id="session-select" onchange="onSessionSelectChange(this.value)"></select>
+    <button id="about-btn" onclick="openAbout()" title="About Claude Insights">&#9432;</button>
   </div>
 </div>
 
@@ -625,9 +722,8 @@
 
   <!-- Left sidebar -->
   <div class="sidebar left">
-    <button class="sidebar-btn active" id="btn-think" onclick="togglePanel('pane-think','btn-think')" title="Raciocinio">&#129504;</button>
-    <button class="sidebar-btn active" id="btn-tools" onclick="togglePanel('pane-tools','btn-tools')" title="Ferramentas">&#128295;</button>
-    <button class="sidebar-btn active" id="btn-tokens" onclick="togglePanel('pane-tokens','btn-tokens')" title="Tokens">&#11044;</button>
+    <button class="sidebar-btn active" id="btn-think" onclick="togglePanel('pane-think','btn-think')" title="Reasoning">&#129504;</button>
+    <button class="sidebar-btn active" id="btn-ctx" onclick="togglePanel('pane-ctx','btn-ctx')" title="Session Context">&#128270;</button>
   </div>
 
   <!-- Main area -->
@@ -635,7 +731,7 @@
 
     <!-- Left column: Live -->
     <div id="col-live">
-      <div id="live-badge">Nenhuma sessao activa</div>
+      <div id="live-badge">No active session</div>
       <div id="status-bar" class="idle">
         <div id="status-dot" class="idle"></div>
         <span id="status-label" class="idle">IDLE</span>
@@ -645,36 +741,36 @@
       <!-- Thinking -->
       <div class="panel" id="pane-think">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="panel-label" style="margin-bottom:0">&#129504; Raciocinio</div>
-          <button id="btn-think-hist" onclick="openThinkingHistory()" title="Ver historico completo de raciocinio" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--blue);cursor:pointer;padding:2px 8px;border-radius:3px;font-family:var(--font-mono);font-size:10px;display:none;letter-spacing:0.5px">&#128221; hist</button>
+          <div class="panel-label" style="margin-bottom:0">&#129504; Reasoning</div>
+          <button id="btn-think-hist" onclick="openThinkingHistory()" title="View full reasoning history" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--blue);cursor:pointer;padding:2px 8px;border-radius:3px;font-family:var(--font-mono);font-size:10px;display:none;letter-spacing:0.5px">&#128221; hist</button>
         </div>
         <div id="thinking-text" class="thinking-text collapsed" onclick="toggleThinking()">
-          Aguardando raciocinio...
+          Waiting for reasoning...
         </div>
         <div id="thinking-meta" style="font-size:10px;color:var(--text-dimmer)"></div>
       </div>
 
-      <!-- Tools -->
-      <div class="panel grow" id="pane-tools">
-        <div class="panel-label">&#128295; Ferramentas</div>
-        <div id="tools-list"></div>
-      </div>
-
-      <!-- Tokens -->
-      <div class="panel" id="pane-tokens">
+      <!-- Context inspector -->
+      <div class="panel grow" id="pane-ctx">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="panel-label" id="ctx-model" style="margin-bottom:0">&#11044; Tokens</div>
-          <span id="ctx-pct" style="font-size:11px;font-weight:700;color:var(--green)"></span>
+          <div class="panel-label" style="margin-bottom:0">&#128270; Session Context</div>
+          <span id="ctx-inspect-summary" style="font-size:9px;color:var(--text-dim)"></span>
         </div>
-        <div class="tok-bar-wrap">
-          <div class="tok-bar" id="ctx-bar"></div>
+        <!-- Usage breakdown bar -->
+        <div id="ctx-breakdown-wrap" style="display:none">
+          <div class="ctx-usage-bar">
+            <div class="ctx-seg fixed" id="ctx-bar-fixed" style="width:0%"></div>
+            <div class="ctx-seg conv"  id="ctx-bar-conv"  style="width:0%"></div>
+            <div class="ctx-seg var"   id="ctx-bar-var"   style="width:0%"></div>
+          </div>
+          <div class="ctx-usage-labels">
+            <span class="ctx-usage-label-fixed" id="ctx-lbl-fixed"></span>
+            <span class="ctx-usage-label-conv"  id="ctx-lbl-conv"></span>
+            <span class="ctx-usage-label-var"   id="ctx-lbl-var"></span>
+            <span class="ctx-usage-label-free"  id="ctx-lbl-free"></span>
+          </div>
         </div>
-        <div class="tok-grid">
-          <div><div class="tok-cell-label">Input</div><div class="tok-cell-val ok" id="tok-input">-</div></div>
-          <div><div class="tok-cell-label">Output</div><div class="tok-cell-val" id="tok-output">-</div></div>
-          <div><div class="tok-cell-label">Cache rd</div><div class="tok-cell-val cache" id="tok-cache">-</div></div>
-          <div><div class="tok-cell-label">Contexto</div><div class="tok-cell-val" id="tok-ctx" style="color:var(--text-dim)">-</div></div>
-        </div>
+        <div id="ctx-inspect-body"></div>
       </div>
 
     </div>
@@ -733,30 +829,32 @@
         </div>
       </div>
 
-      <!-- Context inspector -->
-      <div class="panel grow" id="pane-ctx">
+      <!-- Tokens -->
+      <div class="panel" id="pane-tokens">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="panel-label" style="margin-bottom:0">&#128270; Contexto da Sessao</div>
-          <span id="ctx-inspect-summary" style="font-size:9px;color:var(--text-dim)"></span>
+          <div class="panel-label" id="ctx-model" style="margin-bottom:0">&#11044; Tokens</div>
+          <span id="ctx-pct" style="font-size:11px;font-weight:700;color:var(--green)"></span>
         </div>
-        <!-- Usage breakdown bar -->
-        <div id="ctx-breakdown-wrap" style="display:none">
-          <div class="ctx-usage-bar">
-            <div class="ctx-seg fixed" id="ctx-bar-fixed" style="width:0%"></div>
-            <div class="ctx-seg var"   id="ctx-bar-var"   style="width:0%"></div>
-          </div>
-          <div class="ctx-usage-labels">
-            <span class="ctx-usage-label-fixed" id="ctx-lbl-fixed"></span>
-            <span class="ctx-usage-label-var"   id="ctx-lbl-var"></span>
-            <span class="ctx-usage-label-free"  id="ctx-lbl-free"></span>
-          </div>
+        <div class="tok-bar-wrap">
+          <div class="tok-bar" id="ctx-bar"></div>
         </div>
-        <div id="ctx-inspect-body"></div>
+        <div class="tok-grid">
+          <div><div class="tok-cell-label">Input</div><div class="tok-cell-val ok" id="tok-input">-</div></div>
+          <div><div class="tok-cell-label">Output</div><div class="tok-cell-val" id="tok-output">-</div></div>
+          <div><div class="tok-cell-label">Cache rd</div><div class="tok-cell-val cache" id="tok-cache">-</div></div>
+          <div><div class="tok-cell-label">Context</div><div class="tok-cell-val" id="tok-ctx" style="color:var(--text-dim)">-</div></div>
+        </div>
+      </div>
+
+      <!-- Tools -->
+      <div class="panel grow" id="pane-tools">
+        <div class="panel-label">&#128295; Commands</div>
+        <div id="tools-list"></div>
       </div>
 
       <!-- Git -->
       <div class="panel" id="pane-git">
-        <div class="panel-label" id="git-label">&#128193; Para commit</div>
+        <div class="panel-label" id="git-label">&#128193; To commit</div>
         <div id="git-list"></div>
       </div>
     </div>
@@ -765,7 +863,8 @@
   <!-- Right sidebar -->
   <div class="sidebar right">
     <button class="sidebar-btn active" id="btn-stats" onclick="togglePanel('pane-stats','btn-stats')" title="Stats">&#128202;</button>
-    <button class="sidebar-btn active" id="btn-ctx" onclick="togglePanel('pane-ctx','btn-ctx')" title="Contexto da sessao">&#128270;</button>
+    <button class="sidebar-btn active" id="btn-tokens" onclick="togglePanel('pane-tokens','btn-tokens')" title="Tokens">&#11044;</button>
+    <button class="sidebar-btn active" id="btn-tools" onclick="togglePanel('pane-tools','btn-tools')" title="Commands">&#128295;</button>
     <button class="sidebar-btn active" id="btn-git" onclick="togglePanel('pane-git','btn-git')" title="Git">&#128193;</button>
   </div>
 </div>
@@ -774,7 +873,7 @@
 <div id="think-modal" class="modal-backdrop hidden" onclick="closeThinkingHistory(event)">
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <span id="think-modal-title">&#129504; Historico de Raciocinio</span>
+      <span id="think-modal-title">&#129504; Reasoning History</span>
       <div>
         <button onclick="collapseAllThinking()">&#8722; colapsar</button>
         <button onclick="expandAllThinking()">&#43; expandir</button>
@@ -811,6 +910,39 @@
   </div>
 </div>
 
+<!-- About modal -->
+<div id="about-modal" class="modal-backdrop hidden" onclick="closeAbout(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div id="about-body">
+      <img id="about-logo" src="/logo.png" alt="Claude Insights logo">
+      <div id="about-appname">CLAUDE <span>INSIGHTS</span></div>
+      <div id="about-subtitle">Monitor your Claude CLI</div>
+      <div id="about-divider"></div>
+      <div class="about-row">
+        <span class="about-row-label">Version</span>
+        <span class="about-row-value">1.0.0-beta</span>
+      </div>
+      <div class="about-row">
+        <span class="about-row-label">Author</span>
+        <span class="about-row-value">Leandro Siciliano</span>
+      </div>
+      <div class="about-row">
+        <span class="about-row-label">Released</span>
+        <span class="about-row-value" id="about-date"></span>
+      </div>
+      <div id="about-copy">
+        <div>&copy; 2026 InfoWhere. All rights reserved.</div>
+        <div style="margin-top:6px;display:flex;gap:12px;justify-content:center">
+          <a href="https://www.infowhere.ai" target="_blank" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">www.infowhere.ai</a>
+          <span style="color:var(--border)">·</span>
+          <a href="mailto:infowhere@infowhere.ai" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">infowhere@infowhere.ai</a>
+        </div>
+      </div>
+      <button id="about-close-btn" onclick="closeAbout()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
   'use strict';
@@ -842,12 +974,12 @@
     var actEl  = document.getElementById('status-action');
     if (!bar) return;
 
-    var cls = state === 'working' ? 'working' : state === 'waiting' ? 'waiting' : 'idle';
+    var cls = state === 'working' ? 'working' : state === 'waiting' ? 'waiting' : state === 'compacting' ? 'compacting' : 'idle';
     bar.className = cls;
     dot.className = cls;
     label.className = cls;
 
-    var LABELS = { working: '● WORKING', waiting: '⏳ AGUARDANDO', idle: 'IDLE', stopped: 'STOPPED', compacting: '⚡ COMPACTING' };
+    var LABELS = { working: '● WORKING', waiting: '⏳ WAITING', idle: 'IDLE', stopped: 'STOPPED', compacting: '⚡ COMPACTING' };
     label.textContent = LABELS[state] || state.toUpperCase();
 
     if (state === 'waiting' && notifMsg) {
@@ -912,6 +1044,7 @@
   function init() {
     connectSSE();
     startRenewalTicker();
+    startCtxPoll();
   }
 
   function connectSSE() {
@@ -970,6 +1103,7 @@
         updateStatusBar(msg.data);
 
         var projState = (msg.data && (msg.data.state || msg.data.status)) || 'idle';
+        loadPendingFiles();
         // If Claude just became active and we're not in live mode, reload sessions
         // so the active session is detected and isLive is set to true.
         if (!isLive && (projState === 'working' || projState === 'waiting')) {
@@ -983,7 +1117,6 @@
         if (isLive) {
           var stats = (msg.data && msg.data.stats) || {};
           updateTokensFromStats(stats);
-          loadPendingFiles();
           // Refresh session detail (tools list) while live — throttled to avoid hammering
           var now = Date.now();
           if (!window._lastSessionRefresh || now - window._lastSessionRefresh > 2000) {
@@ -1000,13 +1133,8 @@
                 .catch(function() {});
             }
           }
-          // Refresh context inspector every 5s while live
-          var nowCtx = Date.now();
-          if (!window._lastCtxRefresh || nowCtx - window._lastCtxRefresh > 5000) {
-            window._lastCtxRefresh = nowCtx;
-            loadContextInspect();
-          }
           // Refresh stats every 30s while live
+          var nowCtx = Date.now();
           if (!window._lastStatsRefresh || nowCtx - window._lastStatsRefresh > 30000) {
             window._lastStatsRefresh = nowCtx;
             loadStats();
@@ -1068,7 +1196,7 @@
     _sessionsMap = {};
     if (!sessions || sessions.length === 0) {
       var opt = document.createElement('option');
-      opt.textContent = 'Sem sessoes';
+      opt.textContent = 'No sessions';
       opt.disabled = true;
       sel.appendChild(opt);
       return;
@@ -1104,7 +1232,7 @@
     dot.className = isLive ? 'live-dot' : 'live-dot dim';
     badge.appendChild(dot);
     badge.appendChild(document.createTextNode(
-      (isLive ? ' Live \u00B7 ' : ' historico \u00B7 ') + currentProject
+      (isLive ? ' Live \u00B7 ' : ' History \u00B7 ') + currentProject
     ));
 
     // Sync session combobox
@@ -1134,18 +1262,18 @@
     badge.textContent = '';
     var span = document.createElement('span');
     span.style.color = 'var(--text-dimmer)';
-    span.textContent = 'Nenhuma sessao activa \u2014 abre o Claude Code para comecar.';
+    span.textContent = 'No active session \u2014 open Claude Code to get started.';
     badge.appendChild(span);
     lastThinkingHistory = [];
     var histBtn = document.getElementById('btn-think-hist');
     if (histBtn) histBtn.style.display = 'none';
-    setText('thinking-text', 'Sem raciocinio.');
+    setText('thinking-text', 'No reasoning.');
     setText('thinking-meta', '');
     var toolsList = document.getElementById('tools-list');
     toolsList.textContent = '';
     var msg = document.createElement('div');
     msg.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
-    msg.textContent = 'Sem ferramentas.';
+    msg.textContent = 'No commands.';
     toolsList.appendChild(msg);
     clearTokens();
   }
@@ -1251,6 +1379,18 @@
     _renewalTimer = setInterval(updateRenewalBar, 1000);
   }
 
+  // -- Context inspector auto-poll (independent of SSE) --
+  var _ctxPollTimer = null;
+  function startCtxPoll() {
+    if (_ctxPollTimer) clearInterval(_ctxPollTimer);
+    _ctxPollTimer = setInterval(function() {
+      if (currentProject && currentSessionId) loadContextInspect();
+    }, 3000);
+  }
+  function stopCtxPoll() {
+    if (_ctxPollTimer) { clearInterval(_ctxPollTimer); _ctxPollTimer = null; }
+  }
+
   // -- Git / Pending files --
   function loadPendingFiles() {
     if (!currentProject) return Promise.resolve();
@@ -1265,14 +1405,14 @@
 
   function renderGit(files) {
     var label = document.getElementById('git-label');
-    label.textContent = '\uD83D\uDCC1 Para commit' + (files.length > 0 ? ' \u00B7 ' + files.length : '');
+    label.textContent = '\uD83D\uDCC1 To commit' + (files.length > 0 ? ' \u00B7 ' + files.length : '');
 
     var container = document.getElementById('git-list');
     container.textContent = '';
     if (!files || files.length === 0) {
       var empty = document.createElement('div');
       empty.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
-      empty.textContent = 'Sem alteracoes.';
+      empty.textContent = 'No changes.';
       container.appendChild(empty);
       return;
     }
@@ -1298,7 +1438,7 @@
     var el = document.getElementById('thinking-text');
     el.textContent = text;
     el.classList.add('collapsed');
-    setText('thinking-meta', (wordCount || 0) + ' palavras');
+    setText('thinking-meta', (wordCount || 0) + ' words');
   }
 
   function renderThinking(arr) {
@@ -1306,7 +1446,7 @@
     lastThinkingHistory = arr || [];
     var histBtn = document.getElementById('btn-think-hist');
     if (!arr || arr.length === 0) {
-      setText('thinking-text', 'Sem raciocinio nesta sessao.');
+      setText('thinking-text', 'No reasoning in this session.');
       setText('thinking-meta', '');
       if (histBtn) histBtn.style.display = 'none';
       return;
@@ -1315,7 +1455,7 @@
     var el = document.getElementById('thinking-text');
     el.textContent = last.text;
     el.classList.add('collapsed');
-    setText('thinking-meta', (last.word_count || 0) + ' palavras' + (arr.length > 1 ? ' \u00B7 bloco ' + arr.length + '/' + arr.length : ''));
+    setText('thinking-meta', (last.word_count || 0) + ' words' + (arr.length > 1 ? ' \u00B7 block ' + arr.length + '/' + arr.length : ''));
     if (histBtn) histBtn.style.display = arr.length > 1 ? '' : 'none';
   }
 
@@ -1338,7 +1478,7 @@
     if (!toolsArr || toolsArr.length === 0) {
       var empty = document.createElement('div');
       empty.style.cssText = 'font-size:10px;color:var(--text-dimmer)';
-      empty.textContent = 'Sem ferramentas nesta sessao.';
+      empty.textContent = 'No commands in this session.';
       container.appendChild(empty);
       return;
     }
@@ -1472,7 +1612,8 @@
 
     var rulesTok = data.rules_total_tokens_est || 0;
     var readsTok = data.reads_total_tokens_est || 0;
-    var grandTok = rulesTok + readsTok;
+    var convTok  = data.conv_total_tokens_est  || 0;
+    var grandTok = rulesTok + readsTok + convTok;
     var ctxWin = lastCtxWindow || 185000;
     var ctxUsed = lastCtxTokens || 0;
 
@@ -1489,16 +1630,20 @@
     // Breakdown bar — use actual ctx tokens if available (from SSE stats), else estimate
     var wrap = document.getElementById('ctx-breakdown-wrap');
     if (wrap) {
-      var denom = ctxUsed > 0 ? ctxWin : Math.max(ctxWin, rulesTok + readsTok);
+      var denom = ctxUsed > 0 ? ctxWin : Math.max(ctxWin, grandTok);
       var fixedPct = Math.min(100, (rulesTok / denom) * 100);
-      var varPct   = Math.min(100 - fixedPct, (readsTok / denom) * 100);
-      var freeAmt  = ctxUsed > 0 ? Math.max(0, ctxWin - ctxUsed) : Math.max(0, ctxWin - rulesTok - readsTok);
+      var convPct  = Math.min(100 - fixedPct, (convTok / denom) * 100);
+      var varPct   = Math.min(100 - fixedPct - convPct, (readsTok / denom) * 100);
+      var freeAmt  = ctxUsed > 0 ? Math.max(0, ctxWin - ctxUsed) : Math.max(0, ctxWin - grandTok);
       var fixedPct0 = Math.round((rulesTok / denom) * 100);
+      var convPct0  = Math.round((convTok  / denom) * 100);
       var varPct0   = Math.round((readsTok / denom) * 100);
 
       document.getElementById('ctx-bar-fixed').style.width = fixedPct.toFixed(1) + '%';
+      document.getElementById('ctx-bar-conv').style.width  = convPct.toFixed(1)  + '%';
       document.getElementById('ctx-bar-var').style.width   = varPct.toFixed(1)   + '%';
       document.getElementById('ctx-lbl-fixed').textContent = 'fixo ~' + fmtTok(rulesTok) + ' (' + fixedPct0 + '%)';
+      document.getElementById('ctx-lbl-conv').textContent  = 'conversa ~' + fmtTok(convTok) + ' (' + convPct0 + '%)';
       document.getElementById('ctx-lbl-var').textContent   = 'var ~' + fmtTok(readsTok)  + ' (' + varPct0   + '%)';
       document.getElementById('ctx-lbl-free').textContent  = '~' + fmtTok(freeAmt) + ' livre';
       wrap.style.display = '';
@@ -1539,7 +1684,7 @@
       if (!items || items.length === 0) {
         var empty = document.createElement('div');
         empty.style.cssText = 'font-size:9px;color:var(--text-dimmer);padding:4px 2px';
-        empty.textContent = 'Nenhum item.';
+        empty.textContent = 'No items.';
         list.appendChild(empty);
       } else {
         items.forEach(function(item) {
@@ -1557,13 +1702,29 @@
           var realPath = item.real_path || item.label || lbl;
           lblEl.title = realPath;
           if (item.is_error) lblEl.style.color = 'var(--red)';
-          // Make .md files clickable
+          // Make .md files clickable (file preview)
           if (realPath && realPath.endsWith('.md')) {
             row.style.cursor = 'pointer';
             row.title = 'Click to preview ' + realPath.split('/').pop();
             row.onclick = (function(p, label) {
               return function() { openFilePreview(p, label); };
             })(realPath, lbl);
+          }
+          // Make VARIAVEL items (tool results with content) clickable
+          if (item.content !== undefined) {
+            row.style.cursor = 'pointer';
+            row.title = 'Click to view result content';
+            row.onclick = (function(it, label) {
+              return function() { openResultPreview(it, label); };
+            })(item, lbl);
+          }
+          // Make CONVERSA items (messages with full_text) clickable
+          if (item.full_text !== undefined) {
+            row.style.cursor = 'pointer';
+            row.title = 'Click to read full message';
+            row.onclick = (function(it) {
+              return function() { openMessagePreview(it); };
+            })(item);
           }
 
           var tEl = document.createElement('span');
@@ -1611,6 +1772,17 @@
         return lbl;
       }
     ));
+
+    // Conversation box — user + assistant messages (text only, no tool calls)
+    bodyEl.appendChild(buildBox(
+      'ctx-conv',
+      'Conversation',
+      'Messages in the session (user + Claude)',
+      convTok,
+      data.messages,
+      function(m) { return m.is_compaction ? '\uD83D\uDD04' : (m.role === 'user' ? '\uD83D\uDC64' : '\uD83E\uDD16'); },
+      function(m) { return m.snippet || ''; }
+    ));
   }
 
   // -- Panel toggle --
@@ -1624,22 +1796,22 @@
   };
 
   function redistributeGrow() {
-    // Left column: think | tools | tokens
-    var tools = document.getElementById('pane-tools');
-    var think = document.getElementById('pane-think');
-    var tokens = document.getElementById('pane-tokens');
-    [tools, think, tokens].forEach(function(p) { p.classList.remove('grow'); });
-    if (!tools.classList.contains('hidden')) tools.classList.add('grow');
-    else if (!think.classList.contains('hidden')) think.classList.add('grow');
-    else if (!tokens.classList.contains('hidden')) tokens.classList.add('grow');
-
-    // Right column: stats | ctx | git
-    var stats = document.getElementById('pane-stats');
+    // Left column: think | ctx
     var ctx = document.getElementById('pane-ctx');
-    var git = document.getElementById('pane-git');
-    [stats, ctx, git].forEach(function(p) { p.classList.remove('grow'); });
+    var think = document.getElementById('pane-think');
+    [ctx, think].forEach(function(p) { p.classList.remove('grow'); });
     if (ctx && !ctx.classList.contains('hidden')) ctx.classList.add('grow');
+    else if (!think.classList.contains('hidden')) think.classList.add('grow');
+
+    // Right column: stats | tokens | tools | git
+    var stats = document.getElementById('pane-stats');
+    var tokens = document.getElementById('pane-tokens');
+    var tools = document.getElementById('pane-tools');
+    var git = document.getElementById('pane-git');
+    [stats, tokens, tools, git].forEach(function(p) { p.classList.remove('grow'); });
+    if (!tools.classList.contains('hidden')) tools.classList.add('grow');
     else if (!stats.classList.contains('hidden')) stats.classList.add('grow');
+    else if (!tokens.classList.contains('hidden')) tokens.classList.add('grow');
     else if (!git.classList.contains('hidden')) git.classList.add('grow');
   }
 
@@ -1656,11 +1828,11 @@
     var filePath = fileObj.path || fileObj.rel_path;
     setText('diff-filename', (fileObj.rel_path || filePath) + ' (' + (currentDiffIndex + 1) + '/' + pendingFiles.length + ')');
     var body = document.getElementById('diff-body');
-    body.textContent = 'A carregar...';
+    body.textContent = 'Loading...';
     body.style.color = 'var(--text-dimmer)';
 
     fetch('/api/diff?project=' + encodeURIComponent(currentProject) + '&file=' + encodeURIComponent(filePath))
-      .then(function(r) { return r.ok ? r.text() : Promise.reject('Erro ao carregar diff'); })
+      .then(function(r) { return r.ok ? r.text() : Promise.reject('Error loading diff'); })
       .then(function(text) {
         // Try parsing as JSON (error response may wrap diff)
         try {
@@ -1671,7 +1843,7 @@
         renderDiffContent(text);
       })
       .catch(function(err) {
-        body.textContent = 'Erro ao carregar diff.';
+        body.textContent = 'Error loading diff.';
         body.style.color = 'var(--red)';
       });
   }
@@ -1683,7 +1855,7 @@
     if (!raw || !raw.trim()) {
       var msg = document.createElement('div');
       msg.style.color = 'var(--text-dimmer)';
-      msg.textContent = 'Sem alteracoes (ficheiro limpo ou binario).';
+      msg.textContent = 'No changes (clean file or binary).';
       body.appendChild(msg);
       return;
     }
@@ -1720,18 +1892,18 @@
     if (!arr || arr.length === 0) {
       var msg = document.createElement('div');
       msg.style.cssText = 'color:var(--text-dimmer);font-size:11px;padding:12px 0';
-      msg.textContent = 'Sem raciocinio registado nesta sessao.';
+      msg.textContent = 'No reasoning recorded in this session.';
       body.appendChild(msg);
       document.getElementById('think-modal').classList.remove('hidden');
       return;
     }
 
-    title.textContent = '\uD83E\uDDE0 Historico de Raciocinio \u00B7 ' + arr.length + ' bloco' + (arr.length !== 1 ? 's' : '');
+    title.textContent = '\uD83E\uDDE0 Reasoning History \u00B7 ' + arr.length + ' block' + (arr.length !== 1 ? 's' : '');
 
     var meta = document.createElement('div');
     meta.id = 'think-modal-meta';
     var totalWords = arr.reduce(function(s, b) { return s + (b.word_count || 0); }, 0);
-    meta.textContent = arr.length + ' blocos \u00B7 ' + totalWords.toLocaleString() + ' palavras no total';
+    meta.textContent = arr.length + ' blocks \u00B7 ' + totalWords.toLocaleString() + ' words total';
     body.appendChild(meta);
 
     arr.slice().reverse().forEach(function(block, revIdx) {
@@ -1756,7 +1928,7 @@
 
       var wordsEl = document.createElement('span');
       wordsEl.className = 'think-block-words';
-      wordsEl.textContent = (block.word_count || 0) + ' palavras';
+      wordsEl.textContent = (block.word_count || 0) + ' words';
 
       var toggleEl = document.createElement('span');
       toggleEl.className = 'think-block-toggle';
@@ -1851,6 +2023,59 @@
       });
   };
 
+  // -- Result preview modal (VARIAVEL items — tool result content) --
+  window.openResultPreview = function(item, label) {
+    var title = document.getElementById('tool-modal-title');
+    var body  = document.getElementById('tool-modal-body');
+    var icon  = {Read:'\uD83D\uDCD6', Write:'\u270F', Edit:'\u270F', Bash:'\u26A1', Glob:'\uD83D\uDD0D', Grep:'\uD83D\uDD0D', WebFetch:'\uD83C\uDF10'}[item.tool] || '\uD83D\uDD27';
+    title.textContent = icon + ' ' + item.tool + ' — ' + label;
+    body.textContent = '';
+    document.getElementById('tool-modal').classList.remove('hidden');
+
+    // Token / size info bar
+    var info = document.createElement('div');
+    info.style.cssText = 'display:flex;gap:16px;align-items:center;margin-bottom:10px;padding:8px 10px;background:var(--surface2);border-radius:4px;border:1px solid var(--border)';
+    var tokVal = (item.tokens_est || 0).toLocaleString();
+    var charVal = (item.total_chars || item.content.length).toLocaleString();
+    var truncWarn = item.total_chars > item.content.length ? '<span style="color:var(--yellow);font-size:10px">\u26A0 truncated at 8k</span>' : '';
+    var errWarn = item.is_error ? '<span style="color:var(--red);font-size:10px">\u26A0 error result</span>' : '';
+    info.innerHTML =
+      '<span style="font-size:20px;font-weight:700;color:var(--accent-blue);letter-spacing:-0.5px">' + tokVal + '<span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:4px">tokens</span></span>' +
+      '<span style="width:1px;height:24px;background:var(--border)"></span>' +
+      '<span style="font-size:14px;font-weight:600;color:var(--text)">' + charVal + '<span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">chars</span></span>' +
+      (truncWarn ? '<span style="width:1px;height:24px;background:var(--border)"></span>' + truncWarn : '') +
+      (errWarn   ? '<span style="width:1px;height:24px;background:var(--border)"></span>' + errWarn   : '');
+    body.appendChild(info);
+
+    // Content
+    var pre = document.createElement('pre');
+    pre.style.cssText = 'margin:0;white-space:pre-wrap;word-break:break-all;font-size:10px;line-height:1.5;color:var(--text)';
+    pre.textContent = item.content || '(empty)';
+    body.appendChild(pre);
+  };
+
+  // -- Message preview modal (CONVERSA items) --
+  window.openMessagePreview = function(msg) {
+    var title = document.getElementById('tool-modal-title');
+    var body  = document.getElementById('tool-modal-body');
+    var roleIcon = msg.is_compaction ? '\uD83D\uDD04 Compaction' : (msg.role === 'user' ? '\uD83D\uDC64 User' : '\uD83E\uDD16 Claude');
+    title.textContent = roleIcon;
+    body.textContent = '';
+    document.getElementById('tool-modal').classList.remove('hidden');
+
+    var info = document.createElement('div');
+    info.style.cssText = 'display:flex;gap:16px;align-items:center;margin-bottom:10px;padding:8px 10px;background:var(--surface2);border-radius:4px;border:1px solid var(--border)';
+    info.innerHTML = '<span style="font-size:20px;font-weight:700;color:var(--yellow);letter-spacing:-0.5px">' + (msg.tokens_est||0).toLocaleString() + '<span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:4px">tokens</span></span>' +
+      '<span style="width:1px;height:24px;background:var(--border)"></span>' +
+      '<span style="font-size:14px;font-weight:600;color:var(--text)">' + (msg.size_bytes||0).toLocaleString() + '<span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:4px">chars</span></span>';
+    body.appendChild(info);
+
+    var pre = document.createElement('pre');
+    pre.style.cssText = 'margin:0;white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.6;color:var(--text);font-family:var(--font-sans)';
+    pre.textContent = msg.full_text || msg.snippet || '(empty)';
+    body.appendChild(pre);
+  };
+
   // -- Tool detail modal --
   window.openToolDetail = function(t) {
     var d = t.detail;
@@ -1941,6 +2166,17 @@
   window.closeToolModal = function(e) {
     if (e && e.target !== document.getElementById('tool-modal')) return;
     document.getElementById('tool-modal').classList.add('hidden');
+  };
+
+  // -- About modal --
+  window.openAbout = function() {
+    var d = new Date();
+    document.getElementById('about-date').textContent = d.toLocaleDateString('pt-PT', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('about-modal').classList.remove('hidden');
+  };
+  window.closeAbout = function(e) {
+    if (e && e.target !== document.getElementById('about-modal')) return;
+    document.getElementById('about-modal').classList.add('hidden');
   };
 
   // -- Keyboard --

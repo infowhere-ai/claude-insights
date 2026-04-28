@@ -15,7 +15,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 def _default_projects_root() -> str:
@@ -976,6 +976,10 @@ async def health():
     return {"status": "ok", "projects_monitored": len(projects)}
 
 
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/insights")
+
 @app.get("/insights")
 async def insights_page():
     return FileResponse("static/insights.html")
@@ -1782,6 +1786,8 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
                                 "size_bytes": size_bytes,
                                 "tokens_est": size_bytes // 4,
                                 "is_error": c.get("is_error", False),
+                                "content": result_text[:8000],
+                                "total_chars": len(result_text),
                             })
         except OSError:
             pass
@@ -1796,6 +1802,59 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
     reads = [items[k] for k in sorted(last_pos, key=lambda k: last_pos[k], reverse=True)]
     reads_total_bytes = sum(r["size_bytes"] for r in reads)
 
+    # Conversation messages — user text + assistant text (excluding tool calls/results)
+    messages: list[dict] = []
+    conv_total_bytes = 0
+    if jsonl_path and jsonl_path.is_file():
+        try:
+            with jsonl_path.open(encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        d = json.loads(line)
+                    except Exception:
+                        continue
+                    role = d.get("type")  # "user" or "assistant"
+                    if role not in ("user", "assistant"):
+                        continue
+                    content = d.get("message", {}).get("content", []) or []
+                    text_parts: list[str] = []
+                    if isinstance(content, str):
+                        text_parts = [content]
+                    else:
+                        for c in content:
+                            if not isinstance(c, dict):
+                                continue
+                            # Skip tool_use and tool_result blocks
+                            if c.get("type") in ("tool_use", "tool_result"):
+                                continue
+                            if c.get("type") == "text":
+                                text_parts.append(c.get("text", ""))
+                            elif c.get("type") == "thinking":
+                                pass  # skip thinking blocks
+                    text = "\n".join(text_parts).strip()
+                    if not text:
+                        continue
+                    # Skip system metadata injected as user messages (commands, hooks, etc.)
+                    if text.startswith("<command-") or text.startswith("<local-command") or text.startswith("<system-reminder"):
+                        continue
+                    size_bytes = len(text.encode("utf-8"))
+                    conv_total_bytes += size_bytes
+                    is_compaction = role == "user" and text.startswith("This session is being continued from a previous conversation")
+                    messages.append({
+                        "role": role,
+                        "is_compaction": is_compaction,
+                        "snippet": text[:120],
+                        "full_text": text[:8000],
+                        "total_chars": len(text),
+                        "size_bytes": size_bytes,
+                        "tokens_est": size_bytes // 4,
+                    })
+        except OSError:
+            pass
+
     return {
         "rules": rules,
         "rules_total_bytes": rules_total_bytes,
@@ -1803,6 +1862,9 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
         "reads": reads[:60],  # top 60
         "reads_total_bytes": reads_total_bytes,
         "reads_total_tokens_est": reads_total_bytes // 4,
+        "messages": list(reversed(messages[-50:])),  # most recent first, last 50
+        "conv_total_bytes": conv_total_bytes,
+        "conv_total_tokens_est": conv_total_bytes // 4,
         "session_id": str(jsonl_path.stem) if jsonl_path else None,
     }
 

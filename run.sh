@@ -148,15 +148,8 @@ cmd_start() {
         exit 1
     fi
 
-    if [ -f "$PID_FILE" ]; then
-        PID="$(cat "$PID_FILE")"
-        if kill -0 "$PID" 2>/dev/null; then
-            yellow "claude-monitor is already running (PID $PID) — $URL"
-            open_ui "$open_mode"
-            return 0
-        fi
-        rm -f "$PID_FILE"
-    fi
+    # Always stop any running instance before starting fresh.
+    cmd_stop 2>/dev/null || true
 
     ensure_venv
 

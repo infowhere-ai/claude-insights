@@ -1,150 +1,159 @@
-# Claude Monitor
+<div align="center">
+  <img src="docs/logo.png" alt="Claude Insights" width="220"/>
 
-Real-time dashboard for [Claude Code](https://claude.ai/code) sessions. See what Claude is doing across all your projects — current status, active agents, changed files, git diffs, token usage, and a full event log.
+  # Claude Insights
 
-![Claude Monitor screenshot](docs/screenshot.png)
+  **Real-time dashboard for Claude Code sessions**
+
+  Monitor what Claude is doing across all your projects — live status, token usage, session context, git changes, and reasoning history.
+
+  ![Version](https://img.shields.io/badge/version-1.0.0--beta-blue)
+  ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+  ![License](https://img.shields.io/badge/license-MIT-green)
+
+  *by [Leandro Siciliano](https://www.infowhere.ai) · InfoWhere*
+</div>
+
+---
+
+![Claude Insights screenshot](docs/screenshot.png)
+
+## What it does
+
+Claude Insights is a lightweight web dashboard that connects to Claude Code via hooks. It shows you exactly what Claude is doing in real time — which tool it is running, what files it touched, how many tokens the session has consumed, and what is in the context window.
+
+Everything runs **locally**. No data leaves your machine.
+
+---
 
 ## Features
 
-- **Live status** — see Claude's current action in real time via SSE (no polling)
-- **Multi-project** — monitors all projects under a root folder simultaneously
-- **Active agents** — shows sub-agents spawned by Claude, their description and state
-- **Changed files** — lists uncommitted files with git status and inline diff viewer
-- **Event log** — full history of tool calls, file edits, and bash commands per session
-- **Token usage** — weekly token breakdown (input, output, cache) across all projects
-- **Account tab** — daily activity chart and model info from your Claude settings
-- **Skills viewer** — browse available Claude Code skills from `~/.claude/skills/`
-- **CLAUDE.md viewer** — read the project instructions loaded in each session
-- **Terminal** — embedded Claude Code terminal (requires `claude` in PATH)
-- **PWA** — installable as a standalone desktop app (no browser chrome)
-- **Dark theme** — Catppuccin Mocha palette
+| Area | What you see |
+|------|-------------|
+| **Live status** | Current state — working, waiting for input, compacting, idle |
+| **Reasoning** | Claude's internal thinking, live as it streams |
+| **Session context** | Full breakdown of the context window: fixed rules, conversation, tool results |
+| **Token usage** | Input, output, cache — per session and weekly totals |
+| **Commands** | Every tool call with arguments, result preview, and token cost |
+| **To commit** | Uncommitted git changes with inline diff viewer |
+| **Multi-project** | Monitors all projects under a root folder simultaneously |
+| **Session history** | Browse past sessions and replay their events |
+
+---
 
 ## How it works
 
-Claude Code writes its current state to `.claude/status.json` in each project directory. Claude Monitor watches those files and streams updates to the browser via [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
+```
+Claude Code  →  hook fires  →  .claude/status.json  →  Claude Insights (SSE)  →  browser
+```
 
-You need to configure Claude Code hooks to write the status file. See [Hook setup](#hook-setup) below.
+Claude Code hooks write a small JSON file to `.claude/status.json` inside each project directory every time Claude calls a tool. Claude Insights watches those files and streams updates to the browser via [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). The JSONL session files written by Claude Code are also read directly to extract reasoning, tool calls, and conversation history.
+
+---
 
 ## Requirements
 
-- Python 3.10+
-- Claude Code CLI (`claude`) installed and configured
-- macOS or Linux (the terminal feature uses PTY — not supported on Windows)
+- **Python 3.10+**
+- **Claude Code CLI** (`claude`) installed and in PATH
+- **macOS or Linux**
+- **Git** (for the diff viewer)
 
-## Quick start
+---
+
+## Installation
 
 ```bash
 git clone https://github.com/infowhere-be/claude-monitor.git
 cd claude-monitor
-./run.sh start
+./install.sh
 ```
 
-The first run creates a virtual environment and installs dependencies automatically. The app starts on **http://localhost:19001**.
+The installer will:
 
-```
-./run.sh start     # start in background
-./run.sh stop      # stop
-./run.sh restart   # restart
-./run.sh status    # check if running
-```
+1. Check that `python3` and `claude` are available
+2. Create a Python virtual environment inside the project folder (`.venv/`)
+3. Install Python dependencies (FastAPI, uvicorn, httpx)
+4. Copy the hook script to `~/.claude/hooks/monitor-hook.sh`
+5. Register the hook in `~/.claude/settings.json`
 
-## Hook setup
+### What the installer touches on your machine
 
-Claude Monitor reads `.claude/status.json` files written by Claude Code hooks. Add the following hooks to your `~/.claude/settings.json`:
+| Location | What | Reversible |
+|----------|------|-----------|
+| `~/.claude/settings.json` | Adds hook entries for 5 Claude Code events | Yes — remove the entries manually |
+| `~/.claude/hooks/monitor-hook.sh` | The hook script that writes status files | Yes — delete the file |
+| `<project>/.claude/status.json` | Written at runtime by the hook (one per project) | Yes — gitignored by default |
+| `.venv/` inside claude-monitor | Python virtual environment | Yes — delete the folder |
 
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash -c 'PROJECT_DIR=\"$(pwd)\"; STATUS_FILE=\"$PROJECT_DIR/.claude/status.json\"; mkdir -p \"$(dirname \"$STATUS_FILE\")\"; TOOL=$(echo \"$CLAUDE_TOOL_INPUT\" | python3 -c \"import json,sys; d=json.load(sys.stdin); print(d.get(\\\"tool_name\\\",\\\"\\\"))\" 2>/dev/null || echo \"unknown\"); echo \"{\\\"status\\\":\\\"working\\\",\\\"tool\\\":\\\"$TOOL\\\",\\\"ts\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"}\" > \"$STATUS_FILE\"'"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash -c 'PROJECT_DIR=\"$(pwd)\"; STATUS_FILE=\"$PROJECT_DIR/.claude/status.json\"; mkdir -p \"$(dirname \"$STATUS_FILE\")\"; echo \"{\\\"status\\\":\\\"idle\\\",\\\"ts\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"}\" > \"$STATUS_FILE\"'"
-          }
-        ]
-      }
-    ]
-  }
-}
+No data is sent to any server. The hook script only writes a small JSON file to the current project directory.
+
+> **Existing hooks are preserved.** The installer reads your current `settings.json` and adds only what is missing — it never removes or overwrites existing hooks.
+
+---
+
+## Start / stop
+
+```bash
+./run.sh start          # start and open in browser
+./run.sh stop           # stop the server
+./run.sh restart        # restart
+./run.sh status         # check if running
 ```
 
-> **Note:** For richer status data (file paths, commands, event log), you can extend the hook script to include more fields from `$CLAUDE_TOOL_INPUT`. The monitor displays whatever JSON fields are present in `status.json`.
+The server starts on **http://localhost:19001** by default.
+
+---
 
 ## Configuration
 
-Environment variables (set before running `./run.sh start` or in Docker):
-
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PROJECTS_ROOT` | `~/projects` | Root folder containing your project directories |
 | `PORT` | `19001` | HTTP port |
-| `POLL_INTERVAL` | `1.0` | How often (seconds) to check for file changes |
-| `DISCOVERY_INTERVAL` | `60.0` | How often (seconds) to scan for new projects |
-| `BUILD_DATE` | today's date | Build date shown in the preferences footer |
-
-Example:
+| `PROJECTS_ROOT` | parent of claude-monitor | Root folder containing your project directories |
 
 ```bash
-PROJECTS_ROOT=~/code PORT=8080 ./run.sh start
+PORT=8080 PROJECTS_ROOT=~/code ./run.sh start
 ```
 
-You can also add extra project roots directly in the UI via **Settings → Monitored folders → Add folder**.
+Claude Insights auto-discovers any project that has a `.claude/` directory under `PROJECTS_ROOT`.
 
-## Docker
+---
+
+## Uninstall
 
 ```bash
-docker compose up -d
+# 1. Stop the server
+./run.sh stop
+
+# 2. Remove the hook script
+rm ~/.claude/hooks/monitor-hook.sh
+
+# 3. Remove hook entries from ~/.claude/settings.json
+#    Open the file and delete the entries that reference monitor-hook.sh
+
+# 4. Delete the project folder
+cd .. && rm -rf claude-monitor
 ```
 
-Edit `docker-compose.yml` to set `PROJECTS_ROOT` to the path containing your projects:
-
-```yaml
-environment:
-  - PROJECTS_ROOT=/projects
-volumes:
-  - /path/to/your/projects:/projects:ro
-```
-
-The volume is mounted read-only — Claude Monitor never writes to your project files.
-
-## Install as PWA (desktop app)
-
-Claude Monitor is a Progressive Web App. To install it as a standalone window without browser chrome:
-
-1. Open **http://localhost:19001** in Chrome or Edge
-2. Click the install icon (⊕) in the address bar, or open the browser menu and choose **Install Claude Monitor**
-3. The app opens in its own window and appears in your dock/taskbar
+---
 
 ## Project structure
 
 ```
 claude-monitor/
-├── app.py          # FastAPI backend — SSE, git diff, config API
+├── app.py              # FastAPI backend — SSE, git diff, context inspector
 ├── static/
-│   ├── index.html  # Single-page frontend (vanilla JS, no build step)
+│   ├── insights.html   # Dashboard (vanilla JS, no build step)
+│   ├── logo.png        # Brand logo
 │   ├── manifest.json
-│   ├── sw.js
-│   ├── icon-192.png
-│   └── icon-512.png
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-└── run.sh          # Start/stop helper script
+│   └── sw.js
+├── install.sh          # Installer — sets up hooks and dependencies
+├── run.sh              # Start / stop helper
+└── requirements.txt
 ```
+
+---
 
 ## License
 
-MIT
+MIT — © 2026 [InfoWhere](https://www.infowhere.ai)
