@@ -38,10 +38,21 @@ Repository = "https://github.com/infowhere-be/claude-monitor"
 [tool.hatch.build.targets.wheel]
 packages = ["claude_insights"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# Bundle the server and assets inside the package so `claude-insights start` works
+# regardless of where the user installed it.
+"app.py"          = "claude_insights/app.py"
+"monitor-hook.sh" = "claude_insights/monitor-hook.sh"
+"install.sh"      = "claude_insights/install.sh"
+"static"          = "claude_insights/static"
+
 [tool.hatch.build.targets.sdist]
 include = [
     "claude_insights/",
+    "app.py",
     "static/",
+    "monitor-hook.sh",
+    "install.sh",
     "README.md",
     "requirements.txt",
 ]

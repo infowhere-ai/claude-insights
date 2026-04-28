@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies + PyInstaller
         run: |
-          pip install fastapi "uvicorn[standard]" pyinstaller
+          pip install fastapi "uvicorn[standard]" pyinstaller httpx anyio
 
       - name: Build binary
         run: |
@@ -61,7 +61,7 @@ jobs:
 
       - name: Install dependencies + PyInstaller
         run: |
-          pip install fastapi "uvicorn[standard]" pyinstaller
+          pip install fastapi "uvicorn[standard]" pyinstaller httpx anyio
 
       - name: Build binary
         run: |
