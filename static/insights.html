@@ -715,6 +715,19 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  /* -- Mobile (≤768px) -- */
+  @media (max-width: 768px) {
+    #header { flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px 10px; }
+    #header-nav { flex-wrap: wrap; gap: 6px; }
+    #header-title { font-size: 13px; }
+    #main { flex-direction: column; }
+    #col-live, #col-right { min-width: 0; width: 100%; }
+    .sidebar { display: none; }
+    body { font-size: 11px; }
+    .panel { padding: 8px 10px; }
+    #agents-panel { padding: 6px 10px; }
+  }
 </style>
 </head>
 <body>
@@ -750,6 +763,12 @@
         <div id="status-dot" class="idle"></div>
         <span id="status-label" class="idle">IDLE</span>
         <span id="status-action"></span>
+      </div>
+
+      <!-- Active agents -->
+      <div id="agents-panel" style="display:none;padding:6px 12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:5px;margin-bottom:6px">
+        <div style="font-size:9px;font-family:var(--font-mono);color:var(--blue);letter-spacing:1px;margin-bottom:4px">AGENTS</div>
+        <div id="agents-list"></div>
       </div>
 
       <!-- Thinking -->
@@ -947,7 +966,7 @@
       <div id="about-copy">
         <div>&copy; 2026 Leandro Siciliano. All rights reserved.</div>
         <div style="margin-top:6px;display:flex;gap:12px;justify-content:center">
-          <a href="https://github.com/infowhere-ai/claude-insights" target="_blank" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">github.com/infowhere-ai/claude-insights</a>
+          <span style="color:var(--text-dimmer);font-size:10px">Open source release coming soon</span>
         </div>
       </div>
       <button id="about-close-btn" onclick="closeAbout()">Close</button>
@@ -963,6 +982,7 @@
   var currentProject = null;
   var currentSessionId = null;
   var isLive = false;
+  var _userLockedSession = false;  // true when user manually selected a historical session
   var lastBlockId = null;
   var pendingFiles = [];
   var currentDiffIndex = 0;
@@ -1113,6 +1133,7 @@
       if (projName === currentProject) {
         // Always update the status bar for the active project
         updateStatusBar(msg.data);
+        renderActiveAgents(msg.data && msg.data.active_agents);
 
         var projState = (msg.data && (msg.data.state || msg.data.status)) || 'idle';
         // Refresh badge: project may now be live even if selected session is history
@@ -1120,7 +1141,8 @@
         loadPendingFiles();
         // If Claude just became active and we're not in live mode, reload sessions
         // so the active session is detected and isLive is set to true.
-        if (!isLive && (projState === 'working' || projState === 'waiting' || projState === 'compacting')) {
+        // Skip if user has manually locked onto a historical session.
+        if (!isLive && !_userLockedSession && (projState === 'working' || projState === 'waiting' || projState === 'compacting')) {
           var now2 = Date.now();
           if (!window._lastSessionsReload || now2 - window._lastSessionsReload > 5000) {
             window._lastSessionsReload = now2;
@@ -1179,6 +1201,7 @@
 
   window.switchProject = function(name) {
     currentProject = name;
+    _userLockedSession = false;  // new project — reset session lock
     localStorage.setItem('insights-project', name);
     var sel = document.getElementById('project-select');
     if (sel.value !== name) sel.value = name;
@@ -1231,7 +1254,10 @@
 
   window.onSessionSelectChange = function(sessionId) {
     if (!sessionId) return;
-    selectSession(sessionId, !!_sessionsMap[sessionId]);
+    var active = !!_sessionsMap[sessionId];
+    // Lock SSE auto-switch when user explicitly picks a historical session
+    _userLockedSession = !active;
+    selectSession(sessionId, active);
   };
 
   function updateLiveBadge() {
@@ -1247,6 +1273,41 @@
     badge.appendChild(document.createTextNode(
       (isActive ? ' Live \u00B7 ' : ' History \u00B7 ') + currentProject
     ));
+  }
+
+  function renderActiveAgents(agents) {
+    var panel = document.getElementById('agents-panel');
+    var list  = document.getElementById('agents-list');
+    if (!panel || !list) return;
+    if (!agents || agents.length === 0) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+    list.textContent = '';
+    agents.forEach(function(a) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:10px';
+      var dot = document.createElement('div');
+      var running = a.state === 'running';
+      dot.style.cssText = 'width:6px;height:6px;border-radius:50%;flex-shrink:0;background:' +
+        (running ? 'var(--green)' : 'var(--text-dim)');
+      var desc = document.createElement('span');
+      desc.style.cssText = 'color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      desc.title = a.description || a.id || '';
+      desc.textContent = a.description || a.id || 'agent';
+      var dur = document.createElement('span');
+      dur.style.cssText = 'color:var(--text-dimmer);font-family:var(--font-mono);font-size:9px;flex-shrink:0';
+      var startTs = a.started_at ? new Date(a.started_at) : null;
+      if (startTs && !isNaN(startTs)) {
+        var endTs = a.finished_at ? new Date(a.finished_at) : new Date();
+        var secs = Math.round((endTs - startTs) / 1000);
+        dur.textContent = running
+          ? Math.floor(secs / 60) + 'm ' + (secs % 60) + 's'
+          : (a.finished_at ? Math.floor(secs / 60) + 'm ' + (secs % 60) + 's \u2713' : '');
+      }
+      row.appendChild(dot);
+      row.appendChild(desc);
+      row.appendChild(dur);
+      list.appendChild(row);
+    });
   }
 
   function selectSession(sessionId, live) {
