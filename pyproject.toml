@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "Leandro Siciliano", email = "leandro@infowhere.ai" }
+    { name = "Leandro Siciliano" }
 ]
 keywords = ["claude", "ai", "monitor", "dashboard", "developer-tools"]
 classifiers = [
@@ -32,8 +32,8 @@ dependencies = [
 claude-insights = "claude_insights.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/infowhere-be/claude-monitor"
-Repository = "https://github.com/infowhere-be/claude-monitor"
+Homepage = "https://github.com/infowhere-ai/claude-insights"
+Repository = "https://github.com/infowhere-ai/claude-insights"
 
 [tool.hatch.build.targets.wheel]
 packages = ["claude_insights"]

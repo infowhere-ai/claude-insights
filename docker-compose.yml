@@ -9,7 +9,7 @@ services:
       - POLL_INTERVAL=1.0
       - DISCOVERY_INTERVAL=60.0
     volumes:
-      - ${HOME}/desenvolvimento/github-infowhere:/projects:ro
+      - ${PROJECTS_ROOT:-$HOME}:/projects:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:19001/health')\" || exit 1"]

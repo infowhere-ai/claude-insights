@@ -945,11 +945,9 @@
         <span class="about-row-value" id="about-date"></span>
       </div>
       <div id="about-copy">
-        <div>&copy; 2026 InfoWhere. All rights reserved.</div>
+        <div>&copy; 2026 Leandro Siciliano. All rights reserved.</div>
         <div style="margin-top:6px;display:flex;gap:12px;justify-content:center">
-          <a href="https://www.infowhere.ai" target="_blank" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">www.infowhere.ai</a>
-          <span style="color:var(--border)">·</span>
-          <a href="mailto:infowhere@infowhere.ai" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">infowhere@infowhere.ai</a>
+          <a href="https://github.com/infowhere-ai/claude-insights" target="_blank" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">github.com/infowhere-ai/claude-insights</a>
         </div>
       </div>
       <button id="about-close-btn" onclick="closeAbout()">Close</button>
@@ -1656,10 +1654,10 @@
       document.getElementById('ctx-bar-fixed').style.width = fixedPct.toFixed(1) + '%';
       document.getElementById('ctx-bar-conv').style.width  = convPct.toFixed(1)  + '%';
       document.getElementById('ctx-bar-var').style.width   = varPct.toFixed(1)   + '%';
-      document.getElementById('ctx-lbl-fixed').textContent = 'fixo ~' + fmtTok(rulesTok) + ' (' + fixedPct0 + '%)';
-      document.getElementById('ctx-lbl-conv').textContent  = 'conversa ~' + fmtTok(convTok) + ' (' + convPct0 + '%)';
+      document.getElementById('ctx-lbl-fixed').textContent = 'fixed ~' + fmtTok(rulesTok) + ' (' + fixedPct0 + '%)';
+      document.getElementById('ctx-lbl-conv').textContent  = 'chat ~' + fmtTok(convTok) + ' (' + convPct0 + '%)';
       document.getElementById('ctx-lbl-var').textContent   = 'var ~' + fmtTok(readsTok)  + ' (' + varPct0   + '%)';
-      document.getElementById('ctx-lbl-free').textContent  = '~' + fmtTok(freeAmt) + ' livre';
+      document.getElementById('ctx-lbl-free').textContent  = '~' + fmtTok(freeAmt) + ' free';
       wrap.style.display = '';
     }
 
@@ -1758,31 +1756,26 @@
     // Fixed context box — rules loaded at session start
     bodyEl.appendChild(buildBox(
       'ctx-fixed',
-      'Fixo',
-      'CLAUDE.md + .claude/rules/ — carregado automaticamente',
+      'Fixed',
+      'CLAUDE.md + .claude/rules/ — loaded at session start',
       rulesTok,
       data.rules,
       function(r) { return CAT_ICONS[r.category] || '\uD83D\uDCC4'; },
-      function(r) {
-        var lbl = r.label || '';
-        lbl = lbl.replace(/standarts\/(?:common|private|work)\/rules\//, '');
-        lbl = lbl.replace(/standarts\/(?:common|private|work)\//, '');
-        return lbl;
-      }
+      function(r) { return r.label || ''; }
     ));
 
     // Variable context box — tool results accumulated during session
     bodyEl.appendChild(buildBox(
       'ctx-var',
-      'Variavel',
-      'Resultados de Read/Bash/Grep acumulados na conversa',
+      'Variable',
+      'Read/Bash/Grep results accumulated during the session',
       readsTok,
       data.reads,
       function(r) { return TOOL_ICONS_CTX[r.tool] || '\uD83D\uDD27'; },
       function(r) {
         var lbl = r.label || '';
-        lbl = lbl.replace(/\/Users\/[^/]+\/desenvolvimento\/github-infowhere\/[^/]+\//, '');
         lbl = lbl.replace(/\/Users\/[^/]+\//, '~/');
+        lbl = lbl.replace(/\/home\/[^/]+\//, '~/');
         return lbl;
       }
     ));

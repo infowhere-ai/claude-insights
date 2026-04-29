@@ -1452,13 +1452,10 @@ def _parse_skill_md(content: str, name: str) -> dict:
 
 @app.get("/api/skills")
 async def get_skills():
-    """Returns list of available skills from ~/.claude/skills/ and standarts."""
+    """Returns list of available skills from ~/.claude/skills/."""
     skills = []
     search_dirs = [
         (Path.home() / ".claude" / "skills", "user"),
-        (PROJECTS_ROOT / "standarts" / "common" / "skills", "common"),
-        (PROJECTS_ROOT / "standarts" / "private" / "skills", "private"),
-        (PROJECTS_ROOT / "standarts" / "work" / "skills", "work"),
     ]
     for base, source in search_dirs:
         if not base.is_dir():
@@ -1673,7 +1670,6 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
         _add_rule("~/.claude/CLAUDE.md", global_claude, "global")
 
     # .claude/rules/ — handles both file symlinks and directory symlinks
-    # Common pattern: common -> standarts/common/rules/, private -> standarts/private/rules/
     rules_dir = project_path / ".claude" / "rules"
     if rules_dir.is_dir():
         for entry in sorted(rules_dir.iterdir()):

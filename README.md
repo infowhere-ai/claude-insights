@@ -11,7 +11,7 @@
   ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
   ![License](https://img.shields.io/badge/license-MIT-green)
 
-  *by [Leandro Siciliano](https://www.infowhere.ai) · InfoWhere*
+  *by [Leandro Siciliano](https://github.com/ltsiciliano)*
 </div>
 
 ---
@@ -63,7 +63,7 @@ Claude Code hooks write a small JSON file to `.claude/status.json` inside each p
 ## Installation
 
 ```bash
-git clone https://github.com/infowhere-be/claude-monitor.git
+git clone https://github.com/infowhere-ai/claude-insights.git
 cd claude-monitor
 ./install.sh
 ```
@@ -156,4 +156,4 @@ claude-monitor/
 
 ## License
 
-MIT — © 2026 [InfoWhere](https://www.infowhere.ai)
+MIT — © 2026 Leandro Siciliano

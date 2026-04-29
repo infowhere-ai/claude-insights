@@ -6,7 +6,7 @@ __pycache__/
 
 # Claude
 .claude/status.json
-.claude/logs/.session-*
+.claude/logs/
 
 # IDE
 .idea/
@@ -24,3 +24,19 @@ __pycache__/
 .claude/weekly_tokens.json
 .superpowers/
 .worktrees/
+
+# Internal planning docs (not relevant for public repo)
+docs/superpowers/
+
+# Build artefacts
+dist/
+*.whl
+*.egg-info/
+
+# Test coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Playwright
+.playwright-mcp/
