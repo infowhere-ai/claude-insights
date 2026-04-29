@@ -98,12 +98,91 @@ jobs:
           name: python-wheel
           path: dist/*.whl
 
-  # ── 4. Create GitHub Release ───────────────────────────────────────────────
+  # ── 4. Smoke test — validate artefacts before releasing ───────────────────
+
+  smoke-test:
+    name: Smoke test artefacts
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-wheel]
+
+    steps:
+      - name: Download wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: python-wheel
+          path: artifacts/
+
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-linux-x86_64
+          path: artifacts/
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install wheel via pipx
+        run: |
+          pip install pipx
+          pipx install artifacts/*.whl
+
+      - name: Create mock project
+        run: |
+          mkdir -p /tmp/test-root/smoke-project/.claude
+          echo '{"status":"idle","tool":null,"file":null}' \
+            > /tmp/test-root/smoke-project/.claude/status.json
+
+      - name: Start server in background
+        run: |
+          PROJECTS_ROOT=/tmp/test-root \
+          ~/.local/bin/claude-insights start --port 4000 &
+          echo $! > /tmp/server.pid
+
+      - name: Wait for server ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4000/health && { echo "Server ready after ${i}s"; break; }
+            [ $i -eq 30 ] && { echo "Timed out waiting for server"; exit 1; }
+            sleep 1
+          done
+
+      - name: Health check
+        run: |
+          RESP=$(curl -sf http://localhost:4000/health)
+          echo "$RESP"
+          echo "$RESP" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          assert d['status'] == 'ok', f'unexpected status: {d}'
+          print(f'OK -- {d[\"projects_monitored\"]} project(s) monitored')
+          "
+
+      - name: API status check
+        run: |
+          curl -sf http://localhost:4000/api/status | python3 -c "
+          import json, sys
+          projects = json.load(sys.stdin)
+          print(f'Projects returned: {len(projects)}')
+          "
+
+      - name: Linux binary is a valid ELF executable
+        run: |
+          chmod +x artifacts/claude-insights-linux-x86_64
+          file artifacts/claude-insights-linux-x86_64 | grep -q ELF
+          echo "Binary is a valid ELF executable"
+
+      - name: Stop server
+        if: always()
+        run: kill $(cat /tmp/server.pid 2>/dev/null) 2>/dev/null || true
+
+  # ── 5. Create GitHub Release ───────────────────────────────────────────────
 
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-macos, build-linux, build-wheel]
+    needs: [build-macos, build-linux, build-wheel, smoke-test]
     permissions:
       contents: write
 
@@ -170,7 +249,7 @@ jobs:
             |------|--------|
             | claude-insights-macos-arm64 | `${{ steps.sha.outputs.sha_macos_arm64 }}` |
 
-  # ── 5. Publish to Nexus PyPI ───────────────────────────────────────────────
+  # ── 6. Publish to Nexus PyPI ───────────────────────────────────────────────
 
   publish-pypi:
     name: Publish to Nexus PyPI
@@ -193,7 +272,7 @@ jobs:
             --password "${{ secrets.NEXUS_PASSWORD }}" \
             dist/*.whl
 
-  # ── 6. Publish .deb to Nexus APT ──────────────────────────────────────────
+  # ── 7. Publish .deb to Nexus APT ──────────────────────────────────────────
 
   publish-deb:
     name: Build and publish .deb to Nexus APT
@@ -225,7 +304,7 @@ jobs:
             --upload-file "dist/claude-insights_${VERSION}_amd64.deb" \
             "${NEXUS_APT_URL}/claude-insights_${VERSION}_amd64.deb"
 
-  # ── 7. Update Homebrew formula ─────────────────────────────────────────────
+  # ── 8. Update Homebrew formula ─────────────────────────────────────────────
 
   update-homebrew:
     name: Update Homebrew formula
