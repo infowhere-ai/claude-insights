@@ -2,17 +2,17 @@
 # Auto-updated by the release workflow via update-homebrew-formula.sh.
 # Do not edit manually — changes will be overwritten on next release.
 #
-# Live formula: https://github.com/infowhere-be/homebrew-claude-insights
+# Live formula: https://github.com/infowhere-ai/homebrew-claude-insights
 
 class ClaudeInsights < Formula
   desc "Real-time dashboard for Claude Code sessions"
-  homepage "https://github.com/infowhere-be/claude-monitor"
+  homepage "https://github.com/infowhere-ai/claude-insights"
   version "FORMULA_VERSION"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/infowhere-be/claude-monitor/releases/download/vFORMULA_VERSION/claude-insights-macos-arm64"
+      url "https://github.com/infowhere-ai/claude-insights/releases/download/vFORMULA_VERSION/claude-insights-macos-arm64"
       sha256 "FORMULA_SHA256_ARM64"
     end
   end
