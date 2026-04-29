@@ -123,11 +123,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install wheel via pipx
+      - name: Install wheel via pip
         run: |
-          pip install pipx
-          pipx install artifacts/*.whl
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          pip install artifacts/*.whl
+          claude-insights --version
 
       - name: Create mock project
         run: |
