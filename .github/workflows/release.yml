@@ -137,20 +137,29 @@ jobs:
       - name: Start server in background
         run: |
           PROJECTS_ROOT=/tmp/test-root \
-          ~/.local/bin/claude-insights start --port 4000 &
+          ~/.local/bin/claude-insights start --host 0.0.0.0 --port 4000 \
+            > /tmp/server.log 2>&1 &
           echo $! > /tmp/server.pid
+          echo "Server PID: $(cat /tmp/server.pid)"
 
       - name: Wait for server ready
         run: |
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:4000/health && { echo "Server ready after ${i}s"; break; }
-            [ $i -eq 30 ] && { echo "Timed out waiting for server"; exit 1; }
+          for i in $(seq 1 45); do
+            if curl -sf http://127.0.0.1:4000/health > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              break
+            fi
+            if [ $i -eq 45 ]; then
+              echo "Timed out. Server log:"
+              cat /tmp/server.log || true
+              exit 1
+            fi
             sleep 1
           done
 
       - name: Health check
         run: |
-          RESP=$(curl -sf http://localhost:4000/health)
+          RESP=$(curl -sf http://127.0.0.1:4000/health)
           echo "$RESP"
           echo "$RESP" | python3 -c "
           import json, sys
@@ -161,7 +170,7 @@ jobs:
 
       - name: API status check
         run: |
-          curl -sf http://localhost:4000/api/status | python3 -c "
+          curl -sf http://127.0.0.1:4000/api/status | python3 -c "
           import json, sys
           projects = json.load(sys.stdin)
           print(f'Projects returned: {len(projects)}')
