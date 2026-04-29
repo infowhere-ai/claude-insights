@@ -33,11 +33,11 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: Leandro Siciliano <leandro@infowhere.ai>
+Maintainer: Leandro Siciliano <infowhere@infowhere.ai>
 Description: Real-time dashboard for Claude Code sessions
  Monitor what Claude Code is doing in real time — active tool,
  session history, token usage, and thinking blocks.
-Homepage: https://github.com/infowhere-be/claude-monitor
+Homepage: https://github.com/infowhere-ai/claude-insights
 EOF
 
 # ── Post-install script ────────────────────────────────────────────────────────

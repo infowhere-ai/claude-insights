@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "Leandro Siciliano" }
+    { name = "Leandro Siciliano", email = "infowhere@infowhere.ai" }
 ]
 keywords = ["claude", "ai", "monitor", "dashboard", "developer-tools"]
 classifiers = [
