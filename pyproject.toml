@@ -42,6 +42,7 @@ packages = ["claude_insights"]
 # Bundle the server and assets inside the package so `claude-insights start` works
 # regardless of where the user installed it.
 "app.py"          = "claude_insights/app.py"
+"db.py"           = "claude_insights/db.py"
 "monitor-hook.sh" = "claude_insights/monitor-hook.sh"
 "install.sh"      = "claude_insights/install.sh"
 "static"          = "claude_insights/static"
