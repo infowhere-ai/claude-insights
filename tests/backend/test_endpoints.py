@@ -325,3 +325,51 @@ def test_status_active_agents_reads_agent_files(app_client, tmp_project):
     body = r.json()
     for data in body.get("projects", {}).values():
         assert "active_agents" in data
+
+
+# ── /api/agent-history ────────────────────────────────────────────────────────
+
+def test_agent_history_returns_list(app_client):
+    r = app_client.get("/api/agent-history")
+    assert r.status_code == 200
+    body = r.json()
+    assert "agents" in body
+    assert isinstance(body["agents"], list)
+
+
+def test_agent_history_accepts_project_filter(app_client):
+    r = app_client.get("/api/agent-history?project=my-project")
+    assert r.status_code == 200
+    body = r.json()
+    assert "agents" in body
+
+
+def test_agent_history_accepts_limit(app_client):
+    r = app_client.get("/api/agent-history?limit=10")
+    assert r.status_code == 200
+    body = r.json()
+    assert "agents" in body
+
+
+# ── /api/session-history ──────────────────────────────────────────────────────
+
+def test_session_history_returns_list(app_client):
+    r = app_client.get("/api/session-history")
+    assert r.status_code == 200
+    body = r.json()
+    assert "sessions" in body
+    assert isinstance(body["sessions"], list)
+
+
+def test_session_history_accepts_project_filter(app_client):
+    r = app_client.get("/api/session-history?project=my-project")
+    assert r.status_code == 200
+    body = r.json()
+    assert "sessions" in body
+
+
+def test_session_history_accepts_limit(app_client):
+    r = app_client.get("/api/session-history?limit=5")
+    assert r.status_code == 200
+    body = r.json()
+    assert "sessions" in body
