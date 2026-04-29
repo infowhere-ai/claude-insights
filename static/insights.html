@@ -1115,10 +1115,12 @@
         updateStatusBar(msg.data);
 
         var projState = (msg.data && (msg.data.state || msg.data.status)) || 'idle';
+        // Refresh badge: project may now be live even if selected session is history
+        updateLiveBadge();
         loadPendingFiles();
         // If Claude just became active and we're not in live mode, reload sessions
         // so the active session is detected and isLive is set to true.
-        if (!isLive && (projState === 'working' || projState === 'waiting')) {
+        if (!isLive && (projState === 'working' || projState === 'waiting' || projState === 'compacting')) {
           var now2 = Date.now();
           if (!window._lastSessionsReload || now2 - window._lastSessionsReload > 5000) {
             window._lastSessionsReload = now2;
@@ -1232,20 +1234,28 @@
     selectSession(sessionId, !!_sessionsMap[sessionId]);
   };
 
+  function updateLiveBadge() {
+    var badge = document.getElementById('live-badge');
+    if (!badge || !currentSessionId) return;
+    var projData = allProjects[currentProject] || {};
+    var projState = projData.state || projData.status || 'idle';
+    var isActive = isLive || projState === 'working' || projState === 'waiting' || projState === 'compacting';
+    badge.textContent = '';
+    var dot = document.createElement('div');
+    dot.className = isActive ? 'live-dot' : 'live-dot dim';
+    badge.appendChild(dot);
+    badge.appendChild(document.createTextNode(
+      (isActive ? ' Live \u00B7 ' : ' History \u00B7 ') + currentProject
+    ));
+  }
+
   function selectSession(sessionId, live) {
     if (!sessionId) return Promise.resolve();
     currentSessionId = sessionId;
     isLive = !!live;
 
     // Update live badge
-    var badge = document.getElementById('live-badge');
-    badge.textContent = '';
-    var dot = document.createElement('div');
-    dot.className = isLive ? 'live-dot' : 'live-dot dim';
-    badge.appendChild(dot);
-    badge.appendChild(document.createTextNode(
-      (isLive ? ' Live \u00B7 ' : ' History \u00B7 ') + currentProject
-    ));
+    updateLiveBadge();
 
     // Sync session combobox
     var sel = document.getElementById('session-select');
@@ -1518,7 +1528,12 @@
 
       var durEl = document.createElement('span');
       durEl.className = 'tool-dur';
-      durEl.textContent = t.duration_ms != null ? (t.duration_ms / 1000).toFixed(1) + 's' : '\u2026';
+      if (t.tool === 'Agent' && t.duration_ms != null && t.duration_ms < 2000) {
+        durEl.textContent = 'async';
+        durEl.title = 'Invocation: ' + (t.duration_ms / 1000).toFixed(1) + 's — agent runs asynchronously';
+      } else {
+        durEl.textContent = t.duration_ms != null ? (t.duration_ms / 1000).toFixed(1) + 's' : '\u2026';
+      }
 
       var statusEl = document.createElement('span');
       statusEl.className = 'tool-status';
