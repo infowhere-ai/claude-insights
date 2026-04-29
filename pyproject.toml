@@ -79,6 +79,15 @@ omit = [
     "dist/*",
     ".venv/*",
     "setup.py",
+    "claude_insights/cli.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
 ]
 
 [tool.ruff]

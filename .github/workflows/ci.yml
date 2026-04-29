@@ -30,6 +30,7 @@ jobs:
             --cov=. \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
+            --cov-fail-under=80 \
             --cov-config=pyproject.toml \
             -v
 
@@ -62,7 +63,6 @@ jobs:
     name: SonarQube quality gate
     runs-on: self-hosted
     needs: [test-backend]
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
 
     steps:
       - uses: actions/checkout@v4

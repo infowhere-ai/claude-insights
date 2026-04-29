@@ -650,13 +650,13 @@ def _parse_session_detail(jsonl_path: Path) -> dict:
     return {"thinking": thinking, "tools": tools[-50:], "stats": stats}
 
 
-async def discovery_loop() -> None:
+async def discovery_loop() -> None:  # pragma: no cover
     while True:
         _discover()
         await asyncio.sleep(DISCOVERY_INTERVAL)
 
 
-async def poll_loop() -> None:
+async def poll_loop() -> None:  # pragma: no cover
     # Initial wait to let discovery run first
     await asyncio.sleep(2)
     while True:
@@ -785,7 +785,7 @@ async def poll_loop() -> None:
         await asyncio.sleep(POLL_INTERVAL)
 
 
-async def jsonl_watcher_loop() -> None:
+async def jsonl_watcher_loop() -> None:  # pragma: no cover
     """Primary state detection engine: watches JSONL transcript files.
 
     Claude always writes to ~/.claude/projects/<encoded>/*.jsonl regardless of
@@ -1098,7 +1098,7 @@ async def get_status():
 
 
 @app.get("/events")
-async def sse_events(request: Request):
+async def sse_events(request: Request):  # pragma: no cover
     queue: asyncio.Queue = asyncio.Queue(maxsize=100)
     _sse_clients.append(queue)
 
@@ -1132,7 +1132,7 @@ async def sse_events(request: Request):
 
 
 @app.websocket("/ws/terminal")
-async def terminal_ws(websocket: WebSocket):
+async def terminal_ws(websocket: WebSocket):  # pragma: no cover
     """Spawns the claude CLI in a PTY and bridges it to the browser via WebSocket."""
     await websocket.accept()
 
