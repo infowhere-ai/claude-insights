@@ -1,3 +1,76 @@
+# README Rewrite Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace the outdated README.md with a complete, public-facing README for infowhere-ai/claude-insights covering Homebrew/pipx/curl installation, hook setup, features with screenshots, and configuration.
+
+**Architecture:** Single-file rewrite of `README.md`. No code changes — documentation only. All screenshots already exist in `docs/screenshots/`. The old `docs/screenshot.png` must be deleted.
+
+**Spec:** `docs/specs/2026-04-30-readme-design.md`
+
+**Tech Stack:** Markdown, GitHub-flavored HTML (centered header), shields.io badges
+
+---
+
+## File Map
+
+| Action | File | Purpose |
+|--------|------|---------|
+| Rewrite | `README.md` | Complete replacement of existing README |
+| Delete | `docs/screenshot.png` | Old hero image — outdated, replaced by `docs/screenshots/01-dashboard-overview.png` |
+
+---
+
+### Task 1: Verify all assets exist
+
+Before writing, confirm every image referenced in the spec exists on disk.
+
+**Files:**
+- Read: `docs/screenshots/` (verify files)
+
+- [ ] **Step 1: Confirm screenshots exist**
+
+Run:
+```bash
+ls docs/screenshots/01-dashboard-overview.png \
+   docs/screenshots/02-reasoning-live.png \
+   docs/screenshots/03-session-context.png \
+   docs/screenshots/07-git-panel.png \
+   docs/screenshots/14-renewal-window.png \
+   docs/logo.png
+```
+Expected: all 6 files listed, no "No such file" errors.
+
+- [ ] **Step 2: Confirm CLI commands exist**
+
+Run:
+```bash
+grep -n "def.*install\|def.*start\|def.*uninstall" claude_insights/cli.py
+```
+Expected: lines matching `install`, `start`, and `uninstall` subcommands.
+
+---
+
+### Task 2: Delete old screenshot
+
+- [ ] **Step 1: Remove `docs/screenshot.png`**
+
+```bash
+rm docs/screenshot.png
+```
+
+---
+
+### Task 3: Write the new README.md
+
+**Files:**
+- Rewrite: `README.md`
+
+- [ ] **Step 1: Write the full README**
+
+Complete content (copy exactly):
+
+```markdown
 <div align="center">
   <img src="docs/logo.png" alt="Claude Insights" width="220"/>
 
@@ -166,7 +239,7 @@ For running from source:
 git clone https://github.com/infowhere-ai/claude-insights.git
 cd claude-insights
 ./install.sh        # sets up hooks
-./run.sh start      # starts the server (source install — default port: 19001)
+./run.sh start      # starts the server (source install default port: 19001, not 4000)
 ```
 
 Stack: Python 3.10+ · FastAPI · SSE · Vanilla JS (no build step)
@@ -176,3 +249,44 @@ Stack: Python 3.10+ · FastAPI · SSE · Vanilla JS (no build step)
 ## License
 
 MIT — © 2026 Leandro Siciliano
+```
+
+- [ ] **Step 2: Verify the file was written**
+
+Run:
+```bash
+wc -l README.md
+```
+Expected: ~140 lines
+
+---
+
+### Task 4: Commit and push
+
+- [ ] **Step 1: Stage changes**
+
+```bash
+git add README.md
+git rm docs/screenshot.png
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git commit -m "docs(readme): rewrite for public release with install methods and screenshots"
+```
+
+- [ ] **Step 3: Push**
+
+```bash
+git push origin develop
+```
+
+- [ ] **Step 4: Verify on GitHub**
+
+Open the `develop` branch on GitHub and confirm:
+- Logo renders in the header
+- Hero screenshot (`01-dashboard-overview.png`) shows correctly
+- All 4 feature screenshots render
+- No broken image icons
+- Badges display correctly

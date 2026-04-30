@@ -1,31 +1,23 @@
-# claude-monitor
+# claude-insights
 
-Monitor em tempo real do Claude Code — mostra o que o Claude está a fazer: status actual, ficheiros tocados, log de eventos.
+Real-time dashboard for Claude Code sessions — shows live status, token usage, session context, git changes, and reasoning history.
 
 ## Stack
 
-- Python 3.12 + FastAPI + SSE
-- HTML/JS puro (sem framework, sem build step)
-- Claude escreve em `.claude/status.json`, a app lê e faz broadcast via SSE
+- Python 3.10+ + FastAPI + SSE
+- Vanilla HTML/JS (no framework, no build step)
+- Claude Code hooks write `.claude/status.json`; the app reads and broadcasts via SSE
 
-## Descrição
+## Architecture
 
-Aplicação web leve que serve todos os projectos InfoWhere. O Claude Code escreve o seu estado em `.claude/status.json` nos projectos, e o claude-monitor lê e transmite via SSE para qualquer browser ligado.
+```
+Claude Code  →  hook fires  →  .claude/status.json  →  FastAPI (SSE)  →  browser
+```
 
-**v1 mostra**:
-- Status actual do Claude (o que está a fazer agora)
-- Ficheiros tocados na sessão com timestamp
-- Log de eventos com ✅/❌
-- Auto-refresh via SSE
-
-**Evolução futura**:
-- Diff de ficheiros
-- Histórico de sessões
-- Acesso remoto
-- Vue no frontend
+The backend (`app.py`) polls project directories under `PROJECTS_ROOT` for `.claude/` directories and streams updates via Server-Sent Events. The frontend (`static/insights.html`) is a single-file dashboard with no build step.
 
 ## Git Scopes
 
-- `app` — aplicação principal (FastAPI + SSE)
-- `frontend` — HTML/JS frontend
-- `config` — configuração e deploy
+- `app` — FastAPI backend (SSE, git diff, context inspector)
+- `frontend` — HTML/JS dashboard
+- `config` — deployment and configuration

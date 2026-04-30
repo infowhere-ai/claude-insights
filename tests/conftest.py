@@ -115,20 +115,24 @@ def sample_thinking_jsonl(tmp_jsonl_dir):
 # ── App fixture (with patched PROJECTS_ROOT) ──────────────────────────────────
 
 @pytest.fixture
-def app_client(tmp_projects_root, tmp_project, monkeypatch):
+def app_client(tmp_projects_root, tmp_project, tmp_path, monkeypatch):
     """FastAPI TestClient with PROJECTS_ROOT pointed at tmp_projects_root.
 
     Startup background tasks (discovery_loop, poll_loop, jsonl_watcher_loop)
     are monkey-patched to no-ops so tests don't run infinite loops.
+    SQLite DB is isolated to a temp path so real ~/.claude/claude-insights.db
+    is never touched.
     """
     from fastapi.testclient import TestClient
-    import asyncio
 
     monkeypatch.setenv("PROJECTS_ROOT", str(tmp_projects_root))
+    monkeypatch.setenv("CLAUDE_INSIGHTS_DB", str(tmp_path / "test-insights.db"))
 
-    # Reload app module so PROJECTS_ROOT is re-evaluated
+    # Reload app module so PROJECTS_ROOT and db module constants are re-evaluated
     import importlib
+    import db as db_module
     import app as app_module
+    importlib.reload(db_module)
     importlib.reload(app_module)
 
     # Patch background tasks to prevent infinite loops in test

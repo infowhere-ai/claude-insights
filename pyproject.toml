@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "Leandro Siciliano", email = "leandro@infowhere.ai" }
+    { name = "Leandro Siciliano", email = "infowhere@infowhere.ai" }
 ]
 keywords = ["claude", "ai", "monitor", "dashboard", "developer-tools"]
 classifiers = [
@@ -32,8 +32,8 @@ dependencies = [
 claude-insights = "claude_insights.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/infowhere-be/claude-monitor"
-Repository = "https://github.com/infowhere-be/claude-monitor"
+Homepage = "https://github.com/infowhere-ai/claude-insights"
+Repository = "https://github.com/infowhere-ai/claude-insights"
 
 [tool.hatch.build.targets.wheel]
 packages = ["claude_insights"]
@@ -42,6 +42,7 @@ packages = ["claude_insights"]
 # Bundle the server and assets inside the package so `claude-insights start` works
 # regardless of where the user installed it.
 "app.py"          = "claude_insights/app.py"
+"db.py"           = "claude_insights/db.py"
 "monitor-hook.sh" = "claude_insights/monitor-hook.sh"
 "install.sh"      = "claude_insights/install.sh"
 "static"          = "claude_insights/static"
@@ -79,6 +80,15 @@ omit = [
     "dist/*",
     ".venv/*",
     "setup.py",
+    "claude_insights/cli.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
 ]
 
 [tool.ruff]

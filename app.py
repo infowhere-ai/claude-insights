@@ -13,6 +13,8 @@ import termios
 import time
 from pathlib import Path
 
+import db
+
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -72,6 +74,9 @@ _jsonl_cache: dict[str, dict] = {}  # project_name -> {mtime, tool, jsonl_path}
 
 # Agents dir mtime cache — tracks when agents dir changes so we rescan independently of status.json
 _agents_dir_mtimes: dict[str, float] = {}  # project_name -> agents dir mtime
+
+# SQLite persistence tracking — agent IDs already written to DB (avoids duplicate writes per poll)
+_persisted_agent_ids: dict[str, set] = {}  # project_name -> set of agent IDs persisted to SQLite
 
 # Thinking block cache — last detected thinking block per project (for SSE deduplication)
 _thinking_cache: dict[str, dict] = {}  # project_name -> {block_id, text, mtime}
@@ -261,6 +266,111 @@ def _broadcast(data: dict) -> None:
             q.put_nowait(data)
         except asyncio.QueueFull:
             pass
+
+
+def _current_session_id(project_name: str) -> str | None:
+    """Returns the JSONL stem (= session_id) for the project's active session."""
+    path_str = _jsonl_cache.get(project_name, {}).get("jsonl_path")
+    return Path(path_str).stem if path_str else None
+
+
+def _persist_done_agents(agents_dir: Path, project_name: str,
+                         session_id: str | None, now_ts: float) -> list[dict]:
+    """Scan agents dir, persist done agents to SQLite, delete old files.
+
+    Returns the list of agents still relevant for the live panel:
+      - running (not stale)
+      - done within the last 5 minutes (still interesting to display)
+    Files for agents done > 5 min ago are deleted after persisting.
+    """
+    persisted = _persisted_agent_ids.setdefault(project_name, set())
+    active = []
+    for agent_file in list(agents_dir.glob("agent_*.json")):
+        try:
+            agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        state = agent_data.get("state")
+        agent_id = agent_data.get("id", agent_file.stem)
+
+        if state == "running":
+            ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
+            stale = False
+            if ts_str:
+                try:
+                    ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    stale = (now_ts - ts.timestamp()) > 600  # 10 min without update → stale
+                except Exception:
+                    pass
+            if not stale:
+                active.append(agent_data)
+
+        elif state == "done":
+            finished_at = agent_data.get("finished_at", "")
+            age = float("inf")
+            if finished_at:
+                try:
+                    ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                    age = now_ts - ft.timestamp()
+                except Exception:
+                    pass
+
+            # Persist to SQLite (idempotent, tracked to avoid redundant writes)
+            if agent_id not in persisted:
+                try:
+                    db.upsert_agent_run(agent_data, project_name, session_id)
+                    persisted.add(agent_id)
+                except Exception:
+                    pass
+
+            if age < 300:  # 5 min — still worth showing in the panel
+                active.append(agent_data)
+            else:
+                # Old enough: file is no longer needed — SQLite has the record
+                try:
+                    agent_file.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
+    active.sort(key=lambda a: a.get("started_at", ""))
+    return active
+
+
+def _persist_and_clean_session(project_name: str, data: dict, agents_dir: Path | None) -> None:
+    """Persist session summary to SQLite and delete all remaining agent files."""
+    session_id = _current_session_id(project_name)
+    if not session_id:
+        return
+
+    # Persist any remaining agent files (running ones were marked done by the Stop hook)
+    if agents_dir and agents_dir.is_dir():
+        now_ts = time.time()
+        persisted = _persisted_agent_ids.setdefault(project_name, set())
+        for agent_file in list(agents_dir.glob("agent_*.json")):
+            try:
+                agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+                agent_id = agent_data.get("id", agent_file.stem)
+                if agent_id not in persisted:
+                    db.upsert_agent_run(agent_data, project_name, session_id)
+                    persisted.add(agent_id)
+            except Exception:
+                pass
+            try:
+                agent_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+        _persisted_agent_ids.pop(project_name, None)  # reset for next session
+
+    # Persist session summary
+    stats = data.get("stats", {})
+    agent_count = len(_persisted_agent_ids.get(project_name, set()))
+    finished_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    try:
+        db.upsert_session_run(session_id, project_name, stats,
+                              finished_at=finished_at, agent_count=agent_count)
+    except Exception:
+        pass
 
 
 def _get_project_stats(project_path: Path, project_name: str) -> dict:
@@ -540,13 +650,13 @@ def _parse_session_detail(jsonl_path: Path) -> dict:
     return {"thinking": thinking, "tools": tools[-50:], "stats": stats}
 
 
-async def discovery_loop() -> None:
+async def discovery_loop() -> None:  # pragma: no cover
     while True:
         _discover()
         await asyncio.sleep(DISCOVERY_INTERVAL)
 
 
-async def poll_loop() -> None:
+async def poll_loop() -> None:  # pragma: no cover
     # Initial wait to let discovery run first
     await asyncio.sleep(2)
     while True:
@@ -595,42 +705,22 @@ async def poll_loop() -> None:
                                 "description": jsonl_tool,
                             }
                             data["tool"] = jsonl_tool
-                    # Load active agents
-                    active_agents = []
+                    # Load active agents — persist done ones to SQLite, delete old files
                     project_path = path.parents[1]
                     agents_dir = project_path / ".claude" / "agents"
-                    if agents_dir.is_dir():
-                        agents_now = time.time()
-                        for agent_file in agents_dir.glob("*.json"):
-                            try:
-                                agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
-                                if agent_data.get("state") == "running":
-                                    # Guard against stale "running" agents: if last_updated
-                                    # (or started_at) is older than 10 minutes, the parent
-                                    # session died without marking the agent done.
-                                    ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
-                                    stale = False
-                                    if ts_str:
-                                        try:
-                                            ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                                            stale = (agents_now - ts.timestamp()) > 600  # 10 min
-                                        except Exception:
-                                            pass
-                                    if not stale:
-                                        active_agents.append(agent_data)
-                                elif agent_data.get("state") == "done":
-                                    finished_at = agent_data.get("finished_at", "")
-                                    if finished_at:
-                                        try:
-                                            ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
-                                            age = agents_now - ft.timestamp()
-                                            if age < 300:  # 5 minutes
-                                                active_agents.append(agent_data)
-                                        except Exception:
-                                            pass
-                            except Exception:
-                                pass
-                        active_agents.sort(key=lambda a: a.get("started_at", ""))
+                    new_state = data.get("state") or data.get("status", "idle")
+                    prev_state = (projects.get(name) or {}).get("state") or \
+                                 (projects.get(name) or {}).get("status", "idle")
+                    if new_state == "stopped" and prev_state != "stopped":
+                        # Session just ended — persist session + clean all agent files
+                        _persist_and_clean_session(name, data, agents_dir if agents_dir.is_dir() else None)
+                        active_agents = []
+                    elif agents_dir.is_dir():
+                        active_agents = _persist_done_agents(
+                            agents_dir, name, _current_session_id(name), now_ts
+                        )
+                    else:
+                        active_agents = []
                     data["active_agents"] = active_agents
 
                     # If any sub-agent is running, parent is working regardless of status.json
@@ -677,39 +767,15 @@ async def poll_loop() -> None:
                         agents_dir_mtime = 0.0
                     if _agents_dir_mtimes.get(name) != agents_dir_mtime:
                         _agents_dir_mtimes[name] = agents_dir_mtime
-                        # Re-scan agents and broadcast if list changed
+                        # Re-scan agents, persist done ones to SQLite, broadcast if list changed
                         current = projects.get(name)
                         if current is not None:
                             agents_now = time.time()
-                            active_agents = []
-                            for agent_file in agents_dir.glob("*.json"):
-                                try:
-                                    agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
-                                    if agent_data.get("state") == "running":
-                                        ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
-                                        stale = False
-                                        if ts_str:
-                                            try:
-                                                ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                                                stale = (agents_now - ts.timestamp()) > 600
-                                            except Exception:
-                                                pass
-                                        if not stale:
-                                            active_agents.append(agent_data)
-                                    elif agent_data.get("state") == "done":
-                                        finished_at = agent_data.get("finished_at", "")
-                                        if finished_at:
-                                            try:
-                                                ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
-                                                if (agents_now - ft.timestamp()) < 300:
-                                                    active_agents.append(agent_data)
-                                            except Exception:
-                                                pass
-                                except Exception:
-                                    pass
-                            active_agents.sort(key=lambda a: a.get("started_at", ""))
-                            prev_ids = {a.get("agent_id") for a in current.get("active_agents", [])}
-                            new_ids = {a.get("agent_id") for a in active_agents}
+                            active_agents = _persist_done_agents(
+                                agents_dir, name, _current_session_id(name), agents_now
+                            )
+                            prev_ids = {a.get("id") for a in current.get("active_agents", [])}
+                            new_ids = {a.get("id") for a in active_agents}
                             if prev_ids != new_ids:
                                 updated = dict(current)
                                 updated["active_agents"] = active_agents
@@ -719,7 +785,7 @@ async def poll_loop() -> None:
         await asyncio.sleep(POLL_INTERVAL)
 
 
-async def jsonl_watcher_loop() -> None:
+async def jsonl_watcher_loop() -> None:  # pragma: no cover
     """Primary state detection engine: watches JSONL transcript files.
 
     Claude always writes to ~/.claude/projects/<encoded>/*.jsonl regardless of
@@ -920,45 +986,23 @@ async def jsonl_watcher_loop() -> None:
 
 @app.on_event("startup")
 async def startup() -> None:
+    db.init_db()
     _load_roots_config()
     _discover()
     # Initial read of all status.json files
+    now_ts = time.time()
     for name, path in _status_paths.items():
         data = _read_status(path)
         if data is not None:
-            # Load active agents on startup
-            active_agents = []
+            # Load active agents on startup — persist done ones to SQLite
             project_path = path.parents[1]
             agents_dir = project_path / ".claude" / "agents"
             if agents_dir.is_dir():
-                now_ts = time.time()
-                for agent_file in agents_dir.glob("*.json"):
-                    try:
-                        agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
-                        if agent_data.get("state") == "running":
-                            ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
-                            stale = False
-                            if ts_str:
-                                try:
-                                    ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                                    stale = (now_ts - ts.timestamp()) > 600
-                                except Exception:
-                                    pass
-                            if not stale:
-                                active_agents.append(agent_data)
-                        elif agent_data.get("state") == "done":
-                            finished_at = agent_data.get("finished_at", "")
-                            if finished_at:
-                                try:
-                                    ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
-                                    age = now_ts - ft.timestamp()
-                                    if age < 300:
-                                        active_agents.append(agent_data)
-                                except Exception:
-                                    pass
-                    except Exception:
-                        pass
-                active_agents.sort(key=lambda a: a.get("started_at", ""))
+                active_agents = _persist_done_agents(
+                    agents_dir, name, _current_session_id(name), now_ts
+                )
+            else:
+                active_agents = []
             data["active_agents"] = active_agents
             data["events"] = list(_project_events.get(name, []))
             hook_stats = data.get("stats") or {}
@@ -1054,7 +1098,7 @@ async def get_status():
 
 
 @app.get("/events")
-async def sse_events(request: Request):
+async def sse_events(request: Request):  # pragma: no cover
     queue: asyncio.Queue = asyncio.Queue(maxsize=100)
     _sse_clients.append(queue)
 
@@ -1088,7 +1132,7 @@ async def sse_events(request: Request):
 
 
 @app.websocket("/ws/terminal")
-async def terminal_ws(websocket: WebSocket):
+async def terminal_ws(websocket: WebSocket):  # pragma: no cover
     """Spawns the claude CLI in a PTY and bridges it to the browser via WebSocket."""
     await websocket.accept()
 
@@ -1250,6 +1294,20 @@ async def get_weekly_stats():
         except Exception:
             pass
     return {"weekly": result}
+
+
+@app.get("/api/agent-history")
+async def get_agent_history(project: str = Query(None), limit: int = Query(100)):
+    """Returns recent agent runs from SQLite, newest first."""
+    rows = db.get_agent_history(project=project, limit=limit)
+    return {"agents": rows}
+
+
+@app.get("/api/session-history")
+async def get_session_history(project: str = Query(None), limit: int = Query(50)):
+    """Returns recent session runs from SQLite, newest first."""
+    rows = db.get_session_history(project=project, limit=limit)
+    return {"sessions": rows}
 
 
 @app.get("/api/sessions")
@@ -1452,13 +1510,10 @@ def _parse_skill_md(content: str, name: str) -> dict:
 
 @app.get("/api/skills")
 async def get_skills():
-    """Returns list of available skills from ~/.claude/skills/ and standarts."""
+    """Returns list of available skills from ~/.claude/skills/."""
     skills = []
     search_dirs = [
         (Path.home() / ".claude" / "skills", "user"),
-        (PROJECTS_ROOT / "standarts" / "common" / "skills", "common"),
-        (PROJECTS_ROOT / "standarts" / "private" / "skills", "private"),
-        (PROJECTS_ROOT / "standarts" / "work" / "skills", "work"),
     ]
     for base, source in search_dirs:
         if not base.is_dir():
@@ -1673,7 +1728,6 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
         _add_rule("~/.claude/CLAUDE.md", global_claude, "global")
 
     # .claude/rules/ — handles both file symlinks and directory symlinks
-    # Common pattern: common -> standarts/common/rules/, private -> standarts/private/rules/
     rules_dir = project_path / ".claude" / "rules"
     if rules_dir.is_dir():
         for entry in sorted(rules_dir.iterdir()):

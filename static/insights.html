@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -229,6 +230,19 @@
     margin-bottom: 2px;
   }
 
+  /* -- Drag handle -- */
+  .drag-handle {
+    cursor: grab;
+    color: var(--text-dimmest);
+    font-size: 11px;
+    padding: 0 4px 0 0;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  .panel.sortable-ghost { opacity: 0.35; }
+  .panel.sortable-chosen { box-shadow: 0 0 0 1px var(--blue); }
+
   /* -- Thinking panel -- */
   #pane-think {
     background: var(--bg-panel-think);
@@ -401,6 +415,46 @@
     display: flex;
     flex-direction: column;
   }
+  #diff-modal .modal-box {
+    width: min(1500px, 97vw);
+    max-height: 94vh;
+    height: 94vh;
+  }
+  .diff-explain {
+    border-top: 1px solid var(--border);
+    padding: 10px 14px;
+    font-size: 11px;
+    background: var(--bg-deep);
+    flex-shrink: 0;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .diff-explain-title {
+    font-size: 10px;
+    color: var(--text-dimmer);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .diff-explain-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .diff-explain-icon { flex-shrink: 0; }
+  .diff-explain-text { color: var(--text-muted); flex: 1; }
+  .diff-explain-text strong { color: var(--text); }
+  .diff-explain-reasoning {
+    color: var(--text-dim);
+    font-style: italic;
+    border-left: 2px solid var(--border);
+    padding-left: 8px;
+    margin-top: 4px;
+    font-size: 10.5px;
+    line-height: 1.6;
+  }
   .modal-header {
     display: flex;
     justify-content: space-between;
@@ -433,6 +487,79 @@
     font-size: 11px;
     line-height: 1.5;
     flex: 1;
+  }
+  /* Side-by-side diff (IntelliJ style) */
+  #diff-body {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .diff-split {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .diff-pane {
+    flex: 1;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    min-width: 0;
+  }
+  .diff-pane-left { border-right: 1px solid var(--border); }
+  .diff-line {
+    display: flex;
+    align-items: stretch;
+    white-space: pre;
+    min-width: max-content;
+  }
+  .diff-line-add   { background: rgba(34,197,94,0.10); }
+  .diff-line-del   { background: rgba(239,68,68,0.10); }
+  .diff-line-empty { background: rgba(0,0,0,0.15); }
+  .diff-line-num {
+    min-width: 46px;
+    text-align: right;
+    padding: 0 8px 0 4px;
+    color: var(--text-dimmer);
+    user-select: none;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+    font-size: 10.5px;
+  }
+  .diff-line-sign {
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+    font-weight: bold;
+  }
+  .diff-line-add   .diff-line-sign { color: #4ade80; }
+  .diff-line-del   .diff-line-sign { color: #f87171; }
+  .diff-line-empty .diff-line-sign { color: transparent; }
+  .diff-line-code { padding: 0 8px; flex: 1; }
+  .diff-line-add   .diff-line-code { color: #86efac; }
+  .diff-line-del   .diff-line-code { color: #fca5a5; }
+  .diff-line-empty .diff-line-num  { color: transparent; }
+  .diff-line-empty .diff-line-code { color: transparent; }
+  .diff-hunk-row {
+    background: rgba(59,130,246,0.08);
+    color: #93c5fd;
+    padding: 2px 10px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    white-space: pre;
+    border-bottom: 1px solid rgba(59,130,246,0.15);
+  }
+  .diff-file-header {
+    background: var(--bg-deep);
+    color: var(--text-dimmer);
+    padding: 2px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    white-space: pre;
+    border-bottom: 1px solid var(--border);
   }
   .diff-add { background: rgba(34,197,94,0.1); color: #86efac; }
   .diff-del { background: rgba(239,68,68,0.1); color: #fca5a5; }
@@ -589,10 +716,29 @@
     height: 100%;
     transition: width 0.3s;
     min-width: 0;
+    cursor: default;
   }
   .ctx-seg.fixed { background: var(--cyan); }
   .ctx-seg.conv  { background: var(--yellow); }
   .ctx-seg.var   { background: var(--purple); }
+  .ctx-seg:hover { filter: brightness(1.3); }
+
+  #ctx-tooltip {
+    position: fixed;
+    z-index: 9999;
+    background: #1c2128;
+    border: 1px solid #444c56;
+    border-radius: 6px;
+    padding: 7px 11px;
+    pointer-events: none;
+    display: none;
+    font-size: 11px;
+    line-height: 1.6;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+  #ctx-tooltip .tt-label { font-weight: 700; }
+  #ctx-tooltip .tt-value { color: #8b949e; font-size: 10px; }
   .ctx-usage-labels {
     display: flex;
     justify-content: space-between;
@@ -701,6 +847,19 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  /* -- Mobile (≤768px) -- */
+  @media (max-width: 768px) {
+    #header { flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px 10px; }
+    #header-nav { flex-wrap: wrap; gap: 6px; }
+    #header-title { font-size: 13px; }
+    #main { flex-direction: column; }
+    #col-live, #col-right { min-width: 0; width: 100%; }
+    .sidebar { display: none; }
+    body { font-size: 11px; }
+    .panel { padding: 8px 10px; }
+    #agents-panel { padding: 6px 10px; }
+  }
 </style>
 </head>
 <body>
@@ -738,6 +897,12 @@
         <span id="status-action"></span>
       </div>
 
+      <!-- Active agents -->
+      <div id="agents-panel" style="display:none;padding:6px 12px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:5px;margin-bottom:6px">
+        <div style="font-size:9px;font-family:var(--font-mono);color:var(--blue);letter-spacing:1px;margin-bottom:4px">AGENTS</div>
+        <div id="agents-list"></div>
+      </div>
+
       <!-- Thinking -->
       <div class="panel" id="pane-think">
         <div style="display:flex;justify-content:space-between;align-items:center">
@@ -759,9 +924,9 @@
         <!-- Usage breakdown bar -->
         <div id="ctx-breakdown-wrap" style="display:none">
           <div class="ctx-usage-bar">
-            <div class="ctx-seg fixed" id="ctx-bar-fixed" style="width:0%"></div>
-            <div class="ctx-seg conv"  id="ctx-bar-conv"  style="width:0%"></div>
-            <div class="ctx-seg var"   id="ctx-bar-var"   style="width:0%"></div>
+            <div class="ctx-seg fixed" id="ctx-bar-fixed" style="width:0%" data-tt-label="Fixed rules" data-tt-color="#22d3ee"></div>
+            <div class="ctx-seg conv"  id="ctx-bar-conv"  style="width:0%" data-tt-label="Conversation" data-tt-color="#eab308"></div>
+            <div class="ctx-seg var"   id="ctx-bar-var"   style="width:0%" data-tt-label="Tool results (var)" data-tt-color="#a855f7"></div>
           </div>
           <div class="ctx-usage-labels">
             <span class="ctx-usage-label-fixed" id="ctx-lbl-fixed"></span>
@@ -907,6 +1072,7 @@
       </div>
     </div>
     <div id="diff-body" class="diff-body"></div>
+    <div id="diff-explain" class="diff-explain" style="display:none"></div>
   </div>
 </div>
 
@@ -931,11 +1097,9 @@
         <span class="about-row-value" id="about-date"></span>
       </div>
       <div id="about-copy">
-        <div>&copy; 2026 InfoWhere. All rights reserved.</div>
+        <div>&copy; 2026 Leandro Siciliano. All rights reserved.</div>
         <div style="margin-top:6px;display:flex;gap:12px;justify-content:center">
-          <a href="https://www.infowhere.ai" target="_blank" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">www.infowhere.ai</a>
-          <span style="color:var(--border)">·</span>
-          <a href="mailto:infowhere@infowhere.ai" style="color:var(--blue);text-decoration:none;transition:opacity 0.15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">infowhere@infowhere.ai</a>
+          <span style="color:var(--text-dimmer);font-size:10px">Open source release coming soon</span>
         </div>
       </div>
       <button id="about-close-btn" onclick="closeAbout()">Close</button>
@@ -951,12 +1115,14 @@
   var currentProject = null;
   var currentSessionId = null;
   var isLive = false;
+  var _userLockedSession = false;  // true when user manually selected a historical session
   var lastBlockId = null;
   var pendingFiles = [];
   var currentDiffIndex = 0;
   var allProjects = {};
   var es = null;
   var lastThinkingHistory = [];
+  var lastToolsData = [];
   var lastCtxTokens = 0;
   var lastCtxWindow = 185000;
 
@@ -1101,12 +1267,16 @@
       if (projName === currentProject) {
         // Always update the status bar for the active project
         updateStatusBar(msg.data);
+        renderActiveAgents(msg.data && msg.data.active_agents);
 
         var projState = (msg.data && (msg.data.state || msg.data.status)) || 'idle';
+        // Refresh badge: project may now be live even if selected session is history
+        updateLiveBadge();
         loadPendingFiles();
         // If Claude just became active and we're not in live mode, reload sessions
         // so the active session is detected and isLive is set to true.
-        if (!isLive && (projState === 'working' || projState === 'waiting')) {
+        // Skip if user has manually locked onto a historical session.
+        if (!isLive && !_userLockedSession && (projState === 'working' || projState === 'waiting' || projState === 'compacting')) {
           var now2 = Date.now();
           if (!window._lastSessionsReload || now2 - window._lastSessionsReload > 5000) {
             window._lastSessionsReload = now2;
@@ -1165,6 +1335,7 @@
 
   window.switchProject = function(name) {
     currentProject = name;
+    _userLockedSession = false;  // new project — reset session lock
     localStorage.setItem('insights-project', name);
     var sel = document.getElementById('project-select');
     if (sel.value !== name) sel.value = name;
@@ -1217,8 +1388,61 @@
 
   window.onSessionSelectChange = function(sessionId) {
     if (!sessionId) return;
-    selectSession(sessionId, !!_sessionsMap[sessionId]);
+    var active = !!_sessionsMap[sessionId];
+    // Lock SSE auto-switch when user explicitly picks a historical session
+    _userLockedSession = !active;
+    selectSession(sessionId, active);
   };
+
+  function updateLiveBadge() {
+    var badge = document.getElementById('live-badge');
+    if (!badge || !currentSessionId) return;
+    var projData = allProjects[currentProject] || {};
+    var projState = projData.state || projData.status || 'idle';
+    var isActive = isLive || projState === 'working' || projState === 'waiting' || projState === 'compacting';
+    badge.textContent = '';
+    var dot = document.createElement('div');
+    dot.className = isActive ? 'live-dot' : 'live-dot dim';
+    badge.appendChild(dot);
+    badge.appendChild(document.createTextNode(
+      (isActive ? ' Live \u00B7 ' : ' History \u00B7 ') + currentProject
+    ));
+  }
+
+  function renderActiveAgents(agents) {
+    var panel = document.getElementById('agents-panel');
+    var list  = document.getElementById('agents-list');
+    if (!panel || !list) return;
+    if (!agents || agents.length === 0) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+    list.textContent = '';
+    agents.forEach(function(a) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:10px';
+      var dot = document.createElement('div');
+      var running = a.state === 'running';
+      dot.style.cssText = 'width:6px;height:6px;border-radius:50%;flex-shrink:0;background:' +
+        (running ? 'var(--green)' : 'var(--text-dim)');
+      var desc = document.createElement('span');
+      desc.style.cssText = 'color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      desc.title = a.description || a.id || '';
+      desc.textContent = a.description || a.id || 'agent';
+      var dur = document.createElement('span');
+      dur.style.cssText = 'color:var(--text-dimmer);font-family:var(--font-mono);font-size:9px;flex-shrink:0';
+      var startTs = a.started_at ? new Date(a.started_at) : null;
+      if (startTs && !isNaN(startTs)) {
+        var endTs = a.finished_at ? new Date(a.finished_at) : new Date();
+        var secs = Math.round((endTs - startTs) / 1000);
+        dur.textContent = running
+          ? Math.floor(secs / 60) + 'm ' + (secs % 60) + 's'
+          : (a.finished_at ? Math.floor(secs / 60) + 'm ' + (secs % 60) + 's \u2713' : '');
+      }
+      row.appendChild(dot);
+      row.appendChild(desc);
+      row.appendChild(dur);
+      list.appendChild(row);
+    });
+  }
 
   function selectSession(sessionId, live) {
     if (!sessionId) return Promise.resolve();
@@ -1226,14 +1450,7 @@
     isLive = !!live;
 
     // Update live badge
-    var badge = document.getElementById('live-badge');
-    badge.textContent = '';
-    var dot = document.createElement('div');
-    dot.className = isLive ? 'live-dot' : 'live-dot dim';
-    badge.appendChild(dot);
-    badge.appendChild(document.createTextNode(
-      (isLive ? ' Live \u00B7 ' : ' History \u00B7 ') + currentProject
-    ));
+    updateLiveBadge();
 
     // Sync session combobox
     var sel = document.getElementById('session-select');
@@ -1473,6 +1690,7 @@
   };
 
   function renderTools(toolsArr) {
+    lastToolsData = toolsArr || [];
     var container = document.getElementById('tools-list');
     container.textContent = '';
     if (!toolsArr || toolsArr.length === 0) {
@@ -1506,7 +1724,12 @@
 
       var durEl = document.createElement('span');
       durEl.className = 'tool-dur';
-      durEl.textContent = t.duration_ms != null ? (t.duration_ms / 1000).toFixed(1) + 's' : '\u2026';
+      if (t.tool === 'Agent' && t.duration_ms != null && t.duration_ms < 2000) {
+        durEl.textContent = 'async';
+        durEl.title = 'Invocation: ' + (t.duration_ms / 1000).toFixed(1) + 's — agent runs asynchronously';
+      } else {
+        durEl.textContent = t.duration_ms != null ? (t.duration_ms / 1000).toFixed(1) + 's' : '\u2026';
+      }
 
       var statusEl = document.createElement('span');
       statusEl.className = 'tool-status';
@@ -1639,13 +1862,19 @@
       var convPct0  = Math.round((convTok  / denom) * 100);
       var varPct0   = Math.round((readsTok / denom) * 100);
 
-      document.getElementById('ctx-bar-fixed').style.width = fixedPct.toFixed(1) + '%';
-      document.getElementById('ctx-bar-conv').style.width  = convPct.toFixed(1)  + '%';
-      document.getElementById('ctx-bar-var').style.width   = varPct.toFixed(1)   + '%';
-      document.getElementById('ctx-lbl-fixed').textContent = 'fixo ~' + fmtTok(rulesTok) + ' (' + fixedPct0 + '%)';
-      document.getElementById('ctx-lbl-conv').textContent  = 'conversa ~' + fmtTok(convTok) + ' (' + convPct0 + '%)';
+      var elFixed = document.getElementById('ctx-bar-fixed');
+      var elConv  = document.getElementById('ctx-bar-conv');
+      var elVar   = document.getElementById('ctx-bar-var');
+      elFixed.style.width = fixedPct.toFixed(1) + '%';
+      elConv.style.width  = convPct.toFixed(1)  + '%';
+      elVar.style.width   = varPct.toFixed(1)   + '%';
+      elFixed.dataset.ttText = fmtTok(rulesTok) + ' tokens · ' + fixedPct0 + '% of context';
+      elConv.dataset.ttText  = fmtTok(convTok)  + ' tokens · ' + convPct0  + '% of context';
+      elVar.dataset.ttText   = fmtTok(readsTok) + ' tokens · ' + varPct0   + '% of context';
+      document.getElementById('ctx-lbl-fixed').textContent = 'fixed ~' + fmtTok(rulesTok) + ' (' + fixedPct0 + '%)';
+      document.getElementById('ctx-lbl-conv').textContent  = 'chat ~' + fmtTok(convTok) + ' (' + convPct0 + '%)';
       document.getElementById('ctx-lbl-var').textContent   = 'var ~' + fmtTok(readsTok)  + ' (' + varPct0   + '%)';
-      document.getElementById('ctx-lbl-free').textContent  = '~' + fmtTok(freeAmt) + ' livre';
+      document.getElementById('ctx-lbl-free').textContent  = '~' + fmtTok(freeAmt) + ' free';
       wrap.style.display = '';
     }
 
@@ -1744,31 +1973,26 @@
     // Fixed context box — rules loaded at session start
     bodyEl.appendChild(buildBox(
       'ctx-fixed',
-      'Fixo',
-      'CLAUDE.md + .claude/rules/ — carregado automaticamente',
+      'Fixed',
+      'CLAUDE.md + .claude/rules/ — loaded at session start',
       rulesTok,
       data.rules,
       function(r) { return CAT_ICONS[r.category] || '\uD83D\uDCC4'; },
-      function(r) {
-        var lbl = r.label || '';
-        lbl = lbl.replace(/standarts\/(?:common|private|work)\/rules\//, '');
-        lbl = lbl.replace(/standarts\/(?:common|private|work)\//, '');
-        return lbl;
-      }
+      function(r) { return r.label || ''; }
     ));
 
     // Variable context box — tool results accumulated during session
     bodyEl.appendChild(buildBox(
       'ctx-var',
-      'Variavel',
-      'Resultados de Read/Bash/Grep acumulados na conversa',
+      'Variable',
+      'Read/Bash/Grep results accumulated during the session',
       readsTok,
       data.reads,
       function(r) { return TOOL_ICONS_CTX[r.tool] || '\uD83D\uDD27'; },
       function(r) {
         var lbl = r.label || '';
-        lbl = lbl.replace(/\/Users\/[^/]+\/desenvolvimento\/github-infowhere\/[^/]+\//, '');
         lbl = lbl.replace(/\/Users\/[^/]+\//, '~/');
+        lbl = lbl.replace(/\/home\/[^/]+\//, '~/');
         return lbl;
       }
     ));
@@ -1841,11 +2065,222 @@
         } catch (e) { /* raw diff text */ }
         body.style.color = '';
         renderDiffContent(text);
+        renderDiffExplanation(fileObj, text);
       })
       .catch(function(err) {
         body.textContent = 'Error loading diff.';
         body.style.color = 'var(--red)';
+        var el = document.getElementById('diff-explain');
+        if (el) el.style.display = 'none';
       });
+  }
+
+  // -- Diff explanation (no extra tokens — uses local session data) --
+  function makeExplainRow(icon, buildFn) {
+    var row = document.createElement('div');
+    row.className = 'diff-explain-row';
+    var ic = document.createElement('span');
+    ic.className = 'diff-explain-icon';
+    ic.textContent = icon;
+    var content = document.createElement('span');
+    content.className = 'diff-explain-text';
+    buildFn(content);
+    row.appendChild(ic);
+    row.appendChild(content);
+    return row;
+  }
+
+  function appendMixed(el, parts) {
+    // parts: [{b: 'bold text'} | {t: 'normal text'}]
+    parts.forEach(function(p) {
+      if (p.b != null) {
+        var s = document.createElement('strong');
+        s.textContent = p.b;
+        el.appendChild(s);
+      } else {
+        el.appendChild(document.createTextNode(p.t));
+      }
+    });
+  }
+
+  function renderDiffExplanation(fileObj, rawDiff) {
+    var el = document.getElementById('diff-explain');
+    el.textContent = '';
+
+    var filename = fileObj.rel_path || fileObj.path || '';
+    var basename = filename.split('/').pop();
+
+    // 1. Diff stats + hunk contexts
+    var additions = 0, deletions = 0, contexts = [];
+    rawDiff.split('\n').forEach(function(line) {
+      var ch = line.charAt(0);
+      if (ch === '+' && !line.startsWith('+++')) additions++;
+      else if (ch === '-' && !line.startsWith('---')) deletions++;
+      if (line.startsWith('@@')) {
+        var m = line.match(/@@ .+? @@ (.+)/);
+        if (m && m[1].trim()) contexts.push(m[1].trim().slice(0, 60));
+      }
+    });
+
+    // 2. Tool calls that touched this file
+    var relatedTools = lastToolsData.filter(function(t) {
+      var inp = (t.input || '') + (t.detail || '');
+      return inp.indexOf(basename) !== -1 &&
+        (t.tool === 'Edit' || t.tool === 'Write' || t.tool === 'Bash' || t.tool === 'Read');
+    });
+
+    // 3. Reasoning sentences mentioning this file
+    var reasoningSnippets = [];
+    var lname = basename.toLowerCase().replace(/\.[^.]+$/, '');
+    lastThinkingHistory.forEach(function(block) {
+      var text = block.text || '';
+      if (text.toLowerCase().indexOf(lname) === -1) return;
+      var sentences = text.split(/\.(?:\s+|\n)/).map(function(s) { return s.trim(); });
+      sentences.forEach(function(s) {
+        if (s.length > 25 && s.length < 280 && s.toLowerCase().indexOf(lname) !== -1)
+          reasoningSnippets.push(s.charAt(0).toUpperCase() + s.slice(1));
+      });
+    });
+    var seen = {};
+    reasoningSnippets = reasoningSnippets.filter(function(s) {
+      if (seen[s]) return false; seen[s] = true; return true;
+    }).slice(0, 3);
+
+    if (!additions && !deletions && !reasoningSnippets.length) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = '';
+
+    var title = document.createElement('div');
+    title.className = 'diff-explain-title';
+    title.textContent = 'Change summary';
+    el.appendChild(title);
+
+    // Stats row
+    if (additions || deletions || contexts.length) {
+      el.appendChild(makeExplainRow('📊', function(c) {
+        var parts = [];
+        if (additions) parts.push({b: '+' + additions}, {t: ' line' + (additions !== 1 ? 's' : '') + ' added'});
+        if (additions && deletions) parts.push({t: '   ·   '});
+        if (deletions) parts.push({b: '−' + deletions}, {t: ' line' + (deletions !== 1 ? 's' : '') + ' removed'});
+        if (contexts.length) {
+          parts.push({t: '   in '});
+          parts.push({b: contexts.slice(0, 2).join(', ')});
+        }
+        appendMixed(c, parts);
+      }));
+    }
+
+    // Tool calls row
+    if (relatedTools.length) {
+      el.appendChild(makeExplainRow('🔧', function(c) {
+        var toolNames = {};
+        relatedTools.forEach(function(t) { toolNames[t.tool] = (toolNames[t.tool] || 0) + 1; });
+        var keys = Object.keys(toolNames);
+        var parts = [{t: 'Modified via '}];
+        keys.forEach(function(n, i) {
+          if (i) parts.push({t: ', '});
+          parts.push({b: toolNames[n] + '\u00d7 ' + n});
+        });
+        parts.push({t: ' in this session'});
+        appendMixed(c, parts);
+      }));
+    }
+
+    // Reasoning row
+    if (reasoningSnippets.length) {
+      var rRow = document.createElement('div');
+      rRow.className = 'diff-explain-row';
+      var rIc = document.createElement('span');
+      rIc.className = 'diff-explain-icon';
+      rIc.textContent = '\uD83D\uDCAD';
+      var rWrap = document.createElement('div');
+      rWrap.style.flex = '1';
+      reasoningSnippets.forEach(function(s) {
+        var d = document.createElement('div');
+        d.className = 'diff-explain-reasoning';
+        d.textContent = s;
+        rWrap.appendChild(d);
+      });
+      rRow.appendChild(rIc);
+      rRow.appendChild(rWrap);
+      el.appendChild(rRow);
+    }
+  }
+
+  function parseSideBySide(raw) {
+    var rows = [];
+    var lines = raw.split('\n');
+    var leftNum = 0, rightNum = 0;
+    var dels = [], adds = [];
+
+    function flushPairs() {
+      var len = Math.max(dels.length, adds.length);
+      for (var i = 0; i < len; i++) {
+        var d = dels[i] || null;
+        var a = adds[i] || null;
+        rows.push({
+          leftNum:  d ? d.n : null, leftType:  d ? 'del' : 'empty', leftText:  d ? d.t : '',
+          rightNum: a ? a.n : null, rightType: a ? 'add' : 'empty', rightText: a ? a.t : ''
+        });
+      }
+      dels = []; adds = [];
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line.startsWith('diff ') || line.startsWith('index ') ||
+          line.startsWith('--- ') || line.startsWith('+++ ')) {
+        flushPairs();
+        rows.push({ type: 'header', text: line });
+        continue;
+      }
+      if (line.startsWith('@@')) {
+        flushPairs();
+        var m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+        if (m) { leftNum = parseInt(m[1]) - 1; rightNum = parseInt(m[2]) - 1; }
+        rows.push({ type: 'hunk', text: line });
+        continue;
+      }
+      var ch = line.charAt(0);
+      if (ch === '-') {
+        leftNum++;
+        dels.push({ n: leftNum, t: line.slice(1) });
+      } else if (ch === '+') {
+        rightNum++;
+        adds.push({ n: rightNum, t: line.slice(1) });
+      } else {
+        flushPairs();
+        leftNum++;
+        rightNum++;
+        var t = ch === ' ' ? line.slice(1) : line;
+        rows.push({
+          leftNum: leftNum,  leftType:  'ctx', leftText:  t,
+          rightNum: rightNum, rightType: 'ctx', rightText: t
+        });
+      }
+    }
+    flushPairs();
+    return rows;
+  }
+
+  function makeDiffLine(num, type, text) {
+    var row = document.createElement('div');
+    row.className = 'diff-line diff-line-' + type;
+    var gutter = document.createElement('span');
+    gutter.className = 'diff-line-num';
+    gutter.textContent = (num != null && type !== 'empty') ? num : '';
+    var sign = document.createElement('span');
+    sign.className = 'diff-line-sign';
+    sign.textContent = type === 'add' ? '+' : type === 'del' ? '-' : ' ';
+    var code = document.createElement('span');
+    code.className = 'diff-line-code';
+    code.textContent = text;
+    row.appendChild(gutter);
+    row.appendChild(sign);
+    row.appendChild(code);
+    return row;
   }
 
   function renderDiffContent(raw) {
@@ -1854,20 +2289,56 @@
     body.style.color = '';
     if (!raw || !raw.trim()) {
       var msg = document.createElement('div');
-      msg.style.color = 'var(--text-dimmer)';
+      msg.style.cssText = 'color:var(--text-dimmer);padding:12px';
       msg.textContent = 'No changes (clean file or binary).';
       body.appendChild(msg);
       return;
     }
-    raw.split('\n').forEach(function(line) {
-      var div = document.createElement('div');
-      if (line.startsWith('@@')) div.className = 'diff-hunk';
-      else if (line.charAt(0) === '+' && !line.startsWith('+++')) div.className = 'diff-add';
-      else if (line.charAt(0) === '-' && !line.startsWith('---')) div.className = 'diff-del';
-      else div.className = 'diff-ctx';
-      div.textContent = line;
-      body.appendChild(div);
+
+    var rows = parseSideBySide(raw);
+    var wrap = document.createElement('div');
+    wrap.className = 'diff-split';
+
+    var leftPane  = document.createElement('div');
+    leftPane.className  = 'diff-pane diff-pane-left';
+    var rightPane = document.createElement('div');
+    rightPane.className = 'diff-pane diff-pane-right';
+
+    rows.forEach(function(row) {
+      if (row.type === 'header') {
+        var hL = document.createElement('div');
+        hL.className = 'diff-file-header';
+        hL.textContent = row.text;
+        var hR = hL.cloneNode(true);
+        leftPane.appendChild(hL);
+        rightPane.appendChild(hR);
+        return;
+      }
+      if (row.type === 'hunk') {
+        var hL = document.createElement('div');
+        hL.className = 'diff-hunk-row';
+        hL.textContent = row.text;
+        var hR = hL.cloneNode(true);
+        leftPane.appendChild(hL);
+        rightPane.appendChild(hR);
+        return;
+      }
+      leftPane.appendChild(makeDiffLine(row.leftNum,  row.leftType,  row.leftText));
+      rightPane.appendChild(makeDiffLine(row.rightNum, row.rightType, row.rightText));
     });
+
+    // Sync vertical scroll between panes
+    var syncing = false;
+    leftPane.addEventListener('scroll', function() {
+      if (!syncing) { syncing = true; rightPane.scrollTop = leftPane.scrollTop; syncing = false; }
+    });
+    rightPane.addEventListener('scroll', function() {
+      if (!syncing) { syncing = true; leftPane.scrollTop = rightPane.scrollTop; syncing = false; }
+    });
+
+    wrap.appendChild(leftPane);
+    wrap.appendChild(rightPane);
+    body.appendChild(wrap);
   }
 
   window.closeDiff = function() {
@@ -2192,8 +2663,104 @@
     if (e.key === 'ArrowRight') window.nextDiff();
   });
 
+  // -- Panel drag-and-drop (SortableJS) --
+  var STORAGE_KEY_LEFT  = 'ci-panel-order-left';
+  var STORAGE_KEY_RIGHT = 'ci-panel-order-right';
+
+  function savePanelOrder() {
+    var left  = Array.from(document.getElementById('col-live').querySelectorAll('.panel')).map(function(p) { return p.id; });
+    var right = Array.from(document.getElementById('col-hist').querySelectorAll('.panel')).map(function(p) { return p.id; });
+    localStorage.setItem(STORAGE_KEY_LEFT,  JSON.stringify(left));
+    localStorage.setItem(STORAGE_KEY_RIGHT, JSON.stringify(right));
+  }
+
+  function restorePanelOrder() {
+    [{ key: STORAGE_KEY_LEFT, colId: 'col-live' }, { key: STORAGE_KEY_RIGHT, colId: 'col-hist' }].forEach(function(cfg) {
+      var saved = JSON.parse(localStorage.getItem(cfg.key) || 'null');
+      if (!saved) return;
+      var col = document.getElementById(cfg.colId);
+      saved.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el.parentElement === col) col.appendChild(el);
+      });
+    });
+  }
+
+  function initSortable() {
+    // Inject drag handle into every panel header
+    document.querySelectorAll('.panel').forEach(function(panel) {
+      var handle = document.createElement('span');
+      handle.className = 'drag-handle';
+      handle.innerHTML = '&#8942;&#8942;'; // ⋮⋮
+      handle.title = 'Drag to reorder';
+      var firstChild = panel.firstElementChild;
+      if (firstChild) panel.insertBefore(handle, firstChild);
+    });
+
+    var opts = {
+      handle: '.drag-handle',
+      draggable: '.panel',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      onEnd: function() {
+        redistributeGrow();
+        savePanelOrder();
+      }
+    };
+
+    Sortable.create(document.getElementById('col-live'), opts);
+    Sortable.create(document.getElementById('col-hist'), opts);
+  }
+
   // -- Boot --
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', function() {
+    restorePanelOrder();
+    init();
+    initSortable();
+  });
+})();
+</script>
+
+<!-- Context bar tooltip -->
+<div id="ctx-tooltip">
+  <div class="tt-label" id="ctx-tt-label"></div>
+  <div class="tt-value" id="ctx-tt-value"></div>
+</div>
+<script>
+(function() {
+  var tt = document.getElementById('ctx-tooltip');
+  var ttLabel = document.getElementById('ctx-tt-label');
+  var ttValue = document.getElementById('ctx-tt-value');
+
+  function showTooltip(e, seg) {
+    var label = seg.dataset.ttLabel;
+    var color = seg.dataset.ttColor || '#fff';
+    var text  = seg.dataset.ttText  || '';
+    ttLabel.textContent = label;
+    ttLabel.style.color = color;
+    ttValue.textContent = text;
+    tt.style.display = 'block';
+    moveTooltip(e);
+  }
+
+  function moveTooltip(e) {
+    var x = e.clientX + 14;
+    var y = e.clientY - 36;
+    if (x + 200 > window.innerWidth) x = e.clientX - 180;
+    tt.style.left = x + 'px';
+    tt.style.top  = y + 'px';
+  }
+
+  function hideTooltip() { tt.style.display = 'none'; }
+
+  ['ctx-bar-fixed','ctx-bar-conv','ctx-bar-var'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('mouseenter', function(e) { showTooltip(e, el); });
+    el.addEventListener('mousemove',  function(e) { moveTooltip(e); });
+    el.addEventListener('mouseleave', hideTooltip);
+  });
 })();
 </script>
 

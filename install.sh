@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Insights — Installer
-# https://github.com/infowhere-be/claude-monitor
+# https://github.com/infowhere-ai/claude-insights
 
 set -euo pipefail
 
