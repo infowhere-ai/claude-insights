@@ -174,3 +174,4 @@ MIT — © 2026 Leandro Siciliano
 - The curl URL points to the `main` branch of the public repo; verify the raw URL is correct
 - Do not add a Table of Contents — the README is short enough to scan without one
 - Badges use shields.io — use static badges for version; PyPI badge can use the live endpoint
+- **Delete `docs/screenshot.png`** — old hero image (outdated dashboard), referenced in the current README. The new hero is `docs/screenshots/01-dashboard-overview.png`
