@@ -1,38 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claude Insights — Real-time dashboard for Claude Code</title>
-  <meta name="description" content="Monitor what Claude is doing across all your projects — live status, token usage, session context, git changes, reasoning history, and agent tracking. Free and open source."/>
+  <meta name="description" content="Claude Insights — see exactly what Claude is doing in real time. Live status, reasoning, token usage, git changes, agent tracking. Runs locally, zero telemetry.">
+  <link rel="icon" type="image/png" href="favicon.png">
   <meta property="og:title" content="Claude Insights"/>
-  <meta property="og:description" content="Real-time dashboard for Claude Code sessions — live status, token usage, reasoning, git diff, multi-project and more."/>
+  <meta property="og:description" content="Real-time dashboard for Claude Code — live status, reasoning, token usage, git diff, multi-project."/>
   <meta property="og:image" content="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/01-dashboard-overview.png"/>
-  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png"/>
-  <link rel="apple-touch-icon" href="favicon.png"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #0d1117;
-      --bg-card:    #161b22;
-      --bg-code:    #1c2128;
-      --border:     #30363d;
-      --border-dim: #21262d;
-      --text:       #e6edf3;
-      --text-dim:   #8b949e;
-      --text-muted: #6e7681;
-      --green:      #3fb950;
-      --green-dim:  #1a4a24;
-      --green-glow: rgba(63,185,80,0.15);
-      --blue:       #58a6ff;
-      --purple:     #bc8cff;
-      --orange:     #d29922;
-      --font:       'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      --mono:       'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+      --bg:     #09090b;
+      --s1:     #111115;
+      --s2:     #17171d;
+      --s3:     #1e1e27;
+      --border: #21212a;
+      --text:   #eae6e0;
+      --text-2: #9896a6;
+      --text-3: #55536a;
+      --amber:  #d08c52;
+      --amber-glow: rgba(208,140,82,.12);
+      --green:  #3dde84;
     }
 
     html { scroll-behavior: smooth; }
@@ -40,26 +35,46 @@
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: var(--font);
-      font-size: 16px;
-      line-height: 1.6;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      line-height: 1.65;
+      overflow-x: hidden;
     }
 
-    a { color: var(--blue); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9000;
+    }
 
-    img { display: block; }
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 2rem; }
+    a { text-decoration: none; }
 
-    /* ── NAV ──────────────────────────────────────────────── */
+    /* ─── accent bar ─── */
+    .accent-bar {
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--amber) 50%, transparent 100%);
+      opacity: .5;
+    }
+
+    /* ─── nav ─── */
     nav {
       position: sticky;
       top: 0;
-      z-index: 100;
-      background: rgba(13,17,23,0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      z-index: 200;
       border-bottom: 1px solid var(--border);
-      padding: 0 32px;
+      background: rgba(9,9,11,.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .nav-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 2rem;
       height: 58px;
       display: flex;
       align-items: center;
@@ -69,516 +84,551 @@
     .nav-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--text);
+      gap: 9px;
       text-decoration: none;
     }
-    .nav-logo img { width: 26px; height: 26px; }
-    .nav-logo:hover { text-decoration: none; }
+    .nav-logo img { height: 24px; width: 24px; object-fit: contain; }
+    .nav-logo-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .84rem;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: .03em;
+    }
 
-    .nav-links { display: flex; align-items: center; gap: 8px; }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+    }
+    .nav-links a {
+      color: var(--text-2);
+      font-size: .85rem;
+      transition: color .18s;
+    }
+    .nav-links a:hover { color: var(--text); }
 
-    .btn {
+    .nav-gh {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 16px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      font-family: var(--font);
-      cursor: pointer;
-      transition: all 0.15s;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .btn:hover { text-decoration: none; opacity: 0.88; }
-
-    .btn-ghost {
-      color: var(--text-dim);
+      padding: 6px 14px;
       border: 1px solid var(--border);
-      background: transparent;
+      border-radius: 5px;
+      color: var(--text-2) !important;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .74rem;
+      transition: border-color .18s, color .18s !important;
+    }
+    .nav-gh:hover { border-color: var(--amber) !important; color: var(--amber) !important; }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 20px;
+      background: var(--amber);
+      color: #1c0e02;
+      border-radius: 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+      font-size: .82rem;
+      transition: background .18s, box-shadow .18s, transform .18s;
+    }
+    .btn-primary:hover {
+      background: #e09d5e;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(208,140,82,.28);
     }
 
-    .btn-green {
-      color: #000;
-      background: var(--green);
-      border: 1px solid var(--green);
+    /* ─── hero ─── */
+    #hero {
+      padding: 96px 0 80px;
+      position: relative;
+      overflow: hidden;
     }
-    .btn-green:hover { background: #4fc862; border-color: #4fc862; opacity: 1; }
-
-    /* ── HERO ─────────────────────────────────────────────── */
-    .hero {
-      text-align: center;
-      padding: 96px 24px 72px;
-      max-width: 960px;
-      margin: 0 auto;
+    #hero::after {
+      content: '';
+      position: absolute;
+      top: 30%;
+      right: -8%;
+      width: 55vw;
+      height: 55vw;
+      max-width: 680px;
+      max-height: 680px;
+      background: radial-gradient(circle, rgba(208,140,82,.055) 0%, transparent 68%);
+      pointer-events: none;
     }
 
-    .hero-eyebrow {
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4.5rem;
+      align-items: center;
+    }
+
+    .hero-left > * {
+      animation: fade-up .55s cubic-bezier(.22,1,.36,1) both;
+    }
+    .hero-left > *:nth-child(1) { animation-delay: .05s; }
+    .hero-left > *:nth-child(2) { animation-delay: .12s; }
+    .hero-left > *:nth-child(3) { animation-delay: .20s; }
+    .hero-left > *:nth-child(4) { animation-delay: .28s; }
+    .hero-left > *:nth-child(5) { animation-delay: .36s; }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-visual {
+      animation: fade-up .7s cubic-bezier(.22,1,.36,1) .25s both;
+      position: relative;
+    }
+
+    .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: var(--green-dim);
-      color: var(--green);
-      border: 1px solid rgba(63,185,80,0.4);
-      border-radius: 20px;
-      padding: 5px 14px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      letter-spacing: .12em;
       text-transform: uppercase;
-      margin-bottom: 28px;
+      color: var(--text-3);
+      margin-bottom: 1.4rem;
     }
-    .hero-eyebrow::before {
-      content: '';
-      width: 7px; height: 7px;
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: var(--green);
-      animation: pulse 2s infinite;
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse-dot 2.2s ease-in-out infinite;
+      flex-shrink: 0;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(63,185,80,0.4); }
-      50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(63,185,80,0); }
-    }
-
-    .hero-logo {
-      width: 88px;
-      height: 88px;
-      object-fit: contain;
-      margin: 0 auto 20px;
+    @keyframes pulse-dot {
+      0%,100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+      50%      { opacity: .45; box-shadow: 0 0 4px var(--green); }
     }
 
-    .hero h1 {
-      font-size: clamp(36px, 5.5vw, 58px);
-      font-weight: 800;
-      letter-spacing: -1.5px;
-      line-height: 1.12;
-      margin-bottom: 22px;
-    }
-    .hero h1 .accent { color: var(--green); }
-
-    .hero-sub {
-      font-size: 19px;
-      color: var(--text-dim);
-      max-width: 620px;
-      margin: 0 auto 40px;
-      line-height: 1.7;
+    h1 {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: clamp(2.6rem, 4.8vw, 4rem);
       font-weight: 400;
+      line-height: 1.09;
+      letter-spacing: -.025em;
+      color: var(--text);
+      margin-bottom: 1.25rem;
+    }
+    h1 em { font-style: italic; color: var(--amber); }
+
+    .tagline {
+      font-size: 1.02rem;
+      color: var(--text-2);
+      line-height: 1.72;
+      max-width: 420px;
+      margin-bottom: 2.25rem;
     }
 
-    .hero-actions {
+    .hero-ctas {
       display: flex;
-      gap: 12px;
-      justify-content: center;
+      align-items: center;
+      gap: .9rem;
       flex-wrap: wrap;
-      margin-bottom: 56px;
+      margin-bottom: 2.25rem;
     }
 
-    .install-pill {
-      background: var(--bg-code);
+    .btn-ghost-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 20px;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 16px;
+      color: var(--text-2);
+      border-radius: 5px;
+      font-size: .85rem;
+      transition: border-color .18s, color .18s;
+    }
+    .btn-ghost-hero:hover { border-color: var(--text-3); color: var(--text); }
+
+    .ticker {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      font-family: var(--mono);
-      font-size: 14px;
-    }
-    .install-pill .label {
-      color: var(--text-muted);
-      font-family: var(--font);
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      white-space: nowrap;
-    }
-    .install-pill .cmd { color: var(--text); }
-
-    .copy-pill {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      padding: 2px 4px;
-      border-radius: 4px;
-      font-size: 14px;
-      transition: color 0.15s;
-      line-height: 1;
-    }
-    .copy-pill:hover { color: var(--text); }
-
-    .hero-screenshot {
-      border-radius: 12px;
-      overflow: hidden;
+      background: var(--s1);
       border: 1px solid var(--border);
-      box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(63,185,80,0.05);
-      cursor: zoom-in;
-      transition: box-shadow 0.3s;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .74rem;
+      max-width: 100%;
     }
-    .hero-screenshot:hover {
-      box-shadow: 0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(63,185,80,0.15);
+    .ticker-label {
+      color: var(--text-3);
+      font-size: .63rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding-right: 10px;
     }
-    .hero-screenshot img { width: 100%; }
+    .ticker-text {
+      color: var(--green);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      transition: opacity .28s ease;
+    }
+    .ticker-cursor {
+      display: inline-block;
+      width: 7px;
+      height: .9em;
+      background: var(--green);
+      border-radius: 1px;
+      animation: blink 1s step-end infinite;
+      flex-shrink: 0;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-    /* ── STATS STRIP ──────────────────────────────────────── */
-    .stats-strip {
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-card);
-      padding: 20px 24px;
+    .screenshot-frame {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.07);
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,.4),
+        0 28px 72px rgba(0,0,0,.65),
+        0 0 80px rgba(208,140,82,.07);
+      transform: perspective(1100px) rotateY(-5deg) rotateX(2deg);
+      transition: transform .45s cubic-bezier(.22,1,.36,1);
+      cursor: zoom-in;
+    }
+    .screenshot-frame:hover {
+      transform: perspective(1100px) rotateY(-1.5deg) rotateX(.5deg);
+    }
+
+    .frame-chrome {
+      background: var(--s2);
+      height: 30px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 48px;
-      flex-wrap: wrap;
+      padding: 0 12px;
+      gap: 6px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
-    .stat-item {
-      text-align: center;
+    .wdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .wdot.r { background: #ff5f57; }
+    .wdot.y { background: #febc2e; }
+    .wdot.g { background: #28c840; }
+    .frame-url {
+      margin-left: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .61rem;
+      color: var(--text-3);
     }
-    .stat-num {
-      font-size: 22px;
-      font-weight: 800;
+    .screenshot-frame img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 440px;
+      object-fit: cover;
+      object-position: top;
+    }
+
+    /* ─── section commons ─── */
+    section { padding: 96px 0; }
+
+    .sec-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .67rem;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: .85rem;
+    }
+
+    h2 {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: clamp(1.75rem, 3.2vw, 2.6rem);
+      font-weight: 400;
+      line-height: 1.18;
       color: var(--text);
-      letter-spacing: -0.5px;
+      margin-bottom: .9rem;
     }
-    .stat-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 2px;
-    }
-    .stat-sep {
-      width: 1px;
-      height: 36px;
-      background: var(--border);
+    h2 em { font-style: italic; color: var(--amber); }
+
+    .sec-desc {
+      font-size: .97rem;
+      color: var(--text-2);
+      max-width: 520px;
+      line-height: 1.72;
     }
 
-    /* ── SECTIONS ─────────────────────────────────────────── */
-    .section {
-      padding: 88px 32px;
-      max-width: 1120px;
-      margin: 0 auto;
+    /* ─── flow section ─── */
+    #flow {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--s1);
+      padding: 72px 0;
     }
-
-    .section-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 14px;
+    .flow-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      margin-top: 3.5rem;
     }
-
-    .section-title {
-      font-size: clamp(26px, 3vw, 38px);
-      font-weight: 800;
-      letter-spacing: -0.6px;
-      margin-bottom: 14px;
-      line-height: 1.2;
-    }
-
-    .section-sub {
-      font-size: 17px;
-      color: var(--text-dim);
-      max-width: 580px;
-      margin-bottom: 52px;
-      line-height: 1.7;
-    }
-
-    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
-
-    /* ── FEATURE CARDS ────────────────────────────────────── */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 14px;
-    }
-
-    .feature-card {
-      background: var(--bg-card);
+    .flow-step { flex: 1; text-align: center; padding: 0 1rem; }
+    .flow-icon {
+      width: 50px; height: 50px;
+      border-radius: 10px;
+      background: var(--s2);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 22px 26px;
-      transition: border-color 0.2s, background 0.2s;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem;
+      margin: 0 auto 1rem;
     }
-    .feature-card:hover {
-      border-color: #484f58;
-      background: #1a1f26;
+    .flow-step h4 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: .35rem;
     }
-    .feature-icon { font-size: 24px; margin-bottom: 14px; }
-    .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-    .feature-card p { font-size: 14px; color: var(--text-dim); line-height: 1.65; }
+    .flow-step p { font-size: .78rem; color: var(--text-3); line-height: 1.5; max-width: 130px; margin: 0 auto; }
+    .flow-sep {
+      color: var(--amber);
+      opacity: .35;
+      font-size: 1.2rem;
+      padding: 0 .2rem;
+      margin-top: 14px;
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
 
-    /* ── SHOWCASE (text + images) ─────────────────────────── */
+    /* ─── features ─── */
+    #features { border-bottom: 1px solid var(--border); }
+    .feat-header { margin-bottom: 3.5rem; }
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .feat-card {
+      background: var(--bg);
+      padding: 1.75rem;
+      transition: background .18s;
+    }
+    .feat-card:hover { background: var(--s1); }
+    .feat-icon {
+      width: 36px; height: 36px;
+      border-radius: 7px;
+      background: var(--s2);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+    .feat-card h3 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: .5rem;
+    }
+    .feat-card p { font-size: .8rem; color: var(--text-2); line-height: 1.62; }
+
+    /* ─── showcases ─── */
     .showcase {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 72px;
+      gap: 5rem;
       align-items: center;
-      padding: 88px 32px;
-      max-width: 1120px;
-      margin: 0 auto;
+      padding: 96px 0;
+      border-bottom: 1px solid var(--border);
     }
-    .showcase.reverse .showcase-imgs { order: -1; }
+    .showcase.flip .sc-imgs { order: -1; }
 
-    .showcase-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
+    .sc-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: .13em;
       text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 14px;
+      color: var(--amber);
+      margin-bottom: .85rem;
     }
-    .showcase-title {
-      font-size: clamp(24px, 2.8vw, 34px);
-      font-weight: 800;
-      letter-spacing: -0.5px;
+    .sc-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: clamp(1.6rem, 2.8vw, 2.2rem);
+      font-weight: 400;
       line-height: 1.2;
-      margin-bottom: 20px;
+      margin-bottom: 1.1rem;
     }
-    .showcase-body {
-      color: var(--text-dim);
-      font-size: 15px;
-      line-height: 1.78;
-      margin-bottom: 16px;
+    .sc-title em { font-style: italic; color: var(--amber); }
+    .sc-body {
+      font-size: .95rem;
+      color: var(--text-2);
+      line-height: 1.75;
+      margin-bottom: .9rem;
     }
-    .showcase-body:last-child { margin-bottom: 0; }
+    .sc-body:last-child { margin-bottom: 0; }
 
-    .check-list {
+    .sc-checks {
       list-style: none;
-      padding: 0;
-      margin-top: 20px;
+      margin-top: 1.25rem;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: .6rem;
     }
-    .check-list li {
+    .sc-checks li {
       display: flex;
       align-items: flex-start;
-      gap: 10px;
-      color: var(--text-dim);
-      font-size: 14px;
+      gap: .65rem;
+      font-size: .88rem;
+      color: var(--text-2);
       line-height: 1.5;
     }
-    .check-list .chk {
+    .sc-checks .chk {
       color: var(--green);
-      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .75rem;
       flex-shrink: 0;
-      margin-top: 1px;
+      margin-top: 2px;
     }
 
-    /* single image */
-    .showcase-imgs.single .ss {
+    /* single screenshot */
+    .sc-imgs.single .sc-ss {
       border-radius: 10px;
       overflow: hidden;
-      border: 1px solid var(--border);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
       cursor: zoom-in;
-      transition: box-shadow 0.25s;
+      transition: box-shadow .3s;
     }
-    .showcase-imgs.single .ss:hover {
-      box-shadow: 0 24px 70px rgba(0,0,0,0.7);
-    }
-    .showcase-imgs.single .ss img { width: 100%; }
+    .sc-imgs.single .sc-ss:hover { box-shadow: 0 24px 72px rgba(0,0,0,.75); }
+    .sc-imgs.single .sc-ss img { width: 100%; display: block; }
 
-    /* dual stacked images */
-    .showcase-imgs.dual {
+    /* dual stacked */
+    .sc-imgs.dual {
       display: flex;
       flex-direction: column;
       gap: 14px;
     }
-    .showcase-imgs.dual .ss {
+    .sc-imgs.dual .sc-ss {
       border-radius: 8px;
       overflow: hidden;
-      border: 1px solid var(--border);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: 0 12px 40px rgba(0,0,0,.5);
       cursor: zoom-in;
-      transition: box-shadow 0.25s, transform 0.25s;
+      transition: transform .25s, box-shadow .25s;
     }
-    .showcase-imgs.dual .ss:hover {
-      box-shadow: 0 16px 50px rgba(0,0,0,0.65);
+    .sc-imgs.dual .sc-ss:hover {
       transform: translateY(-2px);
+      box-shadow: 0 16px 50px rgba(0,0,0,.65);
     }
-    .showcase-imgs.dual .ss img { width: 100%; }
+    .sc-imgs.dual .sc-ss img { width: 100%; display: block; }
 
-    /* side by side two images */
-    .showcase-imgs.side {
+    /* mobile showcase */
+    .mobile-showcase {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 5rem;
+      align-items: center;
+      padding: 96px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .mobile-frame {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+      cursor: zoom-in;
+      max-width: 320px;
+      margin: 0 auto;
+    }
+    .mobile-frame img { width: 100%; display: block; }
+
+    /* ─── install ─── */
+    #install { border-bottom: 1px solid var(--border); }
+
+    .install-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .showcase-imgs.side .ss {
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      box-shadow: 0 10px 32px rgba(0,0,0,0.5);
-      cursor: zoom-in;
-    }
-    .showcase-imgs.side .ss img { width: 100%; }
-
-    @media (max-width: 768px) {
-      .showcase, .showcase.reverse {
-        grid-template-columns: 1fr;
-        gap: 36px;
-        padding: 56px 20px;
-      }
-      .showcase.reverse .showcase-imgs { order: 0; }
-      .showcase-imgs.side { grid-template-columns: 1fr; }
+      gap: 5rem;
+      align-items: start;
     }
 
-    /* ── MOBILE SECTION ───────────────────────────────────── */
-    .mobile-section {
-      padding: 88px 32px;
-      max-width: 1120px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 360px;
-      gap: 72px;
-      align-items: center;
-    }
-    .mobile-phone {
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
-      cursor: zoom-in;
-      max-width: 360px;
-      margin: 0 auto;
-    }
-    .mobile-phone img { width: 100%; }
-
-    @media (max-width: 900px) {
-      .mobile-section {
-        grid-template-columns: 1fr;
-        gap: 36px;
-        padding: 56px 20px;
-      }
-      .mobile-phone { max-width: 280px; }
-    }
-
-    /* ── GALLERY ──────────────────────────────────────────── */
-    .gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 12px;
-    }
-    .gallery-item {
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      cursor: zoom-in;
-      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-      background: var(--bg-card);
-    }
-    .gallery-item:hover {
-      border-color: #484f58;
-      transform: translateY(-3px);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-    }
-    .gallery-item img { width: 100%; display: block; }
-    .gallery-caption {
-      padding: 8px 12px;
-      font-size: 11px;
-      color: var(--text-muted);
-      font-family: var(--mono);
-      font-weight: 400;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* ── HOW IT WORKS ─────────────────────────────────────── */
-    .how-diagram {
-      background: var(--bg-code);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 28px 32px;
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--text-dim);
-      overflow-x: auto;
-      margin-bottom: 36px;
-      white-space: nowrap;
-    }
-    .how-diagram .arrow { color: var(--green); }
-    .how-diagram .node { color: var(--text); font-weight: 600; }
-
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 16px;
-    }
-    .step { display: flex; gap: 14px; }
-    .step-num {
-      flex-shrink: 0;
-      width: 30px; height: 30px;
-      border-radius: 50%;
-      background: var(--green-dim);
-      border: 1px solid var(--green);
-      color: var(--green);
-      font-size: 13px;
-      font-weight: 700;
+    .badges {
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin-top: 1.75rem;
     }
-    .step h4 { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
-    .step p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
-
-    /* ── INSTALL ──────────────────────────────────────────── */
-    .install-methods {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 14px;
-      margin-bottom: 44px;
-    }
-
-    .method-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 22px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .method-card-header {
-      display: flex;
+    .badge {
+      display: inline-flex;
       align-items: center;
-      gap: 12px;
+      gap: 5px;
+      padding: 4px 11px;
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      color: var(--text-3);
     }
-    .method-icon { font-size: 20px; line-height: 1; }
-    .method-meta { flex: 1; }
-    .method-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
-    .method-platform { font-size: 12px; color: var(--text-muted); }
 
-    .code-block {
-      background: var(--bg-code);
+    .install-methods { display: flex; flex-direction: column; gap: 10px; }
+    .method-block {
+      background: var(--s1);
       border: 1px solid var(--border);
       border-radius: 8px;
+      overflow: hidden;
+    }
+    .method-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .method-os {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      color: var(--text-3);
+      flex: 1;
+    }
+    .method-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: var(--amber);
+      background: var(--amber-glow);
+      border: 1px solid rgba(208,140,82,.2);
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+    .method-cmd {
       display: flex;
       align-items: stretch;
-      overflow: hidden;
+      background: var(--s2);
     }
-    .code-block .cmd {
+    .method-cmd code {
       flex: 1;
-      padding: 11px 14px;
-      font-family: var(--mono);
-      font-size: 13px;
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .76rem;
       color: var(--text);
       white-space: nowrap;
       overflow-x: auto;
       scrollbar-width: none;
+      background: none;
+      border: none;
     }
-    .code-block .cmd::-webkit-scrollbar { display: none; }
-    .code-block .copy-btn {
+    .method-cmd code::-webkit-scrollbar { display: none; }
+    .copy-btn {
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -586,80 +636,88 @@
       padding: 0 14px;
       border: none;
       border-left: 1px solid var(--border);
-      background: var(--bg-card);
-      color: var(--text-dim);
-      font-size: 12px;
-      font-weight: 600;
-      font-family: var(--font);
+      background: transparent;
+      color: var(--text-3);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
+      transition: color .15s;
       white-space: nowrap;
     }
-    .code-block .copy-btn:hover { background: #21262d; color: var(--text); }
+    .copy-btn:hover { color: var(--amber); }
 
-    .qs-steps { display: flex; flex-direction: column; gap: 14px; }
+    /* quickstart steps */
+    .qs-steps { display: flex; flex-direction: column; gap: 16px; }
     .qs-step { display: flex; gap: 14px; align-items: flex-start; }
     .qs-num {
       flex-shrink: 0;
       width: 26px; height: 26px;
       border-radius: 50%;
-      background: var(--green);
-      color: #000;
-      font-size: 12px;
-      font-weight: 800;
+      background: var(--amber-glow);
+      border: 1px solid rgba(208,140,82,.3);
+      color: var(--amber);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      font-weight: 500;
       display: flex;
       align-items: center;
       justify-content: center;
       margin-top: 2px;
     }
-    .qs-step p { font-size: 14px; color: var(--text-dim); margin-top: 4px; line-height: 1.6; }
-    .qs-step strong { color: var(--text); font-weight: 700; }
+    .qs-step strong { color: var(--text); font-weight: 500; font-size: .95rem; }
+    .qs-step p { font-size: .85rem; color: var(--text-2); margin-top: 4px; line-height: 1.6; }
+    .qs-step .method-cmd { margin-top: 8px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
 
     code {
-      font-family: var(--mono);
-      font-size: 13px;
-      background: var(--bg-code);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .8em;
+      background: var(--s2);
       border: 1px solid var(--border);
-      padding: 2px 7px;
+      padding: 2px 6px;
       border-radius: 4px;
       color: var(--text);
     }
 
-    /* ── FOOTER ───────────────────────────────────────────── */
+    /* ─── footer ─── */
     footer {
+      padding: 48px 0;
       border-top: 1px solid var(--border);
-      padding: 40px 32px;
-      text-align: center;
-      font-size: 14px;
-      color: var(--text-dim);
     }
-    footer a { color: var(--text-dim); }
-    footer a:hover { color: var(--text); }
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .footer-copy {
+      font-size: .82rem;
+      color: var(--text-3);
+    }
+    .footer-copy a { color: var(--text-3); transition: color .18s; }
+    .footer-copy a:hover { color: var(--text-2); }
     .footer-links {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
+      gap: 1.5rem;
     }
     .footer-links a {
-      color: var(--text-dim);
-      font-size: 14px;
-      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      color: var(--text-3);
+      transition: color .18s;
     }
-    .footer-links a:hover { color: var(--text); text-decoration: none; }
-    .footer-sep { color: var(--border); }
+    .footer-links a:hover { color: var(--amber); }
 
-    /* ── LIGHTBOX ─────────────────────────────────────────── */
+    /* ─── lightbox ─── */
     .lb-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      z-index: 1000;
-      background: rgba(0,0,0,0.92);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      z-index: 10000;
+      background: rgba(0,0,0,.92);
+      backdrop-filter: blur(8px);
       align-items: center;
       justify-content: center;
       cursor: zoom-out;
@@ -670,584 +728,583 @@
       max-height: 90vh;
       object-fit: contain;
       border-radius: 8px;
-      box-shadow: 0 40px 100px rgba(0,0,0,0.9);
+      box-shadow: 0 40px 100px rgba(0,0,0,.9);
       cursor: default;
-    }
-    .lb-caption {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.5);
-      font-size: 13px;
-      font-family: var(--mono);
-      pointer-events: none;
     }
     .lb-close {
       position: fixed;
-      top: 18px;
-      right: 24px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.15);
+      top: 18px; right: 24px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
       border-radius: 50%;
-      width: 36px;
-      height: 36px;
+      width: 36px; height: 36px;
       color: #fff;
       font-size: 18px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
     }
-    .lb-close:hover { background: rgba(255,255,255,0.2); }
+    .lb-close:hover { background: rgba(255,255,255,.16); }
+    .lb-cap {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,.4);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      pointer-events: none;
+      white-space: nowrap;
+    }
     .zoomable { cursor: zoom-in; }
 
-    /* ── RESPONSIVE ───────────────────────────────────────── */
-    @media (max-width: 600px) {
-      nav { padding: 0 16px; }
-      .nav-links .btn-ghost { display: none; }
-      .hero { padding: 64px 16px 48px; }
-      .hero-actions { flex-direction: column; align-items: center; }
-      .install-pill { width: 100%; justify-content: space-between; }
-      .section { padding: 56px 16px; }
-      .stats-strip { gap: 24px; padding: 16px; }
-      .stat-sep { display: none; }
-      .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+    /* ─── responsive ─── */
+    @media (max-width: 900px) {
+      .hero-grid, .install-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+      .screenshot-frame { transform: none !important; }
+      .feat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .showcase, .showcase.flip { grid-template-columns: 1fr; gap: 2.5rem; }
+      .showcase.flip .sc-imgs { order: 0; }
+      .mobile-showcase { grid-template-columns: 1fr; gap: 2rem; }
+      .mobile-frame { max-width: 280px; }
+      .flow-row { flex-wrap: wrap; }
+      .nav-links .nav-hide { display: none; }
+    }
+    @media (max-width: 560px) {
+      .feat-grid { grid-template-columns: 1fr; }
+      .container { padding: 0 1.25rem; }
+      h1 { font-size: 2.2rem; }
     }
   </style>
 </head>
 <body>
 
+<div class="accent-bar"></div>
+
 <!-- NAV -->
 <nav>
-  <a href="/" class="nav-logo">
-    <img src="logo-transparent.png" alt="Claude Insights"/>
-    Claude Insights
-  </a>
-  <div class="nav-links">
-    <a href="https://github.com/infowhere-ai/claude-insights" class="btn btn-ghost" target="_blank" rel="noopener">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      GitHub
+  <div class="nav-inner">
+    <a class="nav-logo" href="/">
+      <img src="logo-transparent.png" alt="Claude Insights"/>
+      <span class="nav-logo-text">claude insights</span>
     </a>
-    <a href="#install" class="btn btn-green">Install free</a>
+    <div class="nav-links">
+      <a href="#features" class="nav-hide">Features</a>
+      <a href="#showcases" class="nav-hide">Screenshots</a>
+      <a href="#install" class="nav-hide">Install</a>
+      <a href="https://github.com/infowhere-ai/claude-insights" class="nav-gh" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a href="#install" class="btn-primary">Install free</a>
+    </div>
   </div>
 </nav>
 
 <!-- HERO -->
-<div class="hero">
-  <div class="hero-eyebrow">Open Source · Free · MIT License</div>
-  <img src="logo-transparent.png" alt="Claude Insights" class="hero-logo"/>
-  <h1>See inside<br/><span class="accent">Claude's mind.</span></h1>
-  <p class="hero-sub">Real-time dashboard for Claude Code — live status, token usage, reasoning history, git diff viewer, multi-project support, and agent tracking. Everything that's normally invisible, made visible.</p>
-
-  <div class="hero-actions">
-    <div class="install-pill">
-      <span class="label">Homebrew</span>
-      <span class="cmd" id="brew-cmd">brew install claude-insights</span>
-      <button class="copy-pill" onclick="copyId('brew-cmd', this)" title="Copy">⧉</button>
-    </div>
-    <a href="#install" class="btn btn-ghost">Other install methods ↓</a>
-  </div>
-
-  <div class="hero-screenshot zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/01-dashboard-overview.png','Full dashboard — live session')">
-    <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/01-dashboard-overview.png"
-         alt="Claude Insights dashboard — live session"/>
-  </div>
-</div>
-
-<!-- STATS STRIP -->
-<div class="stats-strip">
-  <div class="stat-item">
-    <div class="stat-num">10</div>
-    <div class="stat-label">Panels</div>
-  </div>
-  <div class="stat-sep"></div>
-  <div class="stat-item">
-    <div class="stat-num">0</div>
-    <div class="stat-label">Cloud services</div>
-  </div>
-  <div class="stat-sep"></div>
-  <div class="stat-item">
-    <div class="stat-num">SSE</div>
-    <div class="stat-label">Real-time</div>
-  </div>
-  <div class="stat-sep"></div>
-  <div class="stat-item">
-    <div class="stat-num">MIT</div>
-    <div class="stat-label">License</div>
-  </div>
-  <div class="stat-sep"></div>
-  <div class="stat-item">
-    <div class="stat-num">∞</div>
-    <div class="stat-label">Projects</div>
-  </div>
-</div>
-
-<hr class="divider"/>
-
-<!-- FEATURES GRID -->
-<div class="section">
-  <div class="section-label">What it does</div>
-  <h2 class="section-title">Everything Claude Code doesn't show you — shown.</h2>
-  <p class="section-sub">All data stays on your machine. No accounts, no telemetry, no cloud.</p>
-
-  <div class="features-grid">
-    <div class="feature-card">
-      <div class="feature-icon">🟢</div>
-      <h3>Live Status</h3>
-      <p>Current state in real time — working, waiting for input, compacting, idle. Shows the exact tool name as it executes.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🧠</div>
-      <h3>Reasoning Visibility</h3>
-      <p>Claude's internal thinking streamed live as it arrives. Full reasoning history with word count and block numbers, browsable across the entire session.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <h3>Context Window</h3>
-      <p>Full breakdown of what's consuming your context — fixed rules, conversation, and accumulated tool results, with token costs per file.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🪙</div>
-      <h3>Token Usage</h3>
-      <p>Input, output, and cache reads per session. Tracks the 5-hour renewal window so you always know how much time is left.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">⚡</div>
-      <h3>Command History</h3>
-      <p>Every tool call logged with path, duration, and success or failure. See exactly what Claude touched and how long each step took.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🤖</div>
-      <h3>Agent Tracking</h3>
-      <p>Sub-agents and parallel tasks tracked separately. Duration, status, and which parent session launched them — all in one panel.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📂</div>
-      <h3>Git Diff Viewer</h3>
-      <p>Uncommitted changes at a glance. Click any file for an IntelliJ-style side-by-side diff with the reasoning that caused it.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🗂️</div>
-      <h3>Multi-Project</h3>
-      <p>Auto-discovers every directory with a <code>.claude/</code> folder under your root. Switch projects with one click — no config needed.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🕐</div>
-      <h3>Session History</h3>
-      <p>Browse and replay past sessions — tool calls, reasoning blocks, and context breakdowns — while a live session runs in parallel.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📱</div>
-      <h3>Mobile Responsive</h3>
-      <p>Works on any screen size. Open the dashboard on your phone or tablet while Claude works on your desktop — panels reflow cleanly.</p>
+<section id="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-left">
+        <div class="eyebrow">
+          <span class="live-dot"></span>
+          Open source · MIT · Runs locally
+        </div>
+        <h1>See inside<br/><em>Claude's mind.</em></h1>
+        <p class="tagline">Real-time dashboard for Claude Code — live status, reasoning, token usage, git diff, agent tracking. Everything that's normally invisible, made visible.</p>
+        <div class="hero-ctas">
+          <a href="#install" class="btn-primary">Install free →</a>
+          <a href="https://github.com/infowhere-ai/claude-insights" class="btn-ghost-hero" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+        <div class="ticker">
+          <span class="ticker-label">live</span>
+          <span class="ticker-text" id="tickerText">● working — Bash(git log --oneline -20)</span>
+          <span class="ticker-cursor"></span>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="screenshot-frame zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/01-dashboard-overview.png','Full dashboard — live session')">
+          <div class="frame-chrome">
+            <span class="wdot r"></span>
+            <span class="wdot y"></span>
+            <span class="wdot g"></span>
+            <span class="frame-url">localhost:4000</span>
+          </div>
+          <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/01-dashboard-overview.png" alt="Claude Insights dashboard"/>
+        </div>
+      </div>
     </div>
   </div>
-</div>
+</section>
 
-<hr class="divider"/>
+<!-- HOW IT WORKS -->
+<section id="flow">
+  <div class="container">
+    <div class="sec-label">How it works</div>
+    <h2>Hooks + SSE. <em>That's it.</em></h2>
+    <p class="sec-desc">No cloud services, no daemons, no accounts. A shell script and a local server.</p>
+    <div class="flow-row">
+      <div class="flow-step">
+        <div class="flow-icon">🪝</div>
+        <h4>Hook fires</h4>
+        <p>Claude Code calls monitor-hook.sh before and after every tool call</p>
+      </div>
+      <div class="flow-sep">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">📄</div>
+        <h4>JSON written</h4>
+        <p>The hook writes .claude/status.json with current state and context</p>
+      </div>
+      <div class="flow-sep">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">📡</div>
+        <h4>SSE stream</h4>
+        <p>Claude Insights watches those files and pushes updates via Server-Sent Events</p>
+      </div>
+      <div class="flow-sep">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">🖥️</div>
+        <h4>Browser live</h4>
+        <p>Dashboard updates in real time — no refresh, no polling from the client</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-<!-- SHOWCASE: Live Status -->
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="feat-header">
+      <div class="sec-label">What it shows</div>
+      <h2>Everything Claude Code<br/><em>doesn't tell you.</em></h2>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon">🟢</div>
+        <h3>Live Status</h3>
+        <p>Current state in real time — working, waiting, compacting, idle. Shows the exact tool name as it executes.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🧠</div>
+        <h3>Reasoning</h3>
+        <p>Claude's internal thinking streamed live word by word. Full history of all reasoning blocks across the session.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">📊</div>
+        <h3>Context Window</h3>
+        <p>Three-segment breakdown: fixed rules, conversation, and tool results — with token cost per file.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🪙</div>
+        <h3>Token Usage</h3>
+        <p>Input, output, and cache reads. Tracks the 5-hour renewal window so you always know when it resets.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">📂</div>
+        <h3>Git Diff Viewer</h3>
+        <p>Side-by-side IntelliJ-style diff for every uncommitted file. Shows the reasoning that caused each change.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">⚡</div>
+        <h3>Command History</h3>
+        <p>Every tool call logged with path, duration, and success or failure. See exactly what Claude touched.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🤖</div>
+        <h3>Agent Tracking</h3>
+        <p>Sub-agents tracked separately with duration, status, and parent session. Parallel work stays visible.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🗂️</div>
+        <h3>Multi-Project</h3>
+        <p>Auto-discovers every directory with a .claude/ folder. Switch projects instantly — zero configuration.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🕐</div>
+        <h3>Session History</h3>
+        <p>Browse past sessions — reasoning, tool calls, context — while a live session runs in parallel.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">📈</div>
+        <h3>Activity Stats</h3>
+        <p>Aggregate token spend, session count, and top tools over 7 days. Understand your usage patterns.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">📱</div>
+        <h3>Mobile Responsive</h3>
+        <p>Works on any screen. Open the dashboard on your phone while Claude works on your desktop.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🔒</div>
+        <h3>Zero Telemetry</h3>
+        <p>All data stays on your machine. No cloud, no accounts, no analytics. Local by design.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOWCASES -->
+<div id="showcases">
+
+<!-- Live Status -->
+<div class="container">
 <div class="showcase">
-  <div class="showcase-text">
-    <div class="showcase-label">Live Status</div>
-    <h2 class="showcase-title">Every keystroke.<br/>Every tool. Live.</h2>
-    <p class="showcase-body">The status bar tells you exactly what Claude is doing at this instant — the tool name, the file, the state. Not "working". <em>Working — reading static/insights.html</em>. The difference matters when you're trying to understand why something is taking long.</p>
-    <p class="showcase-body">The LIVE badge in the header confirms real-time monitoring is active. When Claude Code is idle, the badge switches to HISTORY mode — the dashboard keeps working, showing data from past sessions.</p>
-    <ul class="check-list">
-      <li><span class="chk">✓</span> Real-time status: WORKING · IDLE · COMPACTING · WAITING</li>
+  <div class="sc-text">
+    <div class="sc-label">Live Status</div>
+    <h2 class="sc-title">Every tool call.<br/><em>Named. Live.</em></h2>
+    <p class="sc-body">The status bar tells you exactly what Claude is doing at this instant. Not "working" — <em>working — reading static/insights.html</em>. The LIVE badge confirms real-time monitoring is active. When Claude Code is idle, it switches to HISTORY mode automatically.</p>
+    <ul class="sc-checks">
+      <li><span class="chk">✓</span> States: WORKING · IDLE · COMPACTING · WAITING</li>
       <li><span class="chk">✓</span> Exact tool name shown as it executes</li>
       <li><span class="chk">✓</span> LIVE / HISTORY badge with automatic switching</li>
       <li><span class="chk">✓</span> Green pulsing indicator — no refresh needed</li>
     </ul>
   </div>
-  <div class="showcase-imgs dual">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/08-status-bar-working.png','Status bar — WORKING state')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/08-status-bar-working.png" alt="Status bar — WORKING" loading="lazy"/>
+  <div class="sc-imgs dual">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/08-status-bar-working.png','Status bar — WORKING')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/08-status-bar-working.png" alt="Status bar" loading="lazy"/>
     </div>
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/09-live-badge-header.png','LIVE badge and project selector')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/09-live-badge-header.png" alt="LIVE badge and header" loading="lazy"/>
-    </div>
-  </div>
-</div>
-
-<hr class="divider"/>
-
-<!-- SHOWCASE: Git Diff Viewer (spotlight) -->
-<div class="showcase reverse">
-  <div class="showcase-text">
-    <div class="showcase-label">Git diff viewer</div>
-    <h2 class="showcase-title">Your IDE's diff view.<br/>In the browser.</h2>
-    <p class="showcase-body">Claude Code changes dozens of files per session. Claude Insights lets you review every uncommitted change side-by-side, with syntax highlighting — without leaving the browser.</p>
-    <p class="showcase-body">But that's only half of it. Below every diff, a <strong>Change Summary</strong> tells you exactly what caused it: how many lines changed, which tool did it, how many times — and the reasoning Claude was following when it happened.</p>
-    <ul class="check-list">
-      <li><span class="chk">✓</span> Side-by-side diff with syntax highlighting</li>
-      <li><span class="chk">✓</span> <strong>Change Summary</strong>: +N added · -N removed · function name</li>
-      <li><span class="chk">✓</span> Which tool triggered the change and how many times</li>
-      <li><span class="chk">✓</span> Claude's reasoning that led to the change — below the diff</li>
-    </ul>
-  </div>
-  <div class="showcase-imgs single">
-    <div class="ss zoomable" onclick="openLb('18-diff-viewer.png','IntelliJ-style diff viewer with Change Summary')">
-      <img src="18-diff-viewer.png" alt="Git diff viewer"/>
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/09-live-badge-header.png','LIVE badge and header')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/09-live-badge-header.png" alt="LIVE badge" loading="lazy"/>
     </div>
   </div>
 </div>
+</div>
 
-<hr class="divider"/>
-
-<!-- SHOWCASE: Reasoning -->
-<div class="showcase">
-  <div class="showcase-text">
-    <div class="showcase-label">Reasoning</div>
-    <h2 class="showcase-title">Claude thinks out loud.<br/>You watch live.</h2>
-    <p class="showcase-body">Claude's internal reasoning is normally invisible. Every thought block streams to you in real time as Claude works — you see the plan before the tool call happens. You'll catch wrong assumptions before they cost you ten minutes.</p>
-    <p class="showcase-body">Every reasoning block across the entire session is saved and browsable. 123 blocks? All there, collapsed by default, expandable on click. Word count, block number, full text — nothing gets lost.</p>
-    <ul class="check-list">
+<!-- Reasoning -->
+<div class="container">
+<div class="showcase flip">
+  <div class="sc-text">
+    <div class="sc-label">Reasoning</div>
+    <h2 class="sc-title">Claude thinks out loud.<br/><em>You watch live.</em></h2>
+    <p class="sc-body">Claude's internal reasoning is normally invisible. Every thought block streams to you in real time — you see the plan before the tool call happens. Catch wrong assumptions before they cost ten minutes.</p>
+    <p class="sc-body">All reasoning blocks are saved and browsable across the entire session. Word count, block number, timestamp — nothing gets lost.</p>
+    <ul class="sc-checks">
       <li><span class="chk">✓</span> Live reasoning streamed word by word</li>
       <li><span class="chk">✓</span> Block number, word count, timestamp per block</li>
       <li><span class="chk">✓</span> Full history modal — all blocks from the session</li>
-      <li><span class="chk">✓</span> Works across sessions — history browsable even for idle projects</li>
     </ul>
   </div>
-  <div class="showcase-imgs dual">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png','Reasoning panel — live stream')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png" alt="Reasoning panel live" loading="lazy"/>
+  <div class="sc-imgs dual">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png','Reasoning — live')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png" alt="Reasoning live" loading="lazy"/>
     </div>
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/12-reasoning-history-modal.png','Reasoning history modal — 123 blocks')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/12-reasoning-history-modal.png" alt="Reasoning history modal" loading="lazy"/>
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/12-reasoning-history-modal.png','Reasoning history modal')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/12-reasoning-history-modal.png" alt="Reasoning history" loading="lazy"/>
     </div>
   </div>
 </div>
-
-<hr class="divider"/>
-
-<!-- SHOWCASE: Context Window + Tokens -->
-<div class="showcase reverse">
-  <div class="showcase-text">
-    <div class="showcase-label">Context window</div>
-    <h2 class="showcase-title">Know exactly what's<br/>eating your context.</h2>
-    <p class="showcase-body">Every token counts. Claude Insights breaks your context window into three segments: fixed rules loaded at session start, the growing conversation, and accumulated tool results. Token costs shown per file — so you know what to trim.</p>
-    <p class="showcase-body">The model panel tracks input, output, and cache reads in real time. An 80% bar means context pressure is building — you'll see it before Claude hits the wall and starts compacting.</p>
-    <ul class="check-list">
-      <li><span class="chk">✓</span> Three-segment breakdown: FIXED · CHAT · VARIABLE</li>
-      <li><span class="chk">✓</span> Per-file token cost in the FIXED segment</li>
-      <li><span class="chk">✓</span> Cache hit tracking — see how much you're saving</li>
-      <li><span class="chk">✓</span> Context pressure bar with colour-coded urgency</li>
-    </ul>
-  </div>
-  <div class="showcase-imgs dual">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png','Session context — token breakdown')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png" alt="Session context breakdown" loading="lazy"/>
-    </div>
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/05-model-tokens.png','Model and token usage panel')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/05-model-tokens.png" alt="Model tokens panel" loading="lazy"/>
-    </div>
-  </div>
 </div>
 
-<hr class="divider"/>
-
-<!-- SHOWCASE: Multi-Project -->
+<!-- Diff Viewer -->
+<div class="container">
 <div class="showcase">
-  <div class="showcase-text">
-    <div class="showcase-label">Multi-project</div>
-    <h2 class="showcase-title">All your projects.<br/>One dashboard.</h2>
-    <p class="showcase-body">Claude Insights auto-discovers every directory that has a <code>.claude/</code> folder under your configured root. No config files, no manual registration — if Claude Code knows about it, the dashboard knows about it.</p>
-    <p class="showcase-body">Switch between projects with a single click. The dashboard reloads instantly with the new project's live session, history, and stats. Nine projects in the dropdown? Still one click.</p>
-    <ul class="check-list">
-      <li><span class="chk">✓</span> Auto-discovery — zero configuration required</li>
-      <li><span class="chk">✓</span> Instant switch — no page reload</li>
-      <li><span class="chk">✓</span> Live and History modes per project independently</li>
-      <li><span class="chk">✓</span> Works with any number of projects simultaneously</li>
+  <div class="sc-text">
+    <div class="sc-label">Git diff viewer</div>
+    <h2 class="sc-title">Your IDE's diff view.<br/><em>In the browser.</em></h2>
+    <p class="sc-body">Review every uncommitted change side-by-side, with syntax highlighting — without leaving the browser. Below every diff, a <strong style="color:var(--text)">Change Summary</strong> tells you which tool caused it, how many times, and the reasoning Claude was following when it happened.</p>
+    <ul class="sc-checks">
+      <li><span class="chk">✓</span> Side-by-side diff with syntax highlighting</li>
+      <li><span class="chk">✓</span> Change Summary: +N added · -N removed · tool name</li>
+      <li><span class="chk">✓</span> Claude's reasoning that led to the change</li>
+      <li><span class="chk">✓</span> Live file list — updates as Claude writes</li>
     </ul>
   </div>
-  <div class="showcase-imgs single">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/10-project-dropdown.png','Multi-project selector')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/10-project-dropdown.png" alt="Multi-project dropdown" loading="lazy"/>
+  <div class="sc-imgs dual">
+    <div class="sc-ss zoomable" onclick="openLb('18-diff-viewer.png','IntelliJ-style diff viewer')">
+      <img src="18-diff-viewer.png" alt="Diff viewer" loading="lazy"/>
     </div>
-  </div>
-</div>
-
-<hr class="divider"/>
-
-<!-- SHOWCASE: To Commit + Git -->
-<div class="showcase reverse">
-  <div class="showcase-text">
-    <div class="showcase-label">Git integration</div>
-    <h2 class="showcase-title">Every file Claude touched.<br/>Before you commit.</h2>
-    <p class="showcase-body">The To Commit panel lists every uncommitted change in your project, updated live as Claude works. Modified files, new files, staged changes — all at a glance, without switching to a terminal.</p>
-    <p class="showcase-body">Click any file to open the diff viewer. Review what actually changed, see the reasoning that caused it, and decide what goes into the commit. No <code>git status</code>, no <code>git diff</code>, no context switch.</p>
-    <ul class="check-list">
-      <li><span class="chk">✓</span> Live uncommitted file list — updates as Claude writes</li>
-      <li><span class="chk">✓</span> M / ? / A status indicators</li>
-      <li><span class="chk">✓</span> One click to open full diff</li>
-      <li><span class="chk">✓</span> Reasoning context preserved next to each change</li>
-    </ul>
-  </div>
-  <div class="showcase-imgs single">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/07-git-panel.png','Git panel — uncommitted files')">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/07-git-panel.png','Git panel — uncommitted files')">
       <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/07-git-panel.png" alt="Git panel" loading="lazy"/>
     </div>
   </div>
 </div>
+</div>
 
-<hr class="divider"/>
-
-<!-- SHOWCASE: Commands + Agents -->
-<div class="showcase">
-  <div class="showcase-text">
-    <div class="showcase-label">Commands &amp; Agents</div>
-    <h2 class="showcase-title">Every tool call.<br/>Every agent. Tracked.</h2>
-    <p class="showcase-body">The Commands panel logs every tool call in chronological order — tool name, file path, duration, success or failure. A typical session has hundreds of calls. You'll know which ones took 3 seconds and which ones failed silently.</p>
-    <p class="showcase-body">Sub-agents get their own panel. Duration, status, which session launched them — tracked separately so parallel work doesn't get lost in the main timeline.</p>
-    <ul class="check-list">
-      <li><span class="chk">✓</span> Full command history: name · path · duration · result</li>
-      <li><span class="chk">✓</span> Tool icons for instant visual scanning</li>
-      <li><span class="chk">✓</span> Agent panel: sub-agents tracked independently</li>
-      <li><span class="chk">✓</span> Duration per agent — spot bottlenecks in parallel work</li>
+<!-- Context Window -->
+<div class="container">
+<div class="showcase flip">
+  <div class="sc-text">
+    <div class="sc-label">Context window</div>
+    <h2 class="sc-title">Know exactly what's<br/><em>eating your context.</em></h2>
+    <p class="sc-body">Three segments: fixed rules loaded at session start, the growing conversation, and accumulated tool results. Token cost shown per file. You'll see compaction coming before Claude hits the wall.</p>
+    <ul class="sc-checks">
+      <li><span class="chk">✓</span> FIXED · CHAT · VARIABLE breakdown</li>
+      <li><span class="chk">✓</span> Per-file token cost in the FIXED segment</li>
+      <li><span class="chk">✓</span> Cache hit tracking — see how much you're saving</li>
+      <li><span class="chk">✓</span> Context pressure bar with colour urgency</li>
     </ul>
   </div>
-  <div class="showcase-imgs dual">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/06-commands-panel.png','Commands panel — tool call history')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/06-commands-panel.png" alt="Commands panel" loading="lazy"/>
+  <div class="sc-imgs dual">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png','Context breakdown')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png" alt="Context" loading="lazy"/>
     </div>
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/15-agents-panel.png','Agents panel — sub-agent tracking')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/15-agents-panel.png" alt="Agents panel" loading="lazy"/>
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/05-model-tokens.png','Model and token panel')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/05-model-tokens.png" alt="Model tokens" loading="lazy"/>
     </div>
   </div>
 </div>
+</div>
 
-<hr class="divider"/>
-
-<!-- SHOWCASE: Session History -->
-<div class="showcase reverse">
-  <div class="showcase-text">
-    <div class="showcase-label">Session history</div>
-    <h2 class="showcase-title">Yesterday's session.<br/>Still there.</h2>
-    <p class="showcase-body">When Claude Code isn't running in a project, the dashboard switches to HISTORY mode automatically. Everything from past sessions — tool calls, reasoning blocks, context breakdowns — is still browsable.</p>
-    <p class="showcase-body">The Activity panel shows aggregate stats: total sessions, tokens over 7 days, top tools. Use it to understand how you work, not just what Claude is doing right now.</p>
-    <ul class="check-list">
-      <li><span class="chk">✓</span> Automatic LIVE / HISTORY mode switching</li>
-      <li><span class="chk">✓</span> Navigate past sessions while live session runs</li>
-      <li><span class="chk">✓</span> Activity stats: sessions, tokens, top tools</li>
-      <li><span class="chk">✓</span> 7-day token trend at a glance</li>
+<!-- Multi-project -->
+<div class="container">
+<div class="showcase">
+  <div class="sc-text">
+    <div class="sc-label">Multi-project</div>
+    <h2 class="sc-title">All your projects.<br/><em>One dashboard.</em></h2>
+    <p class="sc-body">Claude Insights auto-discovers every directory that has a <code>.claude/</code> folder under your root. No config files, no manual registration. Switch between projects in one click — the dashboard reloads instantly.</p>
+    <ul class="sc-checks">
+      <li><span class="chk">✓</span> Auto-discovery — zero configuration</li>
+      <li><span class="chk">✓</span> Instant switch — no page reload</li>
+      <li><span class="chk">✓</span> LIVE and HISTORY modes per project independently</li>
+      <li><span class="chk">✓</span> Works with any number of projects simultaneously</li>
     </ul>
   </div>
-  <div class="showcase-imgs dual">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/16-history-badge.png','HISTORY mode — idle project')">
+  <div class="sc-imgs single">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/10-project-dropdown.png','Multi-project selector')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/10-project-dropdown.png" alt="Multi-project" loading="lazy"/>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Commands + Agents -->
+<div class="container">
+<div class="showcase flip">
+  <div class="sc-text">
+    <div class="sc-label">Commands &amp; Agents</div>
+    <h2 class="sc-title">Every tool call.<br/><em>Every agent. Tracked.</em></h2>
+    <p class="sc-body">The Commands panel logs every tool call with name, file, duration, and success or failure. Sub-agents get their own panel — tracked separately so parallel work doesn't get lost in the main timeline.</p>
+    <ul class="sc-checks">
+      <li><span class="chk">✓</span> Full command history: tool · path · duration · result</li>
+      <li><span class="chk">✓</span> Tool icons for instant visual scanning</li>
+      <li><span class="chk">✓</span> Agent panel: sub-agents tracked independently</li>
+      <li><span class="chk">✓</span> Duration per agent — spot bottlenecks</li>
+    </ul>
+  </div>
+  <div class="sc-imgs dual">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/06-commands-panel.png','Commands panel')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/06-commands-panel.png" alt="Commands" loading="lazy"/>
+    </div>
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/15-agents-panel.png','Agents panel')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/15-agents-panel.png" alt="Agents" loading="lazy"/>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Session History -->
+<div class="container">
+<div class="showcase">
+  <div class="sc-text">
+    <div class="sc-label">Session history</div>
+    <h2 class="sc-title">Yesterday's session.<br/><em>Still there.</em></h2>
+    <p class="sc-body">When Claude Code isn't running, the dashboard switches to HISTORY mode automatically. Every session — tool calls, reasoning, context — is still browsable. The Activity panel shows aggregate stats over 7 days.</p>
+    <ul class="sc-checks">
+      <li><span class="chk">✓</span> Automatic LIVE / HISTORY switching</li>
+      <li><span class="chk">✓</span> Navigate past sessions while live session runs</li>
+      <li><span class="chk">✓</span> 7-day aggregate: tokens, sessions, top tools</li>
+    </ul>
+  </div>
+  <div class="sc-imgs dual">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/16-history-badge.png','HISTORY mode')">
       <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/16-history-badge.png" alt="HISTORY badge" loading="lazy"/>
     </div>
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/17-history-session.png','Browsing a historical session')">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/17-history-session.png','Past session')">
       <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/17-history-session.png" alt="Historical session" loading="lazy"/>
     </div>
   </div>
 </div>
+</div>
 
-<hr class="divider"/>
-
-<!-- SHOWCASE: Activity + Token Window -->
-<div class="showcase">
-  <div class="showcase-text">
-    <div class="showcase-label">Usage &amp; Activity</div>
-    <h2 class="showcase-title">The 5-hour clock.<br/>Your usage trends.</h2>
-    <p class="showcase-body">Claude Code resets token limits every 5 hours. Most people discover this mid-session when things stop working. Claude Insights shows you exactly how many tokens you've used, how many sessions are active, and how much time is left in the current window.</p>
-    <p class="showcase-body">The Activity panel aggregates across all sessions: total token spend over 7 days, top tools, session count. Build intuition for how your work patterns translate to usage.</p>
-    <ul class="check-list">
+<!-- Token Window + Activity -->
+<div class="container">
+<div class="showcase flip">
+  <div class="sc-text">
+    <div class="sc-label">Token usage</div>
+    <h2 class="sc-title">The 5-hour clock.<br/><em>Always visible.</em></h2>
+    <p class="sc-body">Claude Code resets token limits every 5 hours. Claude Insights shows how many tokens you've used, how many sessions are active, and how much time is left. Plan your work around the reset — not the surprise.</p>
+    <ul class="sc-checks">
       <li><span class="chk">✓</span> 5-hour window progress bar with time remaining</li>
-      <li><span class="chk">✓</span> Tokens consumed + sessions active in current window</li>
-      <li><span class="chk">✓</span> 7-day aggregate: tokens, sessions, top tools</li>
-      <li><span class="chk">✓</span> Plan your work around the reset, not the surprise</li>
+      <li><span class="chk">✓</span> Tokens consumed and sessions in current window</li>
+      <li><span class="chk">✓</span> 7-day activity: tokens, sessions, top tools</li>
     </ul>
   </div>
-  <div class="showcase-imgs dual">
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png','5-hour token renewal window')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png" alt="Token renewal window" loading="lazy"/>
+  <div class="sc-imgs dual">
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png','Token renewal window')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png" alt="Token window" loading="lazy"/>
     </div>
-    <div class="ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/04-activity-panel.png','Activity panel — usage stats')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/04-activity-panel.png" alt="Activity panel" loading="lazy"/>
+    <div class="sc-ss zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/04-activity-panel.png','Activity panel')">
+      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/04-activity-panel.png" alt="Activity" loading="lazy"/>
     </div>
   </div>
 </div>
+</div>
 
-<hr class="divider"/>
-
-<!-- SHOWCASE: Mobile -->
-<div class="mobile-section">
+<!-- Mobile -->
+<div class="container">
+<div class="mobile-showcase" style="border-bottom:1px solid var(--border)">
   <div>
-    <div class="showcase-label">Mobile</div>
-    <h2 class="showcase-title" style="margin-bottom:20px">Works on your phone.<br/>No setup needed.</h2>
-    <p class="showcase-body" style="max-width:480px">Open <code>localhost:4000</code> on any device on your local network. The dashboard reflows to a single-column layout — all panels readable and functional on a 390px screen. Monitor a long-running session from the couch.</p>
-    <ul class="check-list" style="max-width:400px">
+    <div class="sc-label">Mobile</div>
+    <h2 style="font-family:'Instrument Serif',Georgia,serif;font-size:clamp(1.6rem,2.8vw,2.2rem);font-weight:400;line-height:1.2;margin-bottom:1.1rem">Works on your phone.<br/><em style="font-style:italic;color:var(--amber)">No setup needed.</em></h2>
+    <p class="sc-body" style="max-width:480px">Open <code>localhost:4000</code> on any device on your local network. The dashboard reflows to a single-column layout — all panels readable and functional on a 390px screen. Monitor a long-running session from anywhere.</p>
+    <ul class="sc-checks" style="max-width:380px">
       <li><span class="chk">✓</span> Fully responsive — 390px to 4K</li>
       <li><span class="chk">✓</span> All panels accessible on mobile</li>
-      <li><span class="chk">✓</span> Accessible from any device on local network</li>
+      <li><span class="chk">✓</span> Access from any device on local network</li>
     </ul>
   </div>
-  <div class="mobile-phone zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/13-mobile-view.png','Mobile view — 390px')">
+  <div class="mobile-frame zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/13-mobile-view.png','Mobile view — 390px')">
     <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/13-mobile-view.png" alt="Mobile view" loading="lazy"/>
   </div>
 </div>
-
-<hr class="divider"/>
-
-<!-- HOW IT WORKS -->
-<div class="section">
-  <div class="section-label">How it works</div>
-  <h2 class="section-title">Hooks + SSE. That's it.</h2>
-  <p class="section-sub">No cloud services, no background daemons, no accounts. A shell script and a local server.</p>
-
-  <div class="how-diagram">
-    <span class="node">Claude Code</span>
-    <span class="arrow"> → hook fires → </span>
-    <span class="node">.claude/status.json</span>
-    <span class="arrow"> → </span>
-    <span class="node">claude-insights (SSE)</span>
-    <span class="arrow"> → </span>
-    <span class="node">browser</span>
-  </div>
-
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div>
-        <h4>Claude Code fires hooks</h4>
-        <p>Before and after every tool call, on notifications, on stop — Claude Code calls <code>monitor-hook.sh</code> automatically.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div>
-        <h4>Hook writes a JSON file</h4>
-        <p>The script writes <code>.claude/status.json</code> inside the current project with the current state, tool, and context.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div>
-        <h4>Server streams updates</h4>
-        <p>Claude Insights polls the project directories and pushes changes to the browser via Server-Sent Events — no polling from the client.</p>
-      </div>
-    </div>
-  </div>
 </div>
 
-<hr class="divider"/>
+</div> <!-- end showcases -->
 
 <!-- INSTALL -->
-<div class="section" id="install">
-  <div class="section-label">Installation</div>
-  <h2 class="section-title">Up and running in 3 steps.</h2>
-  <p class="section-sub">Choose your install method. All of them install the same tool.</p>
+<section id="install">
+  <div class="container">
+    <div class="install-grid">
+      <div>
+        <div class="sec-label">Installation</div>
+        <h2>Up and running<br/><em>in 3 steps.</em></h2>
+        <p class="sec-desc" style="margin-bottom:1.75rem">Choose your install method. All of them install the same tool.</p>
+        <div class="install-methods">
+          <div class="method-block">
+            <div class="method-header">
+              <span class="method-os">macOS — recommended</span>
+              <span class="method-label">Homebrew</span>
+            </div>
+            <div class="method-cmd">
+              <code>brew tap infowhere-ai/claude-insights &amp;&amp; brew install claude-insights</code>
+              <button class="copy-btn" onclick="copyBlock(this)">⧉ copy</button>
+            </div>
+          </div>
+          <div class="method-block">
+            <div class="method-header">
+              <span class="method-os">macOS &amp; Linux</span>
+              <span class="method-label">pipx</span>
+            </div>
+            <div class="method-cmd">
+              <code>pipx install claude-insights</code>
+              <button class="copy-btn" onclick="copyBlock(this)">⧉ copy</button>
+            </div>
+          </div>
+          <div class="method-block">
+            <div class="method-header">
+              <span class="method-os">any platform — one-liner</span>
+              <span class="method-label">curl</span>
+            </div>
+            <div class="method-cmd">
+              <code>curl -fsSL https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/install.sh | bash</code>
+              <button class="copy-btn" onclick="copyBlock(this)">⧉ copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="badges" style="margin-top:1.5rem">
+          <span class="badge">MIT license</span>
+          <span class="badge">Python 3.10+</span>
+          <span class="badge">macOS &amp; Linux</span>
+          <span class="badge">No cloud</span>
+        </div>
+      </div>
 
-  <div class="install-methods">
-    <div class="method-card">
-      <div class="method-card-header">
-        <div class="method-icon">🍺</div>
-        <div class="method-meta">
-          <h3>Homebrew</h3>
-          <div class="method-platform">macOS — recommended</div>
+      <div id="quickstart">
+        <div class="sec-label" style="margin-top:0">Quick start</div>
+        <div class="qs-steps">
+          <div class="qs-step">
+            <div class="qs-num">1</div>
+            <div>
+              <strong>Activate hooks</strong>
+              <p>Sets up the hook script and registers it for 5 Claude Code events. Existing hooks are never overwritten.</p>
+              <div class="method-cmd" style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid var(--border)">
+                <code>claude-insights install</code>
+                <button class="copy-btn" onclick="copyBlock(this)">⧉ copy</button>
+              </div>
+            </div>
+          </div>
+          <div class="qs-step">
+            <div class="qs-num">2</div>
+            <div>
+              <strong>Restart Claude Code</strong>
+              <p>Required for the hooks to activate in any open sessions.</p>
+            </div>
+          </div>
+          <div class="qs-step">
+            <div class="qs-num">3</div>
+            <div>
+              <strong>Start the dashboard</strong>
+              <p>Opens at <a href="http://localhost:4000" target="_blank" style="color:var(--amber)">localhost:4000</a></p>
+              <div class="method-cmd" style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid var(--border)">
+                <code>claude-insights start</code>
+                <button class="copy-btn" onclick="copyBlock(this)">⧉ copy</button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="code-block">
-        <span class="cmd">brew tap infowhere-ai/claude-insights &amp;&amp; brew install claude-insights</span>
-        <button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button>
-      </div>
-    </div>
-    <div class="method-card">
-      <div class="method-card-header">
-        <div class="method-icon">🐍</div>
-        <div class="method-meta">
-          <h3>pipx</h3>
-          <div class="method-platform">macOS &amp; Linux</div>
-        </div>
-      </div>
-      <div class="code-block">
-        <span class="cmd">pipx install claude-insights</span>
-        <button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button>
-      </div>
-    </div>
-    <div class="method-card">
-      <div class="method-card-header">
-        <div class="method-icon">⚡</div>
-        <div class="method-meta">
-          <h3>curl</h3>
-          <div class="method-platform">any platform — one-liner</div>
-        </div>
-      </div>
-      <div class="code-block">
-        <span class="cmd">curl -fsSL https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/install.sh | bash</span>
-        <button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button>
       </div>
     </div>
   </div>
-
-  <h3 style="font-size:18px;font-weight:700;margin-bottom:22px">Quick start</h3>
-  <div class="qs-steps">
-    <div class="qs-step">
-      <div class="qs-num">1</div>
-      <div>
-        <strong>Activate hooks</strong>
-        <p>Sets up <code>~/.claude/hooks/monitor-hook.sh</code> and registers it for 5 Claude Code events. Existing hooks are never overwritten.</p>
-        <div class="code-block" style="margin-top:10px">
-          <span class="cmd">claude-insights install</span>
-          <button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button>
-        </div>
-      </div>
-    </div>
-    <div class="qs-step">
-      <div class="qs-num">2</div>
-      <div>
-        <strong>Restart Claude Code</strong>
-        <p>Required for the hooks to activate in any open sessions.</p>
-      </div>
-    </div>
-    <div class="qs-step">
-      <div class="qs-num">3</div>
-      <div>
-        <strong>Start the dashboard</strong>
-        <p>Opens at <a href="http://localhost:4000" target="_blank">localhost:4000</a></p>
-        <div class="code-block" style="margin-top:10px">
-          <span class="cmd">claude-insights start</span>
-          <button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<hr class="divider"/>
+</section>
 
 <!-- FOOTER -->
 <footer>
-  <div class="footer-links">
-    <a href="https://github.com/infowhere-ai/claude-insights" target="_blank" rel="noopener">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px;margin-right:5px"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      GitHub
-    </a>
-    <span class="footer-sep">·</span>
-    <a href="https://pypi.org/project/claude-insights/" target="_blank" rel="noopener">PyPI</a>
-    <span class="footer-sep">·</span>
-    <a href="https://github.com/infowhere-ai/claude-insights/releases" target="_blank" rel="noopener">Releases</a>
-    <span class="footer-sep">·</span>
-    <a href="https://github.com/infowhere-ai/claude-insights/issues" target="_blank" rel="noopener">Issues</a>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-copy">
+        <strong style="color:var(--text-2)">Claude Insights</strong> — MIT License — by
+        <a href="https://github.com/ltsiciliano" target="_blank" rel="noopener">Leandro Siciliano</a>
+        <br style="display:none"/>
+        <span style="color:var(--text-3);margin-left:.5rem;font-size:.78rem">No data leaves your machine. Everything runs locally.</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/infowhere-ai/claude-insights" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://pypi.org/project/claude-insights/" target="_blank" rel="noopener">PyPI</a>
+        <a href="https://github.com/infowhere-ai/claude-insights/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/infowhere-ai/claude-insights/issues" target="_blank" rel="noopener">Issues</a>
+      </div>
+    </div>
   </div>
-  <p><strong>Claude Insights</strong> — MIT License — by <a href="https://github.com/ltsiciliano" target="_blank" rel="noopener">Leandro Siciliano</a></p>
-  <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">No data leaves your machine. Everything runs locally.</p>
 </footer>
 
 <!-- LIGHTBOX -->
 <div class="lb-overlay" id="lb" onclick="closeLb()">
   <button class="lb-close" onclick="closeLb()">✕</button>
   <img class="lb-img" id="lb-img" src="" alt="" onclick="event.stopPropagation()"/>
-  <div class="lb-caption" id="lb-cap"></div>
+  <div class="lb-cap" id="lb-cap"></div>
 </div>
 
 <script>
-  function openLb(src, caption) {
+  // Ticker animation
+  const ticks = [
+    '● working — Bash(git log --oneline -20)',
+    '● working — Read(src/app.py)',
+    '● working — Edit(static/insights.html)',
+    '● idle — waiting for input',
+    '● working — Write(docs/README.md)',
+    '● working — Bash(npm run test)',
+    '● working — mcp__playwright__screenshot',
+    '● compacting — context at 87%',
+    '● working — Read(package.json)',
+  ];
+  let ti = 0;
+  const tickEl = document.getElementById('tickerText');
+  setInterval(() => {
+    tickEl.style.opacity = '0';
+    setTimeout(() => {
+      ti = (ti + 1) % ticks.length;
+      tickEl.textContent = ticks[ti];
+      tickEl.style.opacity = '1';
+    }, 280);
+  }, 3000);
+
+  // Lightbox
+  function openLb(src, cap) {
     document.getElementById('lb-img').src = src;
-    document.getElementById('lb-cap').textContent = caption || '';
+    document.getElementById('lb-cap').textContent = cap || '';
     document.getElementById('lb').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -1258,20 +1315,12 @@
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
 
-  function copyId(id, btn) {
-    const text = document.getElementById(id).textContent.trim();
-    navigator.clipboard.writeText(text).then(() => {
-      const orig = btn.textContent;
-      btn.textContent = '✓';
-      setTimeout(() => btn.textContent = orig, 1500);
-    });
-  }
-
+  // Copy
   function copyBlock(btn) {
-    const text = btn.closest('.code-block').querySelector('.cmd').textContent.trim();
+    const text = btn.closest('.method-cmd').querySelector('code').textContent.trim();
     navigator.clipboard.writeText(text).then(() => {
       const orig = btn.textContent;
-      btn.textContent = '✓ Copied';
+      btn.textContent = '✓ copied';
       setTimeout(() => btn.textContent = orig, 1600);
     });
   }
