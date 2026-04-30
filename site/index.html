@@ -444,44 +444,64 @@
     /* ── INSTALL ───────────────────────────────────────── */
     .install-methods {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 16px;
-      margin-bottom: 32px;
+      margin-bottom: 40px;
     }
 
     .method-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px 24px;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
+    .method-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .method-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .method-meta { flex: 1; }
+
     .method-card h3 {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .method-platform {
+      font-size: 12px;
       color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
     }
 
     .code-block {
       background: var(--bg-code);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 14px;
+      border-radius: 8px;
+      padding: 12px 40px 12px 14px;
       font-family: var(--mono);
       font-size: 13px;
       color: var(--text);
-      white-space: pre;
+      white-space: nowrap;
       overflow-x: auto;
       position: relative;
     }
 
     .code-block .copy-btn {
       position: absolute;
-      top: 8px;
-      right: 8px;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
     }
 
     .quickstart-steps {
@@ -823,18 +843,34 @@
 
   <div class="install-methods">
     <div class="method-card">
-      <h3>Homebrew · macOS</h3>
-      <div class="code-block" style="position:relative">brew tap infowhere-ai/claude-insights
-brew install claude-insights<button class="copy-btn" onclick="copyBlock(this)" title="Copy" style="position:absolute;top:8px;right:8px">⧉</button></div>
+      <div class="method-card-header">
+        <div class="method-icon">🍺</div>
+        <div class="method-meta">
+          <h3>Homebrew</h3>
+          <div class="method-platform">macOS — recommended</div>
+        </div>
+      </div>
+      <div class="code-block">brew tap infowhere-ai/claude-insights &amp;&amp; brew install claude-insights<button class="copy-btn" onclick="copyBlock(this)" title="Copy">⧉</button></div>
     </div>
     <div class="method-card">
-      <h3>pipx · macOS &amp; Linux</h3>
-      <div class="code-block" style="position:relative">pipx install claude-insights<button class="copy-btn" onclick="copyBlock(this)" title="Copy" style="position:absolute;top:8px;right:8px">⧉</button></div>
+      <div class="method-card-header">
+        <div class="method-icon">🐍</div>
+        <div class="method-meta">
+          <h3>pipx</h3>
+          <div class="method-platform">macOS &amp; Linux</div>
+        </div>
+      </div>
+      <div class="code-block">pipx install claude-insights<button class="copy-btn" onclick="copyBlock(this)" title="Copy">⧉</button></div>
     </div>
     <div class="method-card">
-      <h3>curl · any platform</h3>
-      <div class="code-block" style="position:relative">curl -fsSL https://raw.githubusercontent.com/\
-infowhere-ai/claude-insights/main/install.sh | bash<button class="copy-btn" onclick="copyBlock(this)" title="Copy" style="position:absolute;top:8px;right:8px">⧉</button></div>
+      <div class="method-card-header">
+        <div class="method-icon">⚡</div>
+        <div class="method-meta">
+          <h3>curl</h3>
+          <div class="method-platform">any platform — one-liner</div>
+        </div>
+      </div>
+      <div class="code-block">curl -fsSL https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/install.sh | bash<button class="copy-btn" onclick="copyBlock(this)" title="Copy">⧉</button></div>
     </div>
   </div>
 
@@ -912,7 +948,10 @@ infowhere-ai/claude-insights/main/install.sh | bash<button class="copy-btn" oncl
 
   function copyBlock(btn) {
     const block = btn.parentElement;
-    const text = block.textContent.replace('⧉', '').trim();
+    // collect only text nodes (skip the button)
+    let text = '';
+    block.childNodes.forEach(n => { if (n.nodeType === 3) text += n.textContent; });
+    text = text.trim();
     navigator.clipboard.writeText(text).then(() => {
       const orig = btn.textContent;
       btn.textContent = '✓';
