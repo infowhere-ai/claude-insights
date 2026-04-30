@@ -4,9 +4,17 @@ __pycache__/
 .venv/
 .env
 
-# Claude
+# Claude — estado e logs
 .claude/status.json
 .claude/logs/
+.claude/weekly_tokens.json
+
+# Claude — configs internas (NUNCA para repo público)
+.claude/rules/
+.claude/plans/
+.claude/agents/
+.superpowers/
+.worktrees/
 
 # IDE
 .idea/
@@ -19,14 +27,12 @@ __pycache__/
 .claude-monitor.log
 .claude-monitor.pid
 
-# Claude internal
-.claude/agents/
-.claude/weekly_tokens.json
-.superpowers/
-.worktrees/
-
-# Internal planning docs (not relevant for public repo)
+# Internal docs (não relevantes para repo público)
 docs/superpowers/
+
+# Debug scripts internos
+debug-*.mjs
+debug-*.js
 
 # Build artefacts
 dist/
