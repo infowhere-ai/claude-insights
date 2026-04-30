@@ -16,7 +16,7 @@
 
 ---
 
-![Claude Insights screenshot](docs/screenshot.png)
+![Claude Insights dashboard](docs/screenshots/01-dashboard-overview.png)
 
 ## What it does
 
