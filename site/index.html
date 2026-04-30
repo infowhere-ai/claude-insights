@@ -345,33 +345,55 @@
       line-height: 1.6;
     }
 
-    /* ── SCREENSHOTS ───────────────────────────────────── */
-    .screenshots-grid {
+    /* ── SHOWCASES ─────────────────────────────────────── */
+    .showcase-section {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
+      grid-template-columns: 1fr 1fr;
+      gap: 72px;
+      align-items: center;
+      padding: 80px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
+    .showcase-section.showcase-reverse .showcase-image { order: -1; }
 
-    @media (max-width: 640px) {
-      .screenshots-grid { grid-template-columns: 1fr; }
+    .showcase-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 14px;
     }
-
-    .screenshot-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+    .showcase-title {
+      font-size: clamp(22px, 2.5vw, 30px);
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      line-height: 1.25;
+      margin-bottom: 18px;
+    }
+    .showcase-desc {
+      color: var(--text-dim);
+      font-size: 15px;
+      line-height: 1.75;
+      margin-bottom: 14px;
+    }
+    .showcase-desc:last-child { margin-bottom: 0; }
+    .showcase-image {
       border-radius: 10px;
       overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      cursor: zoom-in;
     }
-
-    .screenshot-card img {
+    .showcase-image img {
       width: 100%;
       display: block;
     }
-
-    .screenshot-caption {
-      padding: 12px 16px;
-      font-size: 13px;
-      color: var(--text-dim);
+    @media (max-width: 768px) {
+      .showcase-section,
+      .showcase-section.showcase-reverse { grid-template-columns: 1fr; gap: 32px; }
+      .showcase-section.showcase-reverse .showcase-image { order: 0; }
     }
 
     /* ── HOW IT WORKS ──────────────────────────────────── */
@@ -690,29 +712,61 @@
 
 <hr class="divider"/>
 
-<!-- SCREENSHOTS -->
-<section>
-  <div class="section-label">Screenshots</div>
-  <h2 class="section-title">Real data, no mocks</h2>
-  <p class="section-sub">All screenshots captured from a live instance.</p>
+<!-- SHOWCASE 1: Reasoning -->
+<section class="showcase-section">
+  <div class="showcase-text">
+    <div class="showcase-label">Reasoning</div>
+    <h2 class="showcase-title">Claude thinks out loud.<br/>You watch live.</h2>
+    <p class="showcase-desc">Claude's internal reasoning is normally invisible. Not here. Every thought block streams to you in real time as Claude works — you see the plan before the tool call happens. You'll catch wrong assumptions before they cost you ten minutes.</p>
+    <p class="showcase-desc">Full reasoning history stays browsable across the entire session. Word count, block number, timestamp — everything you need to follow the logic end to end.</p>
+  </div>
+  <div class="showcase-image" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png','Reasoning panel — live thinking stream')">
+    <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png" alt="Reasoning panel — live thinking stream" loading="lazy"/>
+  </div>
+</section>
 
-  <div class="screenshots-grid">
-    <div class="screenshot-card zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png','Reasoning panel — live thinking stream')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/02-reasoning-live.png" alt="Reasoning panel" loading="lazy"/>
-      <div class="screenshot-caption">Reasoning panel — live thinking stream, word count, block history</div>
-    </div>
-    <div class="screenshot-card zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png','Context window breakdown')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png" alt="Session context" loading="lazy"/>
-      <div class="screenshot-caption">Context window breakdown — fixed rules, chat, tool results with token costs</div>
-    </div>
-    <div class="screenshot-card zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/07-git-panel.png','Git panel — uncommitted files')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/07-git-panel.png" alt="Git panel" loading="lazy"/>
-      <div class="screenshot-caption">Git panel — uncommitted files listed at a glance</div>
-    </div>
-    <div class="screenshot-card zoomable" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png','5-hour token renewal window')">
-      <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png" alt="Token renewal window" loading="lazy"/>
-      <div class="screenshot-caption">5-hour renewal window — tokens consumed and time remaining</div>
-    </div>
+<hr class="divider"/>
+
+<!-- SHOWCASE 2: Context window -->
+<section class="showcase-section showcase-reverse">
+  <div class="showcase-text">
+    <div class="showcase-label">Context window</div>
+    <h2 class="showcase-title">Know exactly what's<br/>eating your context.</h2>
+    <p class="showcase-desc">Every token counts. Claude Insights breaks your context window into three categories: fixed rules loaded at session start, the growing conversation, and accumulated tool results. Token costs shown for each — so you know what to cut.</p>
+    <p class="showcase-desc">You'll see compaction coming before Claude hits the wall. Act early, not after the context is gone.</p>
+  </div>
+  <div class="showcase-image" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png','Context window breakdown')">
+    <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/03-session-context.png" alt="Context window breakdown" loading="lazy"/>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- SHOWCASE 3: Git panel -->
+<section class="showcase-section">
+  <div class="showcase-text">
+    <div class="showcase-label">To commit</div>
+    <h2 class="showcase-title">Every file Claude touched.<br/>Before you commit.</h2>
+    <p class="showcase-desc">Claude changes dozens of files in a session. The To Commit panel lists every uncommitted change at a glance — across your entire project, updated live as Claude works.</p>
+    <p class="showcase-desc">Click any file to open the side-by-side diff viewer. No terminal, no <code>git status</code>, no context switch. Review what actually changed and decide what goes in the commit.</p>
+  </div>
+  <div class="showcase-image" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/07-git-panel.png','Git panel — uncommitted files')">
+    <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/07-git-panel.png" alt="Git panel — uncommitted files" loading="lazy"/>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- SHOWCASE 4: Token renewal -->
+<section class="showcase-section showcase-reverse">
+  <div class="showcase-text">
+    <div class="showcase-label">Token usage</div>
+    <h2 class="showcase-title">The 5-hour clock.<br/>Always visible.</h2>
+    <p class="showcase-desc">Claude Code resets token limits every 5 hours. Most people discover this mid-session when things stop working. Claude Insights shows you exactly how many tokens you've used, how many sessions are active, and how much time is left in the current window.</p>
+    <p class="showcase-desc">Plan your work around the reset. Not around the surprise.</p>
+  </div>
+  <div class="showcase-image" onclick="openLb('https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png','5-hour token renewal window')">
+    <img src="https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/docs/screenshots/14-renewal-window.png" alt="5-hour token renewal window" loading="lazy"/>
   </div>
 </section>
 
