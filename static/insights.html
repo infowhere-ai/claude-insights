@@ -716,10 +716,29 @@
     height: 100%;
     transition: width 0.3s;
     min-width: 0;
+    cursor: default;
   }
   .ctx-seg.fixed { background: var(--cyan); }
   .ctx-seg.conv  { background: var(--yellow); }
   .ctx-seg.var   { background: var(--purple); }
+  .ctx-seg:hover { filter: brightness(1.3); }
+
+  #ctx-tooltip {
+    position: fixed;
+    z-index: 9999;
+    background: #1c2128;
+    border: 1px solid #444c56;
+    border-radius: 6px;
+    padding: 7px 11px;
+    pointer-events: none;
+    display: none;
+    font-size: 11px;
+    line-height: 1.6;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+  #ctx-tooltip .tt-label { font-weight: 700; }
+  #ctx-tooltip .tt-value { color: #8b949e; font-size: 10px; }
   .ctx-usage-labels {
     display: flex;
     justify-content: space-between;
@@ -905,9 +924,9 @@
         <!-- Usage breakdown bar -->
         <div id="ctx-breakdown-wrap" style="display:none">
           <div class="ctx-usage-bar">
-            <div class="ctx-seg fixed" id="ctx-bar-fixed" style="width:0%"></div>
-            <div class="ctx-seg conv"  id="ctx-bar-conv"  style="width:0%"></div>
-            <div class="ctx-seg var"   id="ctx-bar-var"   style="width:0%"></div>
+            <div class="ctx-seg fixed" id="ctx-bar-fixed" style="width:0%" data-tt-label="Fixed rules" data-tt-color="#22d3ee"></div>
+            <div class="ctx-seg conv"  id="ctx-bar-conv"  style="width:0%" data-tt-label="Conversation" data-tt-color="#eab308"></div>
+            <div class="ctx-seg var"   id="ctx-bar-var"   style="width:0%" data-tt-label="Tool results (var)" data-tt-color="#a855f7"></div>
           </div>
           <div class="ctx-usage-labels">
             <span class="ctx-usage-label-fixed" id="ctx-lbl-fixed"></span>
@@ -1843,9 +1862,15 @@
       var convPct0  = Math.round((convTok  / denom) * 100);
       var varPct0   = Math.round((readsTok / denom) * 100);
 
-      document.getElementById('ctx-bar-fixed').style.width = fixedPct.toFixed(1) + '%';
-      document.getElementById('ctx-bar-conv').style.width  = convPct.toFixed(1)  + '%';
-      document.getElementById('ctx-bar-var').style.width   = varPct.toFixed(1)   + '%';
+      var elFixed = document.getElementById('ctx-bar-fixed');
+      var elConv  = document.getElementById('ctx-bar-conv');
+      var elVar   = document.getElementById('ctx-bar-var');
+      elFixed.style.width = fixedPct.toFixed(1) + '%';
+      elConv.style.width  = convPct.toFixed(1)  + '%';
+      elVar.style.width   = varPct.toFixed(1)   + '%';
+      elFixed.dataset.ttText = fmtTok(rulesTok) + ' tokens · ' + fixedPct0 + '% of context';
+      elConv.dataset.ttText  = fmtTok(convTok)  + ' tokens · ' + convPct0  + '% of context';
+      elVar.dataset.ttText   = fmtTok(readsTok) + ' tokens · ' + varPct0   + '% of context';
       document.getElementById('ctx-lbl-fixed').textContent = 'fixed ~' + fmtTok(rulesTok) + ' (' + fixedPct0 + '%)';
       document.getElementById('ctx-lbl-conv').textContent  = 'chat ~' + fmtTok(convTok) + ' (' + convPct0 + '%)';
       document.getElementById('ctx-lbl-var').textContent   = 'var ~' + fmtTok(readsTok)  + ' (' + varPct0   + '%)';
@@ -2693,6 +2718,48 @@
     restorePanelOrder();
     init();
     initSortable();
+  });
+})();
+</script>
+
+<!-- Context bar tooltip -->
+<div id="ctx-tooltip">
+  <div class="tt-label" id="ctx-tt-label"></div>
+  <div class="tt-value" id="ctx-tt-value"></div>
+</div>
+<script>
+(function() {
+  var tt = document.getElementById('ctx-tooltip');
+  var ttLabel = document.getElementById('ctx-tt-label');
+  var ttValue = document.getElementById('ctx-tt-value');
+
+  function showTooltip(e, seg) {
+    var label = seg.dataset.ttLabel;
+    var color = seg.dataset.ttColor || '#fff';
+    var text  = seg.dataset.ttText  || '';
+    ttLabel.textContent = label;
+    ttLabel.style.color = color;
+    ttValue.textContent = text;
+    tt.style.display = 'block';
+    moveTooltip(e);
+  }
+
+  function moveTooltip(e) {
+    var x = e.clientX + 14;
+    var y = e.clientY - 36;
+    if (x + 200 > window.innerWidth) x = e.clientX - 180;
+    tt.style.left = x + 'px';
+    tt.style.top  = y + 'px';
+  }
+
+  function hideTooltip() { tt.style.display = 'none'; }
+
+  ['ctx-bar-fixed','ctx-bar-conv','ctx-bar-var'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('mouseenter', function(e) { showTooltip(e, el); });
+    el.addEventListener('mousemove',  function(e) { moveTooltip(e); });
+    el.addEventListener('mouseleave', hideTooltip);
   });
 })();
 </script>
