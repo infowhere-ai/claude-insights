@@ -488,20 +488,44 @@
       background: var(--bg-code);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 12px 40px 12px 14px;
+      padding: 0;
+      display: flex;
+      align-items: stretch;
+      overflow: hidden;
+    }
+
+    .code-block .cmd {
+      flex: 1;
+      padding: 12px 14px;
       font-family: var(--mono);
       font-size: 13px;
       color: var(--text);
       white-space: nowrap;
       overflow-x: auto;
-      position: relative;
+      scrollbar-width: none;
     }
+    .code-block .cmd::-webkit-scrollbar { display: none; }
 
     .code-block .copy-btn {
-      position: absolute;
-      top: 50%;
-      right: 10px;
-      transform: translateY(-50%);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 14px;
+      border: none;
+      border-left: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .code-block .copy-btn:hover {
+      background: #21262d;
+      color: var(--text);
     }
 
     .quickstart-steps {
@@ -850,7 +874,7 @@
           <div class="method-platform">macOS — recommended</div>
         </div>
       </div>
-      <div class="code-block">brew tap infowhere-ai/claude-insights &amp;&amp; brew install claude-insights<button class="copy-btn" onclick="copyBlock(this)" title="Copy">⧉</button></div>
+      <div class="code-block"><span class="cmd">brew tap infowhere-ai/claude-insights &amp;&amp; brew install claude-insights</span><button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button></div>
     </div>
     <div class="method-card">
       <div class="method-card-header">
@@ -860,7 +884,7 @@
           <div class="method-platform">macOS &amp; Linux</div>
         </div>
       </div>
-      <div class="code-block">pipx install claude-insights<button class="copy-btn" onclick="copyBlock(this)" title="Copy">⧉</button></div>
+      <div class="code-block"><span class="cmd">pipx install claude-insights</span><button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button></div>
     </div>
     <div class="method-card">
       <div class="method-card-header">
@@ -870,7 +894,7 @@
           <div class="method-platform">any platform — one-liner</div>
         </div>
       </div>
-      <div class="code-block">curl -fsSL https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/install.sh | bash<button class="copy-btn" onclick="copyBlock(this)" title="Copy">⧉</button></div>
+      <div class="code-block"><span class="cmd">curl -fsSL https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/install.sh | bash</span><button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button></div>
     </div>
   </div>
 
@@ -881,7 +905,7 @@
       <div>
         <strong>Activate hooks</strong>
         <p>Sets up <code>~/.claude/hooks/monitor-hook.sh</code> and registers it for 5 Claude Code events. Existing hooks are never touched.</p>
-        <div class="code-block" style="margin-top:8px">claude-insights install</div>
+        <div class="code-block" style="margin-top:8px"><span class="cmd">claude-insights install</span><button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button></div>
       </div>
     </div>
     <div class="qs-step">
@@ -896,7 +920,7 @@
       <div>
         <strong>Start the dashboard</strong>
         <p>Opens at <a href="http://localhost:4000" target="_blank">http://localhost:4000</a></p>
-        <div class="code-block" style="margin-top:8px">claude-insights start</div>
+        <div class="code-block" style="margin-top:8px"><span class="cmd">claude-insights start</span><button class="copy-btn" onclick="copyBlock(this)">⧉ Copy</button></div>
       </div>
     </div>
   </div>
@@ -947,14 +971,10 @@
   }
 
   function copyBlock(btn) {
-    const block = btn.parentElement;
-    // collect only text nodes (skip the button)
-    let text = '';
-    block.childNodes.forEach(n => { if (n.nodeType === 3) text += n.textContent; });
-    text = text.trim();
+    const text = btn.parentElement.querySelector('.cmd').textContent.trim();
     navigator.clipboard.writeText(text).then(() => {
       const orig = btn.textContent;
-      btn.textContent = '✓';
+      btn.textContent = '✓ Copied';
       setTimeout(() => btn.textContent = orig, 1500);
     });
   }
