@@ -5,24 +5,86 @@
 
   **Real-time dashboard for Claude Code sessions**
 
-  Monitor what Claude is doing across all your projects — live status, token usage, session context, git changes, and reasoning history.
+  Monitor what Claude is doing across all your projects — live status, token usage,
+  session context, reasoning history, and git changes.
 
   ![Version](https://img.shields.io/badge/version-1.0.0--beta-blue)
   ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
   ![License](https://img.shields.io/badge/license-MIT-green)
+  [![PyPI](https://img.shields.io/pypi/v/claude-insights)](https://pypi.org/project/claude-insights/)
 
-  *by [Leandro Siciliano](https://github.com/ltsiciliano)*
+  *by [Leandro Siciliano](https://github.com/ltsiciliano) · InfoWhere*
 </div>
 
 ---
 
 ![Claude Insights dashboard](docs/screenshots/01-dashboard-overview.png)
+*Live session — WORKING state, all panels visible*
 
-## What it does
+Claude Insights is a lightweight web dashboard that connects to Claude Code via hooks.
+It shows live status, token usage, session context, reasoning blocks, and uncommitted
+git changes — across all your projects simultaneously. Everything runs locally.
+No data leaves your machine.
 
-Claude Insights is a lightweight web dashboard that connects to Claude Code via hooks. It shows you exactly what Claude is doing in real time — which tool it is running, what files it touched, how many tokens the session has consumed, and what is in the context window.
+---
 
-Everything runs **locally**. No data leaves your machine.
+## Installation
+
+**Homebrew** (macOS)
+
+```bash
+brew tap infowhere-ai/claude-insights
+brew install claude-insights
+```
+
+**pipx** (macOS / Linux)
+
+```bash
+pipx install claude-insights
+```
+
+**curl** (one-liner, any platform)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/infowhere-ai/claude-insights/main/install.sh | bash
+```
+
+After installing, see [Quick Start](#quick-start) below to activate the hooks.
+
+---
+
+## Quick Start
+
+1. **Activate hooks** — sets up the hook script at `~/.claude/hooks/monitor-hook.sh` and registers it for 5 Claude Code events in `~/.claude/settings.json`:
+
+   ```bash
+   claude-insights install
+   ```
+
+   > Existing hooks are never removed or modified.
+
+2. **Restart Claude Code** — required for the hooks to take effect in open sessions.
+
+3. **Start the dashboard**:
+
+   ```bash
+   claude-insights start
+   ```
+
+   Opens at **http://localhost:4000**
+
+---
+
+## How It Works
+
+> Claude Code fires hooks at key moments — before and after each tool call, on
+> notifications, on stop. Each hook writes a small JSON file to `.claude/status.json`
+> inside the current project. Claude Insights watches those files and streams
+> updates to the browser via Server-Sent Events.
+
+```
+Claude Code  →  hook fires  →  .claude/status.json  →  Claude Insights (SSE)  →  browser
+```
 
 ---
 
@@ -30,77 +92,43 @@ Everything runs **locally**. No data leaves your machine.
 
 | Area | What you see |
 |------|-------------|
-| **Live status** | Current state — working, waiting for input, compacting, idle |
-| **Reasoning** | Claude's internal thinking, live as it streams |
-| **Session context** | Full breakdown of the context window: fixed rules, conversation, tool results |
-| **Token usage** | Input, output, cache — per session and weekly totals |
-| **Commands** | Every tool call with arguments, result preview, and token cost |
-| **To commit** | Uncommitted git changes with inline diff viewer |
-| **Multi-project** | Monitors all projects under a root folder simultaneously |
-| **Session history** | Browse past sessions and replay their events |
+| **Live status** | Current state: working, waiting, compacting, idle — with the exact tool name |
+| **Reasoning** | Claude's internal thinking live as it arrives; full history browsable |
+| **Session context** | Context window breakdown: fixed rules, conversation, tool results — with token costs |
+| **Token usage** | Input, output, cache reads — per session and 5-hour renewal window |
+| **Commands** | Every tool call with path, duration, and success/failure |
+| **To commit** | Uncommitted git changes; click any file for a side-by-side diff viewer |
+| **Multi-project** | Monitors all projects under a root folder — auto-discovered |
+| **Session history** | Browse past sessions; replay events and reasoning blocks |
 
----
+<div align="center">
+  <img src="docs/screenshots/02-reasoning-live.png" width="600" alt="Reasoning panel — live thinking stream"/>
+  <p><em>Live reasoning stream — Claude's internal thinking as it arrives</em></p>
+</div>
 
-## How it works
+<div align="center">
+  <img src="docs/screenshots/03-session-context.png" width="600" alt="Session context — token breakdown"/>
+  <p><em>Context window breakdown by category with token costs</em></p>
+</div>
 
-```
-Claude Code  →  hook fires  →  .claude/status.json  →  Claude Insights (SSE)  →  browser
-```
+<div align="center">
+  <img src="docs/screenshots/07-git-panel.png" width="600" alt="Git panel — uncommitted files"/>
+  <p><em>Uncommitted files — click any file to open the side-by-side diff viewer</em></p>
+</div>
 
-Claude Code hooks write a small JSON file to `.claude/status.json` inside each project directory every time Claude calls a tool. Claude Insights watches those files and streams updates to the browser via [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). The JSONL session files written by Claude Code are also read directly to extract reasoning, tool calls, and conversation history.
+<div align="center">
+  <img src="docs/screenshots/14-renewal-window.png" width="600" alt="5-hour token renewal window"/>
+  <p><em>5-hour token renewal window tracker</em></p>
+</div>
 
 ---
 
 ## Requirements
 
-- **Python 3.10+**
-- **Claude Code CLI** (`claude`) installed and in PATH
-- **macOS or Linux**
-- **Git** (for the diff viewer)
-
----
-
-## Installation
-
-```bash
-git clone https://github.com/infowhere-ai/claude-insights.git
-cd claude-monitor
-./install.sh
-```
-
-The installer will:
-
-1. Check that `python3` and `claude` are available
-2. Create a Python virtual environment inside the project folder (`.venv/`)
-3. Install Python dependencies (FastAPI, uvicorn, httpx)
-4. Copy the hook script to `~/.claude/hooks/monitor-hook.sh`
-5. Register the hook in `~/.claude/settings.json`
-
-### What the installer touches on your machine
-
-| Location | What | Reversible |
-|----------|------|-----------|
-| `~/.claude/settings.json` | Adds hook entries for 5 Claude Code events | Yes — remove the entries manually |
-| `~/.claude/hooks/monitor-hook.sh` | The hook script that writes status files | Yes — delete the file |
-| `<project>/.claude/status.json` | Written at runtime by the hook (one per project) | Yes — gitignored by default |
-| `.venv/` inside claude-monitor | Python virtual environment | Yes — delete the folder |
-
-No data is sent to any server. The hook script only writes a small JSON file to the current project directory.
-
-> **Existing hooks are preserved.** The installer reads your current `settings.json` and adds only what is missing — it never removes or overwrites existing hooks.
-
----
-
-## Start / stop
-
-```bash
-./run.sh start          # start and open in browser
-./run.sh stop           # stop the server
-./run.sh restart        # restart
-./run.sh status         # check if running
-```
-
-The server starts on **http://localhost:19001** by default.
+- Python 3.10+
+- [Claude Code CLI](https://claude.ai/code) (`claude`) in PATH
+- macOS or Linux
+- Git
 
 ---
 
@@ -108,49 +136,40 @@ The server starts on **http://localhost:19001** by default.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `19001` | HTTP port |
-| `PROJECTS_ROOT` | parent of claude-monitor | Root folder containing your project directories |
+| `PORT` | `4000` | HTTP port for the dashboard |
+| `PROJECTS_ROOT` | Set during `claude-insights install` | Root folder containing your project directories |
 
 ```bash
-PORT=8080 PROJECTS_ROOT=~/code ./run.sh start
+PORT=8080 PROJECTS_ROOT=~/code claude-insights start
 ```
 
-Claude Insights auto-discovers any project that has a `.claude/` directory under `PROJECTS_ROOT`.
+Any directory under `PROJECTS_ROOT` that contains a `.claude/` folder is monitored automatically.
 
 ---
 
 ## Uninstall
 
 ```bash
-# 1. Stop the server
-./run.sh stop
-
-# 2. Remove the hook script
-rm ~/.claude/hooks/monitor-hook.sh
-
-# 3. Remove hook entries from ~/.claude/settings.json
-#    Open the file and delete the entries that reference monitor-hook.sh
-
-# 4. Delete the project folder
-cd .. && rm -rf claude-monitor
+claude-insights uninstall
 ```
+
+Removes the hook script and deregisters hooks from `~/.claude/settings.json`.
+Your other Claude Code hooks and settings are preserved.
 
 ---
 
-## Project structure
+## Development
 
+For running from source:
+
+```bash
+git clone https://github.com/infowhere-ai/claude-insights.git
+cd claude-insights
+./install.sh        # sets up hooks
+./run.sh start      # starts the server (source install — default port: 19001)
 ```
-claude-monitor/
-├── app.py              # FastAPI backend — SSE, git diff, context inspector
-├── static/
-│   ├── insights.html   # Dashboard (vanilla JS, no build step)
-│   ├── logo.png        # Brand logo
-│   ├── manifest.json
-│   └── sw.js
-├── install.sh          # Installer — sets up hooks and dependencies
-├── run.sh              # Start / stop helper
-└── requirements.txt
-```
+
+Stack: Python 3.10+ · FastAPI · SSE · Vanilla JS (no build step)
 
 ---
 
