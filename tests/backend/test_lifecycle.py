@@ -387,3 +387,59 @@ class TestPersistAndCleanSession:
             app._jsonl_cache.update(original_cache)
             app._persisted_agent_ids.clear()
             app._persisted_agent_ids.update(original_persisted)
+
+
+# ── jsonl_watcher state decision ──────────────────────────────────────────────
+
+class TestJsonlWatcherStateDecision:
+    """Unit tests for _should_flip_to_working — the extracted decision helper."""
+
+    def test_idle_no_tool_returns_false(self):
+        """
+        Given that   cur_state=idle, tool=None (PostToolUse wrote idle, JSONL has final text)
+        When         _should_flip_to_working is called
+        Then         returns False — must NOT flip to working (CA-01)
+        """
+        assert app._should_flip_to_working(
+            cur_state="idle", tool="", compacting=False, notification_active=False
+        ) is False
+
+    def test_idle_with_tool_returns_true(self):
+        """
+        Given that   cur_state=idle, tool="Bash" (new tool call in JSONL)
+        When         _should_flip_to_working is called
+        Then         returns True — should flip to working (CA-02)
+        """
+        assert app._should_flip_to_working(
+            cur_state="idle", tool="Bash", compacting=False, notification_active=False
+        ) is True
+
+    def test_working_no_tool_returns_true(self):
+        """
+        Given that   cur_state=working (hook set it), tool=None
+        When         _should_flip_to_working is called
+        Then         returns True — already working, preserve working state
+        """
+        assert app._should_flip_to_working(
+            cur_state="working", tool="", compacting=False, notification_active=False
+        ) is True
+
+    def test_compacting_returns_false(self):
+        """
+        Given that   compacting=True
+        When         _should_flip_to_working is called
+        Then         returns False — preserve compacting state
+        """
+        assert app._should_flip_to_working(
+            cur_state="compacting", tool="Read", compacting=True, notification_active=False
+        ) is False
+
+    def test_notification_active_returns_false(self):
+        """
+        Given that   notification_active=True
+        When         _should_flip_to_working is called
+        Then         returns False — preserve waiting state
+        """
+        assert app._should_flip_to_working(
+            cur_state="waiting", tool="", compacting=False, notification_active=True
+        ) is False

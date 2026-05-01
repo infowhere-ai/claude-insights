@@ -143,6 +143,25 @@ def _parse_jsonl_tail(jsonl_path: Path) -> dict:
         return {}
 
 
+def _should_flip_to_working(cur_state: str, tool: str,
+                             compacting: bool, notification_active: bool) -> bool:
+    """Return True if the watcher should set state='working' for this project.
+
+    Called when JSONL is newer than status.json (hook may not have fired yet).
+    Preserves special states and avoids false-positive 'working' when PostToolUse
+    already wrote 'idle' and the JSONL update was just the final text response.
+    """
+    if compacting:
+        return False
+    if notification_active:
+        return False
+    if cur_state == "idle" and not tool:
+        # PostToolUse wrote "idle"; JSONL is newer only because Claude wrote the
+        # final text response after the last tool. No active tool → not working.
+        return False
+    return True
+
+
 def _detect_latest_thinking(jsonl_path: Path) -> dict | None:
     """Reads last 32 KB of JSONL, returns most recent non-empty thinking block.
 
@@ -876,14 +895,7 @@ async def jsonl_watcher_loop() -> None:  # pragma: no cover
                         # hasn't responded yet. Only clear when JSONL is substantially newer
                         # (>2s), meaning Claude resumed after the user responded.
                         notification_active = bool(updated.get("notification")) and cur_state in ("waiting", "notification")
-                        if cur_state == "compacting":
-                            pass  # preserve compacting
-                        elif notification_active:
-                            # Notification hook fired before JSONL write completed (common).
-                            # JSONL newer than status.json does NOT mean Claude resumed —
-                            # preserve "waiting" until a new PreToolUse hook clears it.
-                            pass
-                        else:
+                        if _should_flip_to_working(cur_state, tool, cur_state == "compacting", notification_active):
                             updated["state"] = "working"
                             updated["status"] = "working"
                             updated["notification"] = None
