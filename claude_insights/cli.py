@@ -48,18 +48,11 @@ def _cmd_start(host: str, port: int) -> None:
         print("uvicorn is not installed. Run: pip install 'uvicorn[standard]'", file=sys.stderr)
         sys.exit(1)
 
-    pkg_dir = _pkg_dir()
-    app_module = pkg_dir / "app.py"
-    if not app_module.exists():
-        print(f"app.py not found in {pkg_dir}", file=sys.stderr)
-        sys.exit(1)
-
     print(f"claude-insights {_version()} — http://{host}:{port}/insights")
     uvicorn.run(
-        "app:app",
+        "claude_monitor.main:app",
         host=host,
         port=port,
-        app_dir=str(pkg_dir),
     )
 
 
