@@ -198,7 +198,7 @@ install_deps() {
         info "Creating virtual environment..."
         python3 -m venv "$VENV"
         info "Installing dependencies..."
-        "$VENV/bin/pip" install -q -r "$SCRIPT_DIR/requirements.txt"
+        "$VENV/bin/pip" install -q "$SCRIPT_DIR"
         green "Dependencies installed"
     fi
 }

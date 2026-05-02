@@ -47,12 +47,10 @@ packages = ["claude_monitor", "claude_insights"]
 include = [
     "claude_monitor/",
     "claude_insights/",
-    "db.py",
     "static/",
     "monitor-hook.sh",
     "install.sh",
     "README.md",
-    "requirements.txt",
 ]
 
 [dependency-groups]
@@ -69,15 +67,14 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "--cov=. --cov-report=xml:coverage.xml --cov-report=term-missing"
+addopts = "--cov=claude_monitor --cov-report=xml:coverage.xml --cov-report=term-missing"
 
 [tool.coverage.run]
+source = ["claude_monitor"]
 omit = [
     "tests/*",
     "dist/*",
     ".venv/*",
-    "setup.py",
-    "claude_insights/cli.py",
 ]
 
 [tool.coverage.report]

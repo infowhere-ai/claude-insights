@@ -28,7 +28,10 @@ jobs:
             --onefile \
             --name claude-insights \
             --add-data "static:static" \
-            app.py
+            --hidden-import claude_monitor \
+            --hidden-import claude_monitor.main \
+            --collect-all claude_monitor \
+            claude_monitor/main.py
 
       - name: Rename binary
         run: mv dist/claude-insights dist/claude-insights-macos-arm64
@@ -62,7 +65,10 @@ jobs:
             --onefile \
             --name claude-insights \
             --add-data "static:static" \
-            app.py
+            --hidden-import claude_monitor \
+            --hidden-import claude_monitor.main \
+            --collect-all claude_monitor \
+            claude_monitor/main.py
 
       - name: Rename binary
         run: mv dist/claude-insights dist/claude-insights-linux-x86_64

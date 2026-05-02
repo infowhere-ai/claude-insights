@@ -29,10 +29,14 @@ __pycache__/
 
 # Internal docs (não relevantes para repo público)
 docs/superpowers/
+docs/plans/
 
 # Debug scripts internos
 debug-*.mjs
 debug-*.js
+
+# Backup files
+*.backup-*
 
 # Build artefacts
 dist/

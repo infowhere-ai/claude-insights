@@ -27,7 +27,7 @@ ensure_venv() {
     if [ ! -f "$VENV/bin/uvicorn" ]; then
         info "Creating venv and installing dependencies..."
         python3 -m venv "$VENV"
-        "$VENV/bin/pip" install -q -r "$SCRIPT_DIR/requirements.txt"
+        "$VENV/bin/pip" install -q "$SCRIPT_DIR"
         green "✓ Dependencies installed"
     fi
 }
@@ -162,10 +162,9 @@ cmd_start() {
     fi
 
     info "Starting claude-monitor on port $PORT..."
-    "$VENV/bin/uvicorn" app:app \
+    "$VENV/bin/uvicorn" claude_monitor.main:app \
         --host 0.0.0.0 \
         --port "$PORT" \
-        --app-dir "$SCRIPT_DIR" \
         >> "$LOG_FILE" 2>&1 &
 
     echo $! > "$PID_FILE"
