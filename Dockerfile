@@ -6,6 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
+COPY claude_monitor/ claude_monitor/
 COPY static/ static/
 
 EXPOSE 19001

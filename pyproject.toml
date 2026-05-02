@@ -36,21 +36,18 @@ Homepage = "https://github.com/infowhere-ai/claude-insights"
 Repository = "https://github.com/infowhere-ai/claude-insights"
 
 [tool.hatch.build.targets.wheel]
-packages = ["claude_insights"]
+packages = ["claude_monitor", "claude_insights"]
 
 [tool.hatch.build.targets.wheel.force-include]
-# Bundle the server and assets inside the package so `claude-insights start` works
-# regardless of where the user installed it.
-"app.py"          = "claude_insights/app.py"
-"db.py"           = "claude_insights/db.py"
 "monitor-hook.sh" = "claude_insights/monitor-hook.sh"
 "install.sh"      = "claude_insights/install.sh"
 "static"          = "claude_insights/static"
 
 [tool.hatch.build.targets.sdist]
 include = [
+    "claude_monitor/",
     "claude_insights/",
-    "app.py",
+    "db.py",
     "static/",
     "monitor-hook.sh",
     "install.sh",
