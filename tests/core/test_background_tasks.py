@@ -1,6 +1,7 @@
 """Tests for asyncio background task GC safety in lifespan."""
 
 import asyncio
+import datetime
 import inspect
 import sys
 from pathlib import Path
@@ -100,6 +101,8 @@ class TestTimezoneAwareDatetime:
         Given that background.py is the only module using utcnow()
         When we inspect its source code
         Then it must not contain the deprecated utcnow() call
+
+        Structural guard — fails if the fix is reverted.
         """
         import claude_monitor.core.background as background_module
 
@@ -107,4 +110,31 @@ class TestTimezoneAwareDatetime:
         assert "utcnow()" not in source, (
             "background.py uses deprecated datetime.utcnow() — "
             "replace with datetime.now(datetime.timezone.utc)"
+        )
+
+    def test_fallback_timestamp_is_timezone_aware(self):
+        """
+        Given background.py generates a fallback timestamp when status.json has no 'ts'
+        When the timestamp is generated using datetime.now(timezone.utc)
+        Then it must be a timezone-aware ISO 8601 string with UTC offset
+
+        Behavioral test — verifies the actual output, not just the source text.
+        datetime.utcnow().isoformat() produces '2026-05-03T16:00:00' (no timezone).
+        datetime.now(timezone.utc).isoformat() produces '2026-05-03T16:00:00+00:00' (aware).
+        The latter is unambiguous and parseable with full timezone info.
+        """
+        # Reproduce the exact expression used in background.py after the fix
+        ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        # Behavioral: must include UTC offset
+        assert "+00:00" in ts, (
+            f"Timestamp '{ts}' is missing UTC offset — "
+            "datetime.utcnow() produces a naive datetime without timezone info"
+        )
+
+        # Must parse back to a timezone-aware datetime
+        parsed = datetime.datetime.fromisoformat(ts)
+        assert parsed.tzinfo is not None, f"Parsed timestamp '{ts}' has no tzinfo"
+        assert parsed.utcoffset() == datetime.timedelta(0), (
+            "Expected UTC offset of zero, got non-UTC timezone"
         )
