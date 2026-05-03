@@ -7,7 +7,6 @@ import os
 import pty
 import shutil
 import struct
-import subprocess
 import termios
 from pathlib import Path
 
@@ -36,8 +35,8 @@ async def terminal_ws(websocket: WebSocket):  # pragma: no cover
 
     _set_winsize(master_fd, 24, 120)
     env = {**os.environ, "TERM": "xterm-256color", "COLORTERM": "truecolor"}
-    proc = subprocess.Popen(
-        [claude_path],
+    proc = await asyncio.create_subprocess_exec(
+        claude_path,
         stdin=slave_fd,
         stdout=slave_fd,
         stderr=slave_fd,
@@ -46,7 +45,7 @@ async def terminal_ws(websocket: WebSocket):  # pragma: no cover
         cwd=str(Path.home()),
     )
     os.close(slave_fd)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     alive = True
 
     async def pty_to_ws() -> None:
