@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -102,6 +103,125 @@ def test_account_sync_reads_stats_cache(tmp_path):
         result = account_router._get_account_sync()
     assert len(result["daily_activity"]) == 1
     assert result["daily_activity"][0]["date"] == "2026-01-01"
+
+
+class TestReadSettings:
+    def test_reads_model_and_plugins(self, tmp_path):
+        """_read_settings returns parsed dict from existing file."""
+        f = tmp_path / "settings.json"
+        f.write_text(json.dumps({"model": "claude-opus", "enabledPlugins": {"tool-a": True}}))
+        result = account_router._read_settings(f)
+        assert result["model"] == "claude-opus"
+        assert "enabledPlugins" in result
+
+    def test_returns_empty_dict_on_missing_file(self, tmp_path):
+        """_read_settings returns {} when file does not exist."""
+        result = account_router._read_settings(tmp_path / "no-settings.json")
+        assert result == {}
+
+    def test_returns_empty_dict_on_invalid_json(self, tmp_path):
+        """_read_settings returns {} when JSON is malformed."""
+        f = tmp_path / "settings.json"
+        f.write_text("not json {{{")
+        result = account_router._read_settings(f)
+        assert result == {}
+
+
+class TestReadDailyActivity:
+    def test_reads_daily_activity_from_cache(self, tmp_path):
+        """_read_daily_activity returns the dailyActivity list."""
+        f = tmp_path / "stats-cache.json"
+        f.write_text(json.dumps({"dailyActivity": [{"date": "2026-01-01", "count": 5}]}))
+        result = account_router._read_daily_activity(f)
+        assert len(result) == 1
+        assert result[0]["date"] == "2026-01-01"
+
+    def test_returns_empty_list_on_missing_file(self, tmp_path):
+        """_read_daily_activity returns [] when file does not exist."""
+        result = account_router._read_daily_activity(tmp_path / "no-cache.json")
+        assert result == []
+
+    def test_returns_empty_list_on_invalid_json(self, tmp_path):
+        """_read_daily_activity returns [] when JSON is malformed."""
+        f = tmp_path / "stats-cache.json"
+        f.write_text("not json")
+        result = account_router._read_daily_activity(f)
+        assert result == []
+
+    def test_returns_empty_list_when_key_missing(self, tmp_path):
+        """_read_daily_activity returns [] when dailyActivity key is absent."""
+        f = tmp_path / "stats-cache.json"
+        f.write_text(json.dumps({"otherKey": 42}))
+        result = account_router._read_daily_activity(f)
+        assert result == []
+
+
+class TestSumTokensFromJsonl:
+    def _write_jsonl(self, path: Path, entries: list[dict]) -> None:
+        path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
+
+    def test_sums_tokens_from_recent_files(self, tmp_path):
+        """_sum_tokens_from_jsonl aggregates tokens from files modified within a week."""
+        proj_dir = tmp_path / "proj"
+        proj_dir.mkdir()
+        self._write_jsonl(
+            proj_dir / "sess.jsonl",
+            [
+                {
+                    "type": "assistant",
+                    "message": {
+                        "usage": {
+                            "input_tokens": 100,
+                            "output_tokens": 50,
+                            "cache_creation_input_tokens": 5,
+                            "cache_read_input_tokens": 20,
+                            "service_tier": "priority",
+                        }
+                    },
+                }
+            ],
+        )
+        week_ago = datetime.now() - timedelta(days=7)
+        totals, tier = account_router._sum_tokens_from_jsonl(tmp_path, week_ago)
+        assert totals["input"] == 100
+        assert totals["output"] == 50
+        assert totals["cache_creation"] == 5
+        assert totals["cache_read"] == 20
+        assert tier == "priority"
+
+    def test_skips_files_older_than_week(self, tmp_path):
+        """_sum_tokens_from_jsonl ignores files modified more than 7 days ago."""
+        proj_dir = tmp_path / "proj"
+        proj_dir.mkdir()
+        old_file = proj_dir / "old.jsonl"
+        self._write_jsonl(
+            old_file,
+            [{"type": "assistant", "message": {"usage": {"input_tokens": 999}}}],
+        )
+        old_time = time.time() - 8 * 24 * 3600
+        os.utime(old_file, (old_time, old_time))
+        week_ago = datetime.now() - timedelta(days=7)
+        totals, tier = account_router._sum_tokens_from_jsonl(tmp_path, week_ago)
+        assert totals["input"] == 0
+
+    def test_returns_default_tier_when_no_service_tier(self, tmp_path):
+        """_sum_tokens_from_jsonl returns 'standard' when no service_tier present."""
+        proj_dir = tmp_path / "proj"
+        proj_dir.mkdir()
+        self._write_jsonl(
+            proj_dir / "sess.jsonl",
+            [{"type": "assistant", "message": {"usage": {"input_tokens": 10}}}],
+        )
+        week_ago = datetime.now() - timedelta(days=7)
+        _, tier = account_router._sum_tokens_from_jsonl(tmp_path, week_ago)
+        assert tier == "standard"
+
+    def test_returns_empty_totals_when_projects_dir_missing(self, tmp_path):
+        """_sum_tokens_from_jsonl returns zero totals when projects dir does not exist."""
+        week_ago = datetime.now() - timedelta(days=7)
+        totals, tier = account_router._sum_tokens_from_jsonl(tmp_path / "no-dir", week_ago)
+        assert totals["input"] == 0
+        assert tier == "standard"
 
 
 def test_account_sync_skips_old_jsonl(tmp_path):
