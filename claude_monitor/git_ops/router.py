@@ -3,6 +3,7 @@
 import asyncio
 import subprocess
 from pathlib import Path
+from subprocess import CompletedProcess
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -10,6 +11,41 @@ from fastapi.responses import JSONResponse
 from claude_monitor import config, state
 
 router = APIRouter(tags=["git"])
+
+
+async def _git_run(cmd: list[str], cwd: Path, timeout: int) -> CompletedProcess:
+    """Run a git command in a thread pool. Returns CompletedProcess."""
+    return await asyncio.to_thread(
+        subprocess.run,
+        cmd,
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+async def _diff_head(project_path: Path, file_path: Path) -> str:
+    """Return diff of file vs HEAD, or empty string."""
+    result = await _git_run(["git", "diff", "HEAD", "--", str(file_path)], project_path, 10)
+    return result.stdout.strip()
+
+
+async def _diff_staged(project_path: Path, file_path: Path) -> str:
+    """Return diff of staged changes for file, or empty string."""
+    result = await _git_run(["git", "diff", "--cached", "--", str(file_path)], project_path, 10)
+    return result.stdout.strip()
+
+
+async def _diff_untracked(project_path: Path, file_path: Path) -> tuple[str, bool]:
+    """Check if file is untracked and return (diff, is_untracked)."""
+    ls = await _git_run(["git", "ls-files", "--error-unmatch", str(file_path)], project_path, 5)
+    if ls.returncode != 0:
+        result = await _git_run(
+            ["git", "diff", "--no-index", "/dev/null", str(file_path)], project_path, 10
+        )
+        return result.stdout.strip(), True
+    return "", False
 
 
 @router.get("/api/pending")
@@ -92,49 +128,13 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
         return JSONResponse({"error": "file not found", "diff": ""})
 
     try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "diff", "HEAD", "--", str(file_path)],
-            cwd=str(project_path),
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        diff = result.stdout.strip()
-
+        diff = await _diff_head(project_path, file_path)
         if not diff:
-            result2 = await asyncio.to_thread(
-                subprocess.run,
-                ["git", "diff", "--cached", "--", str(file_path)],
-                cwd=str(project_path),
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            diff = result2.stdout.strip()
-
-        is_untracked = False
+            diff = await _diff_staged(project_path, file_path)
         if not diff:
-            ls_result = await asyncio.to_thread(
-                subprocess.run,
-                ["git", "ls-files", "--error-unmatch", str(file_path)],
-                cwd=str(project_path),
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            is_untracked = ls_result.returncode != 0
-            if is_untracked:
-                result3 = await asyncio.to_thread(
-                    subprocess.run,
-                    ["git", "diff", "--no-index", "/dev/null", str(file_path)],
-                    cwd=str(project_path),
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-                diff = result3.stdout.strip()
-
+            diff, is_untracked = await _diff_untracked(project_path, file_path)
+        else:
+            is_untracked = False
         return JSONResponse({"diff": diff, "file": str(file_path), "is_new": is_untracked})
     except subprocess.TimeoutExpired:
         return JSONResponse({"error": "timeout"}, status_code=504)

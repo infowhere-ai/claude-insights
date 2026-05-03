@@ -6,6 +6,8 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
@@ -157,6 +159,67 @@ class TestPendingEndpoint:
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 200
         assert r.json()["files"] == []
+
+
+class TestGitRunHelper:
+    """Tests for the _git_run private helper."""
+
+    @pytest.mark.asyncio
+    async def test_git_run_returns_completed_process(self, tmp_project):
+        from claude_monitor.git_ops import router as git_router
+
+        cp = _make_completed(stdout="output")
+        with patch("claude_monitor.git_ops.router.asyncio.to_thread", return_value=cp) as mock_thread:
+            result = await git_router._git_run(["git", "diff"], tmp_project, 10)
+        assert result.stdout == "output"
+        mock_thread.assert_called_once()
+
+
+class TestDiffHeadHelper:
+    """Tests for the _diff_head private helper."""
+
+    @pytest.mark.asyncio
+    async def test_returns_diff_string_when_present(self, tmp_project):
+        from claude_monitor.git_ops import router as git_router
+
+        cp = _make_completed(stdout="some diff\n")
+        with patch("claude_monitor.git_ops.router.asyncio.to_thread", return_value=cp):
+            result = await git_router._diff_head(tmp_project, tmp_project / "app.py")
+        assert result == "some diff"
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_string_when_no_diff(self, tmp_project):
+        from claude_monitor.git_ops import router as git_router
+
+        cp = _make_completed(stdout="")
+        with patch("claude_monitor.git_ops.router.asyncio.to_thread", return_value=cp):
+            result = await git_router._diff_head(tmp_project, tmp_project / "app.py")
+        assert result == ""
+
+
+class TestDiffUntrackedHelper:
+    """Tests for the _diff_untracked private helper."""
+
+    @pytest.mark.asyncio
+    async def test_returns_diff_and_is_new_true_for_untracked(self, tmp_project):
+        from claude_monitor.git_ops import router as git_router
+
+        ls_result = _make_completed(stdout="", returncode=1)
+        diff_result = _make_completed(stdout="new file diff\n")
+        with patch("claude_monitor.git_ops.router.asyncio.to_thread", side_effect=[ls_result, diff_result]):
+            diff, is_new = await git_router._diff_untracked(tmp_project, tmp_project / "new.py")
+        assert is_new is True
+        assert diff == "new file diff"
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_and_is_new_false_for_tracked(self, tmp_project):
+        from claude_monitor.git_ops import router as git_router
+
+        ls_result = _make_completed(stdout="app.py", returncode=0)
+        with patch("claude_monitor.git_ops.router.asyncio.to_thread", return_value=ls_result):
+            diff, is_new = await git_router._diff_untracked(tmp_project, tmp_project / "app.py")
+        assert is_new is False
+        assert diff == ""
 
 
 class TestAsyncSubprocessSafety:
