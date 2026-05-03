@@ -1,10 +1,10 @@
 """Tests for git diff and pending files endpoints."""
 
+import subprocess
 import sys
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import MagicMock, patch
-
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -157,3 +157,35 @@ class TestPendingEndpoint:
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 200
         assert r.json()["files"] == []
+
+
+class TestAsyncSubprocessSafety:
+    """
+    Verify subprocess.run is called via asyncio.to_thread, not directly.
+
+    These tests prove the async safety fix: calling subprocess.run directly
+    inside an async handler blocks the event loop for the duration of the
+    git command. asyncio.to_thread offloads the blocking call to a thread
+    pool, keeping the event loop free.
+
+    Red: would fail if subprocess.run were called directly (to_thread never invoked).
+    Green: passes after wrapping each call with asyncio.to_thread.
+    """
+
+    def test_pending_subprocess_called_via_to_thread(self, app_client, tmp_project):
+        with patch("claude_monitor.git_ops.router.asyncio.to_thread") as mock_to_thread:
+            mock_to_thread.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            r = app_client.get("/api/pending?project=my-project")
+        assert r.status_code == 200
+        mock_to_thread.assert_called()
+        assert mock_to_thread.call_args[0][0] is subprocess.run
+
+    def test_diff_subprocess_called_via_to_thread(self, app_client, tmp_project):
+        f = tmp_project / "app.py"
+        f.write_text("x = 1")
+        with patch("claude_monitor.git_ops.router.asyncio.to_thread") as mock_to_thread:
+            mock_to_thread.return_value = MagicMock(returncode=0, stdout="diff output", stderr="")
+            r = app_client.get("/api/diff?project=my-project&file=app.py")
+        assert r.status_code == 200
+        mock_to_thread.assert_called()
+        assert mock_to_thread.call_args[0][0] is subprocess.run

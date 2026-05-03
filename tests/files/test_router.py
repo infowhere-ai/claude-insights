@@ -1,10 +1,10 @@
 """Tests for file operation endpoints."""
 
+import subprocess
 import sys
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import MagicMock, patch
-
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -127,3 +127,26 @@ class TestDeleteFileEndpoint:
         outside.write_text("x")
         r = app_client.delete(f"/api/file?project=my-project&path={outside}")
         assert r.status_code == 400
+
+
+class TestAsyncSubprocessSafety:
+    """
+    Verify subprocess.run in delete_file is called via asyncio.to_thread.
+
+    Calling subprocess.run directly inside an async handler blocks the event
+    loop while git ls-files runs. asyncio.to_thread offloads it to a thread.
+
+    Red: would fail if subprocess.run were called directly.
+    Green: passes after wrapping with asyncio.to_thread.
+    """
+
+    def test_delete_file_subprocess_called_via_to_thread(self, app_client, tmp_project):
+        f = tmp_project / "to_delete.txt"
+        f.write_text("content")
+        with patch("claude_monitor.files.router.asyncio.to_thread") as mock_to_thread:
+            # returncode=1 means untracked — allowed to delete
+            mock_to_thread.return_value = MagicMock(returncode=1, stdout="", stderr="")
+            r = app_client.delete(f"/api/file?project=my-project&path={f}")
+        assert r.status_code == 200
+        mock_to_thread.assert_called_once()
+        assert mock_to_thread.call_args[0][0] is subprocess.run
