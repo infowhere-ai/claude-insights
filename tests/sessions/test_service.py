@@ -218,6 +218,7 @@ class TestParseAgentFile:
 class TestIsStaleRunning:
     def test_returns_false_for_recent_timestamp(self):
         from datetime import datetime, timezone
+
         recent = datetime.now(timezone.utc).isoformat()
         data = {"last_updated": recent}
         assert session_service._is_stale_running(data, time.time()) is False
@@ -234,6 +235,7 @@ class TestIsStaleRunning:
 class TestAgeOfDoneAgent:
     def test_returns_age_in_seconds(self):
         from datetime import datetime, timezone
+
         now_ts = time.time()
         old_ts = datetime.fromtimestamp(now_ts - 500, tz=timezone.utc).isoformat()
         data = {"finished_at": old_ts}

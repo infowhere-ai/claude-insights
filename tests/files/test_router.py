@@ -149,7 +149,6 @@ class TestResolveProjectPath:
 class TestValidateFileWithinProject:
     def test_raises_nothing_for_file_inside_project(self, tmp_project):
         from claude_monitor.files import router as files_router
-        from fastapi.responses import JSONResponse
 
         file_inside = (tmp_project / "app.py").resolve()
         # Should not raise
@@ -180,7 +179,9 @@ class TestCheckGitTracked:
 
         ls_result = _make_completed(stdout="", returncode=1)
         with patch("claude_monitor.files.router.asyncio.to_thread", return_value=ls_result):
-            result = await files_router._check_git_tracked(tmp_project / "untracked.py", tmp_project)
+            result = await files_router._check_git_tracked(
+                tmp_project / "untracked.py", tmp_project
+            )
         assert result is False
 
 

@@ -169,7 +169,9 @@ class TestGitRunHelper:
         from claude_monitor.git_ops import router as git_router
 
         cp = _make_completed(stdout="output")
-        with patch("claude_monitor.git_ops.router.asyncio.to_thread", return_value=cp) as mock_thread:
+        with patch(
+            "claude_monitor.git_ops.router.asyncio.to_thread", return_value=cp
+        ) as mock_thread:
             result = await git_router._git_run(["git", "diff"], tmp_project, 10)
         assert result.stdout == "output"
         mock_thread.assert_called_once()
@@ -206,7 +208,9 @@ class TestDiffUntrackedHelper:
 
         ls_result = _make_completed(stdout="", returncode=1)
         diff_result = _make_completed(stdout="new file diff\n")
-        with patch("claude_monitor.git_ops.router.asyncio.to_thread", side_effect=[ls_result, diff_result]):
+        with patch(
+            "claude_monitor.git_ops.router.asyncio.to_thread", side_effect=[ls_result, diff_result]
+        ):
             diff, is_new = await git_router._diff_untracked(tmp_project, tmp_project / "new.py")
         assert is_new is True
         assert diff == "new file diff"
