@@ -45,6 +45,339 @@ def _user_entry(cwd: str = "/home/user/project", ts: str = "2026-01-01T10:00:01Z
     return {"type": "user", "timestamp": ts, "cwd": cwd, "message": {"content": []}}
 
 
+# ── _read_jsonl_entries ───────────────────────────────────────────────────────
+
+
+class TestReadJsonlEntries:
+    def test_returns_parsed_entries(self, tmp_jsonl_dir):
+        f = tmp_jsonl_dir / "entries.jsonl"
+        f.write_text(
+            '{"type": "assistant"}\n{"type": "user"}\n',
+            encoding="utf-8",
+        )
+        result = parser._read_jsonl_entries(f)
+        assert len(result) == 2
+        assert result[0]["type"] == "assistant"
+        assert result[1]["type"] == "user"
+
+    def test_skips_invalid_lines(self, tmp_jsonl_dir):
+        f = tmp_jsonl_dir / "bad.jsonl"
+        f.write_text('not json\n{"type": "user"}\n', encoding="utf-8")
+        result = parser._read_jsonl_entries(f)
+        assert len(result) == 1
+
+    def test_returns_empty_list_on_missing_file(self, tmp_path):
+        result = parser._read_jsonl_entries(tmp_path / "ghost.jsonl")
+        assert result == []
+
+    def test_skips_blank_lines(self, tmp_jsonl_dir):
+        f = tmp_jsonl_dir / "blanks.jsonl"
+        f.write_text('\n{"type": "assistant"}\n\n', encoding="utf-8")
+        result = parser._read_jsonl_entries(f)
+        assert len(result) == 1
+
+
+# ── _collect_tool_results ─────────────────────────────────────────────────────
+
+
+class TestCollectToolResults:
+    def test_collects_tool_result_from_user_entry(self):
+        entries = [
+            {
+                "type": "user",
+                "timestamp": "2026-01-01T10:00:01Z",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tid_abc",
+                            "is_error": False,
+                        }
+                    ]
+                },
+            }
+        ]
+        result = parser._collect_tool_results(entries)
+        assert "tid_abc" in result
+        assert result["tid_abc"]["timestamp"] == "2026-01-01T10:00:01Z"
+        assert result["tid_abc"]["is_error"] is False
+
+    def test_marks_error_flag(self):
+        entries = [
+            {
+                "type": "user",
+                "timestamp": "2026-01-01T10:00:01Z",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tid_err",
+                            "is_error": True,
+                        }
+                    ]
+                },
+            }
+        ]
+        result = parser._collect_tool_results(entries)
+        assert result["tid_err"]["is_error"] is True
+
+    def test_ignores_non_user_entries(self):
+        entries = [
+            {
+                "type": "assistant",
+                "timestamp": "2026-01-01T10:00:00Z",
+                "message": {
+                    "content": [{"type": "tool_result", "tool_use_id": "should_be_ignored"}]
+                },
+            }
+        ]
+        result = parser._collect_tool_results(entries)
+        assert result == {}
+
+    def test_ignores_non_tool_result_content(self):
+        entries = [
+            {
+                "type": "user",
+                "timestamp": "2026-01-01T10:00:01Z",
+                "message": {"content": [{"type": "text", "text": "hello"}]},
+            }
+        ]
+        result = parser._collect_tool_results(entries)
+        assert result == {}
+
+    def test_returns_empty_dict_for_no_entries(self):
+        assert parser._collect_tool_results([]) == {}
+
+
+# ── _calculate_duration_ms ────────────────────────────────────────────────────
+
+
+class TestCalculateDurationMs:
+    def test_returns_duration_in_milliseconds(self):
+        result = parser._calculate_duration_ms("2026-01-01T10:00:00Z", "2026-01-01T10:00:02Z")
+        assert result == 2000
+
+    def test_returns_none_for_empty_ts(self):
+        assert parser._calculate_duration_ms("", "2026-01-01T10:00:02Z") is None
+
+    def test_returns_none_for_empty_rts(self):
+        assert parser._calculate_duration_ms("2026-01-01T10:00:00Z", "") is None
+
+    def test_returns_none_for_invalid_iso_string(self):
+        assert parser._calculate_duration_ms("not-a-date", "2026-01-01T10:00:02Z") is None
+
+    def test_fractional_seconds(self):
+        result = parser._calculate_duration_ms("2026-01-01T10:00:00Z", "2026-01-01T10:00:00.500Z")
+        assert result == 500
+
+
+# ── _process_assistant_entry ──────────────────────────────────────────────────
+
+
+class TestProcessAssistantEntry:
+    def _make_entry(self, ts="2026-01-01T10:00:00Z", thinking="", tool_id="t1"):
+        content: list[dict] = []
+        if thinking:
+            content.append({"type": "thinking", "thinking": thinking})
+        content.append({"type": "tool_use", "id": tool_id, "name": "Read", "input": {}})
+        return {
+            "type": "assistant",
+            "timestamp": ts,
+            "message": {
+                "model": "claude-sonnet-4-6",
+                "content": content,
+                "usage": {
+                    "input_tokens": 100,
+                    "output_tokens": 50,
+                    "cache_read_input_tokens": 20,
+                },
+            },
+        }
+
+    def test_updates_stats_tokens(self):
+        entry = self._make_entry()
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, {}, thinking, tools, stats)
+        assert stats["input_tokens"] == 100
+        assert stats["output_tokens"] == 50
+        assert stats["cache_read_tokens"] == 20
+
+    def test_appends_tool(self):
+        entry = self._make_entry()
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, {}, thinking, tools, stats)
+        assert len(tools) == 1
+        assert tools[0]["tool"] == "Read"
+
+    def test_appends_thinking_block(self):
+        entry = self._make_entry(thinking="deep thoughts here")
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, {}, thinking, tools, stats)
+        assert len(thinking) == 1
+        assert "deep thoughts" in thinking[0]["text"]
+
+    def test_skips_empty_thinking_block(self):
+        entry = self._make_entry(thinking="   ")
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, {}, thinking, tools, stats)
+        assert len(thinking) == 0
+
+    def test_sets_model(self):
+        entry = self._make_entry()
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, {}, thinking, tools, stats)
+        assert stats["model"] == "claude-sonnet-4-6"
+
+    def test_tool_success_from_tool_results(self):
+        entry = self._make_entry(tool_id="tid1")
+        tool_results = {"tid1": {"timestamp": "2026-01-01T10:00:01Z", "is_error": False}}
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, tool_results, thinking, tools, stats)
+        assert tools[0]["success"] is True
+
+    def test_tool_failure_from_tool_results(self):
+        entry = self._make_entry(tool_id="tid2")
+        tool_results = {"tid2": {"timestamp": "2026-01-01T10:00:01Z", "is_error": True}}
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, tool_results, thinking, tools, stats)
+        assert tools[0]["success"] is False
+
+    def test_ignores_non_list_content(self):
+        entry = {
+            "type": "assistant",
+            "timestamp": "2026-01-01T10:00:00Z",
+            "message": {
+                "model": "claude-sonnet-4-6",
+                "content": "plain string",
+                "usage": {"input_tokens": 1, "output_tokens": 1, "cache_read_input_tokens": 0},
+            },
+        }
+        thinking: list = []
+        tools: list = []
+        stats = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "model": ""}
+        parser._process_assistant_entry(entry, {}, thinking, tools, stats)
+        assert len(tools) == 0
+
+
+# ── _read_tail_bytes ──────────────────────────────────────────────────────────
+
+
+class TestReadTailBytes:
+    def test_returns_string_content(self, tmp_jsonl_dir):
+        f = tmp_jsonl_dir / "tail.jsonl"
+        f.write_text("line1\nline2\nline3\n", encoding="utf-8")
+        result = parser._read_tail_bytes(f, 8192)
+        assert "line1" in result
+        assert "line3" in result
+
+    def test_returns_last_bytes_only(self, tmp_jsonl_dir):
+        f = tmp_jsonl_dir / "big.jsonl"
+        content = "a" * 100 + "LAST"
+        f.write_bytes(content.encode("utf-8"))
+        result = parser._read_tail_bytes(f, 10)
+        assert "LAST" in result
+        assert result.startswith("a") is False or len(result) <= 12
+
+    def test_returns_empty_string_on_error(self, tmp_path):
+        result = parser._read_tail_bytes(tmp_path / "nonexistent.jsonl", 8192)
+        assert result == ""
+
+
+# ── _extract_tool_from_content ────────────────────────────────────────────────
+
+
+class TestExtractToolFromContent:
+    def test_returns_tool_name(self):
+        content = [{"type": "tool_use", "name": "Bash", "id": "t1", "input": {}}]
+        assert parser._extract_tool_from_content(content) == "Bash"
+
+    def test_returns_none_when_no_tool_use(self):
+        content = [{"type": "text", "text": "hello"}]
+        assert parser._extract_tool_from_content(content) is None
+
+    def test_returns_none_for_empty_list(self):
+        assert parser._extract_tool_from_content([]) is None
+
+    def test_returns_last_tool_use_in_list(self):
+        content = [
+            {"type": "tool_use", "name": "Read", "id": "t1", "input": {}},
+            {"type": "tool_use", "name": "Write", "id": "t2", "input": {}},
+        ]
+        # reversed iteration returns last from original list (Write in reversed = first found)
+        result = parser._extract_tool_from_content(content)
+        assert result == "Write"
+
+    def test_returns_tool_name_default_when_empty_name(self):
+        content = [{"type": "tool_use", "name": "", "id": "t1", "input": {}}]
+        result = parser._extract_tool_from_content(content)
+        assert result == "Tool"
+
+
+# ── _extract_thinking_block ───────────────────────────────────────────────────
+
+
+class TestExtractThinkingBlock:
+    def test_returns_thinking_block(self):
+        entry = {
+            "type": "assistant",
+            "timestamp": "2026-01-01T11:00:00Z",
+            "message": {"content": [{"type": "thinking", "thinking": "some deep thought"}]},
+        }
+        result = parser._extract_thinking_block(entry)
+        assert result is not None
+        assert result["text"] == "some deep thought"
+        assert "block_id" in result
+
+    def test_returns_none_for_empty_thinking(self):
+        entry = {
+            "type": "assistant",
+            "timestamp": "2026-01-01T11:00:00Z",
+            "message": {"content": [{"type": "thinking", "thinking": "  "}]},
+        }
+        assert parser._extract_thinking_block(entry) is None
+
+    def test_returns_none_when_no_thinking_in_content(self):
+        entry = {
+            "type": "assistant",
+            "timestamp": "2026-01-01T11:00:00Z",
+            "message": {"content": [{"type": "text", "text": "answer"}]},
+        }
+        assert parser._extract_thinking_block(entry) is None
+
+    def test_returns_none_for_non_assistant_entry(self):
+        entry = {
+            "type": "user",
+            "timestamp": "2026-01-01T11:00:00Z",
+            "message": {"content": [{"type": "thinking", "thinking": "thoughts"}]},
+        }
+        assert parser._extract_thinking_block(entry) is None
+
+    def test_block_id_stable_for_same_timestamp(self):
+        entry = {
+            "type": "assistant",
+            "timestamp": "2026-01-01T11:00:00Z",
+            "message": {"content": [{"type": "thinking", "thinking": "stable thought"}]},
+        }
+        r1 = parser._extract_thinking_block(entry)
+        r2 = parser._extract_thinking_block(entry)
+        assert r1 is not None and r2 is not None
+        assert r1["block_id"] == r2["block_id"]
+
+
 # ── tool_input_summary ────────────────────────────────────────────────────────
 
 
