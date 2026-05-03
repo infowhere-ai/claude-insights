@@ -4,8 +4,6 @@ Uses a temporary database (CLAUDE_INSIGHTS_DB env var) so tests never touch
 the real ~/.claude/claude-insights.db.
 """
 
-import datetime
-import os
 import sys
 from pathlib import Path
 

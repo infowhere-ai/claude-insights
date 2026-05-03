@@ -8,7 +8,6 @@ Then the status bar reflects the new state within 3 seconds
 
 import time
 
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import ServerContext

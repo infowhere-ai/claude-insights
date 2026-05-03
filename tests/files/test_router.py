@@ -5,7 +5,6 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -42,7 +41,6 @@ def test_browse_specific_path(app_client, tmp_path):
 
 
 def test_browse_permission_error(app_client, tmp_path):
-    import stat
     restricted = tmp_path / "restricted"
     restricted.mkdir()
     restricted.chmod(0o000)

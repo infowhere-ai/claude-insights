@@ -8,7 +8,6 @@ Then the reasoning panel shows the text and word count
 
 import time
 
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import ServerContext

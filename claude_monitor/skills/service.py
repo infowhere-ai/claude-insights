@@ -7,11 +7,11 @@ def parse_skill_md(content: str, name: str) -> dict:
     body_start = 0
 
     if lines and lines[0].strip() == "---":
-        end = next((i for i, l in enumerate(lines[1:], 1) if l.strip() == "---"), None)
+        end = next((i for i, line in enumerate(lines[1:], 1) if line.strip() == "---"), None)
         if end:
-            for l in lines[1:end]:
-                if ":" in l:
-                    k, _, v = l.partition(":")
+            for line in lines[1:end]:
+                if ":" in line:
+                    k, _, v = line.partition(":")
                     frontmatter[k.strip()] = v.strip()
             body_start = end + 1
 

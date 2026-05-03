@@ -6,7 +6,6 @@ from pathlib import Path
 
 from claude_monitor import db
 from claude_monitor import config, state
-from claude_monitor.jsonl import parser
 
 
 def current_session_id(project_name: str) -> str | None:
@@ -76,7 +75,6 @@ def persist_and_clean_session(project_name: str, data: dict, agents_dir: Path | 
         return
 
     if agents_dir and agents_dir.is_dir():
-        now_ts = time.time()
         persisted = state._persisted_agent_ids.setdefault(project_name, set())
         for agent_file in list(agents_dir.glob("agent_*.json")):
             try:

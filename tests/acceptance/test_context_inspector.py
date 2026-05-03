@@ -5,7 +5,6 @@ Spec: standarts/private/projects/claude-monitor/specs/context-inspector.md
 Product Owner: Leandro Siciliano | Date: 2026-05-01
 """
 
-import importlib
 import json
 import sys
 from pathlib import Path

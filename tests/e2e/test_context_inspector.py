@@ -8,7 +8,6 @@ Then rules and files appear with correct sizes
 
 import time
 
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import ServerContext

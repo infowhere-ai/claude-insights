@@ -1,7 +1,6 @@
 """Shared pytest fixtures for claude-monitor tests."""
 
 import json
-import os
 import sys
 from pathlib import Path
 

@@ -195,7 +195,6 @@ class TestJsonlWatcherStateDecision:
 
     def test_idle_with_tool_flips_to_working(self):
         cur_state = "idle"
-        tool = "Bash"
         notification_active = False
         compacting = False
         updated = {"state": cur_state, "status": cur_state}
