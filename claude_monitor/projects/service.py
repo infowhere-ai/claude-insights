@@ -13,29 +13,35 @@ def read_status(path: Path) -> dict | None:
         return None
 
 
+def _collect_root(root: Path, candidates: dict[str, Path], pending: set[str]) -> None:
+    """Scan a single root directory for projects with .claude/status.json.
+
+    Populates candidates (name→status_path) and pending (names with .claude
+    but no status.json).
+    """
+    for status_path in root.glob("*/.claude/status.json"):
+        name = status_path.parts[-3]
+        if name not in candidates:
+            candidates[name] = status_path
+    try:
+        for subdir in root.iterdir():
+            if not subdir.is_dir():
+                continue
+            claude_dir = subdir / ".claude"
+            if claude_dir.is_dir() and not (claude_dir / "status.json").exists():
+                pending.add(subdir.name)
+    except OSError:
+        pass
+
+
 def discover() -> None:
     """Discovers projects with .claude/status.json under PROJECTS_ROOT and extra roots."""
     candidates: dict[str, Path] = {}
     pending: set[str] = set()
 
-    def _collect_root(root: Path) -> None:
-        for status_path in root.glob("*/.claude/status.json"):
-            name = status_path.parts[-3]
-            if name not in candidates:
-                candidates[name] = status_path
-        try:
-            for subdir in root.iterdir():
-                if not subdir.is_dir():
-                    continue
-                claude_dir = subdir / ".claude"
-                if claude_dir.is_dir() and not (claude_dir / "status.json").exists():
-                    pending.add(subdir.name)
-        except OSError:
-            pass
-
-    _collect_root(config.PROJECTS_ROOT)
+    _collect_root(config.PROJECTS_ROOT, candidates, pending)
     for root in state._extra_roots:
-        _collect_root(root)
+        _collect_root(root, candidates, pending)
 
     found: set[str] = set()
     project_dirs: set[Path] = {sp.parent.parent for sp in candidates.values()}

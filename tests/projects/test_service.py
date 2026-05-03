@@ -74,6 +74,62 @@ class TestBroadcast:
             state._sse_clients.extend(original)
 
 
+class TestCollectRoot:
+    """Tests for the _collect_root helper extracted from discover."""
+
+    def test_finds_status_json_in_subdirectory(self, tmp_path):
+        """_collect_root populates candidates with name→status_path for found projects."""
+        proj = tmp_path / "my-project"
+        claude_dir = proj / ".claude"
+        claude_dir.mkdir(parents=True)
+        status = claude_dir / "status.json"
+        status.write_text('{"state": "idle"}')
+
+        candidates: dict = {}
+        pending: set = set()
+        project_service._collect_root(tmp_path, candidates, pending)
+
+        assert "my-project" in candidates
+        assert candidates["my-project"] == status
+
+    def test_does_not_overwrite_existing_candidate(self, tmp_path):
+        """_collect_root skips projects already in candidates dict."""
+        proj = tmp_path / "existing"
+        claude_dir = proj / ".claude"
+        claude_dir.mkdir(parents=True)
+        (claude_dir / "status.json").write_text('{"state": "idle"}')
+
+        original_path = tmp_path / "other" / ".claude" / "status.json"
+        candidates: dict = {"existing": original_path}
+        pending: set = set()
+        project_service._collect_root(tmp_path, candidates, pending)
+
+        assert candidates["existing"] == original_path
+
+    def test_adds_to_pending_when_no_status_json(self, tmp_path):
+        """_collect_root adds dirs with .claude but no status.json to pending set."""
+        proj = tmp_path / "pending-project"
+        (proj / ".claude").mkdir(parents=True)
+        # No status.json
+
+        candidates: dict = {}
+        pending: set = set()
+        project_service._collect_root(tmp_path, candidates, pending)
+
+        assert "pending-project" in pending
+        assert "pending-project" not in candidates
+
+    def test_ignores_dirs_without_claude_subdir(self, tmp_path):
+        """_collect_root ignores directories that have no .claude subdirectory."""
+        (tmp_path / "plain-dir").mkdir()
+        candidates: dict = {}
+        pending: set = set()
+        project_service._collect_root(tmp_path, candidates, pending)
+
+        assert "plain-dir" not in candidates
+        assert "plain-dir" not in pending
+
+
 class TestDiscover:
     def _make_project(self, root: Path, name: str, status: dict | None = None) -> Path:
         proj = root / name
