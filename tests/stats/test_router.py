@@ -9,10 +9,167 @@ from unittest.mock import patch
 
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from claude_monitor.stats.router import _scan_jsonl_for_stats, _scan_jsonl_for_window_tokens
 
 
 def _write_jsonl(path: Path, entries: list[dict]) -> None:
     path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
+
+
+# ── _scan_jsonl_for_stats ─────────────────────────────────────────────────────
+
+
+class TestScanJsonlForStats:
+    def test_returns_none_for_old_file(self, tmp_path):
+        f = tmp_path / "old.jsonl"
+        _write_jsonl(f, [{"type": "assistant", "message": {"usage": {"input_tokens": 10}}}])
+        old_time = time.time() - 10 * 24 * 3600
+        os.utime(f, (old_time, old_time))
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _scan_jsonl_for_stats(f, cutoff)
+        assert result is None
+
+    def test_returns_skipped_true_for_old_file(self, tmp_path):
+        f = tmp_path / "old2.jsonl"
+        _write_jsonl(f, [])
+        old_time = time.time() - 10 * 24 * 3600
+        os.utime(f, (old_time, old_time))
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _scan_jsonl_for_stats(f, cutoff)
+        assert result is None
+
+    def test_returns_token_counts_for_recent_file(self, tmp_path):
+        f = tmp_path / "recent.jsonl"
+        _write_jsonl(
+            f,
+            [
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [{"type": "tool_use", "name": "Read"}],
+                        "usage": {
+                            "input_tokens": 100,
+                            "output_tokens": 50,
+                            "cache_read_input_tokens": 20,
+                        },
+                    },
+                }
+            ],
+        )
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _scan_jsonl_for_stats(f, cutoff)
+        assert result is not None
+        assert result["input"] == 100
+        assert result["output"] == 50
+        assert result["cache"] == 20
+
+    def test_counts_tools_from_content(self, tmp_path):
+        f = tmp_path / "tools.jsonl"
+        _write_jsonl(
+            f,
+            [
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [
+                            {"type": "tool_use", "name": "Read"},
+                            {"type": "tool_use", "name": "Read"},
+                            {"type": "tool_use", "name": "Bash"},
+                        ],
+                        "usage": {
+                            "input_tokens": 10,
+                            "output_tokens": 5,
+                            "cache_read_input_tokens": 0,
+                        },
+                    },
+                }
+            ],
+        )
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _scan_jsonl_for_stats(f, cutoff)
+        assert result is not None
+        assert result["tools"]["Read"] == 2
+        assert result["tools"]["Bash"] == 1
+
+    def test_returns_none_on_oserror(self, tmp_path):
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _scan_jsonl_for_stats(tmp_path / "nonexistent.jsonl", cutoff)
+        assert result is None
+
+    def test_skips_non_assistant_entries(self, tmp_path):
+        f = tmp_path / "mixed.jsonl"
+        _write_jsonl(
+            f,
+            [
+                {
+                    "type": "user",
+                    "message": {
+                        "usage": {"input_tokens": 999, "output_tokens": 999},
+                        "content": [],
+                    },
+                }
+            ],
+        )
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _scan_jsonl_for_stats(f, cutoff)
+        assert result is not None
+        assert result["input"] == 0
+        assert result["output"] == 0
+
+
+# ── _scan_jsonl_for_window_tokens ─────────────────────────────────────────────
+
+
+class TestScanJsonlForWindowTokens:
+    def test_returns_none_for_old_file(self, tmp_path):
+        f = tmp_path / "old.jsonl"
+        _write_jsonl(f, [{"type": "assistant", "message": {"usage": {"input_tokens": 10}}}])
+        old_time = time.time() - 6 * 3600
+        os.utime(f, (old_time, old_time))
+        cutoff = time.time() - 5 * 3600
+        result = _scan_jsonl_for_window_tokens(f, cutoff)
+        assert result is None
+
+    def test_returns_tokens_and_mtime_for_recent_file(self, tmp_path):
+        f = tmp_path / "recent.jsonl"
+        _write_jsonl(
+            f,
+            [
+                {
+                    "type": "assistant",
+                    "message": {
+                        "usage": {"input_tokens": 300, "output_tokens": 150},
+                        "content": [],
+                    },
+                }
+            ],
+        )
+        cutoff = time.time() - 5 * 3600
+        result = _scan_jsonl_for_window_tokens(f, cutoff)
+        assert result is not None
+        assert result["tokens"] == 450
+        assert "mtime" in result
+
+    def test_returns_none_on_oserror(self, tmp_path):
+        cutoff = time.time() - 5 * 3600
+        result = _scan_jsonl_for_window_tokens(tmp_path / "ghost.jsonl", cutoff)
+        assert result is None
+
+    def test_skips_non_assistant_entries(self, tmp_path):
+        f = tmp_path / "user_only.jsonl"
+        _write_jsonl(
+            f,
+            [
+                {
+                    "type": "user",
+                    "message": {"usage": {"input_tokens": 999}, "content": []},
+                }
+            ],
+        )
+        cutoff = time.time() - 5 * 3600
+        result = _scan_jsonl_for_window_tokens(f, cutoff)
+        assert result is not None
+        assert result["tokens"] == 0
 
 
 def _assistant_entry(tool: str = "Read", input_tokens: int = 100, output_tokens: int = 50) -> dict:
