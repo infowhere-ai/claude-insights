@@ -51,9 +51,15 @@ async def lifespan(app: FastAPI):
         data["stats"] = {**stats_service.get_project_stats(path.parents[1], name), **hook_stats}
         state.projects[name] = data
         state._mtimes[str(path)] = path.stat().st_mtime
-    asyncio.create_task(background.discovery_loop())
-    asyncio.create_task(background.poll_loop())
-    asyncio.create_task(background.jsonl_watcher_loop())
+    _tasks: set[asyncio.Task] = set()
+    for coro in (
+        background.discovery_loop(),
+        background.poll_loop(),
+        background.jsonl_watcher_loop(),
+    ):
+        t = asyncio.create_task(coro)
+        _tasks.add(t)
+        t.add_done_callback(_tasks.discard)
     yield
 
 

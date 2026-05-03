@@ -1,4 +1,5 @@
 """File operations endpoints — browse, preview, delete."""
+import asyncio
 import subprocess
 from pathlib import Path
 
@@ -58,7 +59,8 @@ async def delete_file(project: str = Query(...), path: str = Query(...)):
         return JSONResponse({"error": "path is not a file"}, status_code=400)
 
     try:
-        ls = subprocess.run(
+        ls = await asyncio.to_thread(
+            subprocess.run,
             ["git", "ls-files", "--error-unmatch", str(file_path)],
             cwd=str(project_path),
             capture_output=True, text=True, timeout=5,

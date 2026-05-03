@@ -1,4 +1,5 @@
 """Git integration endpoints — diff and pending (uncommitted) files."""
+import asyncio
 import subprocess
 from pathlib import Path
 
@@ -25,7 +26,8 @@ async def get_pending_files(project: str = Query(...)):
         return JSONResponse({"error": "project not found"}, status_code=404)
 
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["git", "status", "--porcelain"],
             cwd=str(project_path),
             capture_output=True, text=True, timeout=10,
@@ -78,7 +80,8 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
         return JSONResponse({"error": "file not found", "diff": ""})
 
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["git", "diff", "HEAD", "--", str(file_path)],
             cwd=str(project_path),
             capture_output=True, text=True, timeout=10,
@@ -86,7 +89,8 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
         diff = result.stdout.strip()
 
         if not diff:
-            result2 = subprocess.run(
+            result2 = await asyncio.to_thread(
+                subprocess.run,
                 ["git", "diff", "--cached", "--", str(file_path)],
                 cwd=str(project_path),
                 capture_output=True, text=True, timeout=10,
@@ -95,14 +99,16 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
 
         is_untracked = False
         if not diff:
-            ls_result = subprocess.run(
+            ls_result = await asyncio.to_thread(
+                subprocess.run,
                 ["git", "ls-files", "--error-unmatch", str(file_path)],
                 cwd=str(project_path),
                 capture_output=True, text=True, timeout=5,
             )
             is_untracked = ls_result.returncode != 0
             if is_untracked:
-                result3 = subprocess.run(
+                result3 = await asyncio.to_thread(
+                    subprocess.run,
                     ["git", "diff", "--no-index", "/dev/null", str(file_path)],
                     cwd=str(project_path),
                     capture_output=True, text=True, timeout=10,
