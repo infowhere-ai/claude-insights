@@ -46,8 +46,9 @@ class TestCurrentSessionId:
 
 
 class TestPersistDoneAgents:
-    def _make_agent_file(self, agents_dir: Path, agent_id: str, agent_state: str,
-                         finished_at: str | None = None) -> Path:
+    def _make_agent_file(
+        self, agents_dir: Path, agent_id: str, agent_state: str, finished_at: str | None = None
+    ) -> Path:
         data = {
             "id": agent_id,
             "state": agent_state,
@@ -64,6 +65,7 @@ class TestPersistDoneAgents:
         agents_dir = tmp_path / "agents"
         agents_dir.mkdir()
         from datetime import datetime, timezone
+
         recent_ts = datetime.now(timezone.utc).isoformat()
         data = {
             "id": "run1",
@@ -81,12 +83,15 @@ class TestPersistDoneAgents:
         agents_dir = tmp_path / "agents"
         agents_dir.mkdir()
         from datetime import datetime, timezone
+
         recent = datetime.now(timezone.utc).isoformat()
         self._make_agent_file(agents_dir, "done1", "done", finished_at=recent)
         state._persisted_agent_ids.pop("test-proj2", None)
 
         with patch("claude_monitor.db.upsert_agent_run") as mock_upsert:
-            result = session_service.persist_done_agents(agents_dir, "test-proj2", "sess1", time.time())
+            result = session_service.persist_done_agents(
+                agents_dir, "test-proj2", "sess1", time.time()
+            )
 
         assert any(a["id"] == "done1" for a in result)
         mock_upsert.assert_called_once()
@@ -94,12 +99,15 @@ class TestPersistDoneAgents:
     def test_old_done_agent_not_in_active_and_file_deleted(self, tmp_path):
         agents_dir = tmp_path / "agents"
         agents_dir.mkdir()
-        agent_file = self._make_agent_file(agents_dir, "old1", "done",
-                                           finished_at="2026-01-01T00:00:00Z")
+        agent_file = self._make_agent_file(
+            agents_dir, "old1", "done", finished_at="2026-01-01T00:00:00Z"
+        )
         state._persisted_agent_ids.pop("test-proj3", None)
 
         with patch("claude_monitor.db.upsert_agent_run"):
-            result = session_service.persist_done_agents(agents_dir, "test-proj3", "sess1", time.time())
+            result = session_service.persist_done_agents(
+                agents_dir, "test-proj3", "sess1", time.time()
+            )
 
         assert not any(a["id"] == "old1" for a in result)
         assert not agent_file.exists()
@@ -173,7 +181,9 @@ class TestPersistAndCleanSession:
         state._persisted_agent_ids["clean-proj"] = set()
         try:
             with patch("claude_monitor.db.upsert_session_run"):
-                session_service.persist_and_clean_session("clean-proj", {"state": "stopped"}, agents_dir)
+                session_service.persist_and_clean_session(
+                    "clean-proj", {"state": "stopped"}, agents_dir
+                )
             assert not agent_file.exists()
         finally:
             state._jsonl_cache.clear()
@@ -183,7 +193,9 @@ class TestPersistAndCleanSession:
 
 
 class TestJsonlWatcherStateDecision:
-    @pytest.mark.xfail(reason="Known bug: watcher flips idle→working even without active tool. Needs Playwright.")
+    @pytest.mark.xfail(
+        reason="Known bug: watcher flips idle→working even without active tool. Needs Playwright."
+    )
     def test_idle_no_tool_stays_idle(self):
         cur_state = "idle"
         notification_active = False

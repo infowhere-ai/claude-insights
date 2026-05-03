@@ -19,6 +19,7 @@ def _setup_project_stats(tmp_path, monkeypatch, messages: list):
     import claude_monitor.db as db_module
     import claude_monitor.config as config_module
     import claude_monitor.state as state_module
+
     importlib.reload(db_module)
     importlib.reload(config_module)
     importlib.reload(state_module)
@@ -41,7 +42,6 @@ def _setup_project_stats(tmp_path, monkeypatch, messages: list):
 
 
 class TestAcceptanceSessionStats:
-
     def test_session_ctx_tokens_computed_correctly(self, tmp_path, monkeypatch):
         """
         Given  the JSONL has usage: {input: 100, output: 50, cache_read: 200, cache_creation: 0}
@@ -49,20 +49,22 @@ class TestAcceptanceSessionStats:
         Then   session_ctx_tokens = 300 (input + cache_read + cache_creation)
         And    session_output_tokens = 50
         """
-        messages = [{
-            "type": "assistant",
-            "timestamp": "2026-01-01T10:00:00Z",
-            "message": {
-                "model": "claude-sonnet-4-6",
-                "usage": {
-                    "input_tokens": 100,
-                    "output_tokens": 50,
-                    "cache_read_input_tokens": 200,
-                    "cache_creation_input_tokens": 0,
+        messages = [
+            {
+                "type": "assistant",
+                "timestamp": "2026-01-01T10:00:00Z",
+                "message": {
+                    "model": "claude-sonnet-4-6",
+                    "usage": {
+                        "input_tokens": 100,
+                        "output_tokens": 50,
+                        "cache_read_input_tokens": 200,
+                        "cache_creation_input_tokens": 0,
+                    },
+                    "content": [{"type": "text", "text": "Hello"}],
                 },
-                "content": [{"type": "text", "text": "Hello"}],
-            },
-        }]
+            }
+        ]
         project_dir, _, stats_service, _ = _setup_project_stats(tmp_path, monkeypatch, messages)
 
         stats = stats_service.get_project_stats(project_dir, "my-project")
@@ -77,17 +79,25 @@ class TestAcceptanceSessionStats:
         When   get_project_stats is called again without mtime change
         Then   the cache is used (returned stats are identical)
         """
-        messages = [{
-            "type": "assistant",
-            "timestamp": "2026-01-01T10:00:00Z",
-            "message": {
-                "model": "claude-sonnet-4-6",
-                "usage": {"input_tokens": 50, "output_tokens": 20,
-                           "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                "content": [{"type": "text", "text": "hello"}],
-            },
-        }]
-        project_dir, _, stats_service, state_module = _setup_project_stats(tmp_path, monkeypatch, messages)
+        messages = [
+            {
+                "type": "assistant",
+                "timestamp": "2026-01-01T10:00:00Z",
+                "message": {
+                    "model": "claude-sonnet-4-6",
+                    "usage": {
+                        "input_tokens": 50,
+                        "output_tokens": 20,
+                        "cache_read_input_tokens": 0,
+                        "cache_creation_input_tokens": 0,
+                    },
+                    "content": [{"type": "text", "text": "hello"}],
+                },
+            }
+        ]
+        project_dir, _, stats_service, state_module = _setup_project_stats(
+            tmp_path, monkeypatch, messages
+        )
 
         stats1 = stats_service.get_project_stats(project_dir, "my-project")
         assert stats1["session_output_tokens"] == 20
@@ -102,16 +112,22 @@ class TestAcceptanceSessionStats:
         When   get_project_stats is called
         Then   stats["model"] = "claude-sonnet-4-6"
         """
-        messages = [{
-            "type": "assistant",
-            "timestamp": "2026-01-01T10:00:00Z",
-            "message": {
-                "model": "claude-sonnet-4-6",
-                "usage": {"input_tokens": 10, "output_tokens": 5,
-                           "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                "content": [{"type": "text", "text": "Hello"}],
-            },
-        }]
+        messages = [
+            {
+                "type": "assistant",
+                "timestamp": "2026-01-01T10:00:00Z",
+                "message": {
+                    "model": "claude-sonnet-4-6",
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 5,
+                        "cache_read_input_tokens": 0,
+                        "cache_creation_input_tokens": 0,
+                    },
+                    "content": [{"type": "text", "text": "Hello"}],
+                },
+            }
+        ]
         project_dir, _, stats_service, _ = _setup_project_stats(tmp_path, monkeypatch, messages)
 
         stats = stats_service.get_project_stats(project_dir, "my-project")

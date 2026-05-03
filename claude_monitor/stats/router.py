@@ -1,4 +1,5 @@
 """Stats endpoints — insights, weekly, usage window."""
+
 import json
 import time
 
@@ -31,8 +32,14 @@ async def get_insights_stats(project: str = Query(...)):
     encoded = str(project_path).replace("/", "-")
     jsonl_dir = config.CLAUDE_PROJECTS_DIR / encoded
     if not jsonl_dir.is_dir():
-        return {"sessions_count": 0, "sessions_7d": 0, "total_tokens": 0,
-                "cache_hit_pct": 0, "top_tool": None, "top_tool_count": 0}
+        return {
+            "sessions_count": 0,
+            "sessions_7d": 0,
+            "total_tokens": 0,
+            "cache_hit_pct": 0,
+            "top_tool": None,
+            "top_tool_count": 0,
+        }
     cutoff = time.time() - 7 * 24 * 3600
     sessions_total = 0
     sessions_count = 0
@@ -92,7 +99,12 @@ async def get_usage_window(project: str = Query(...)):
     encoded = str(project_path).replace("/", "-")
     jsonl_dir = config.CLAUDE_PROJECTS_DIR / encoded
     if not jsonl_dir.is_dir():
-        return {"window_tokens": 0, "window_start": None, "window_end": None, "sessions_in_window": 0}
+        return {
+            "window_tokens": 0,
+            "window_start": None,
+            "window_end": None,
+            "sessions_in_window": 0,
+        }
 
     now = time.time()
     cutoff = now - WINDOW_SECS

@@ -27,7 +27,6 @@ def _make_project(root: Path, name: str, with_status: bool = True) -> Path:
 
 
 class TestAcceptanceProjectDiscovery:
-
     def _fresh_modules(self, monkeypatch, tmp_path):
         """Reload config+state with fresh PROJECTS_ROOT."""
         import claude_monitor.db as db_module

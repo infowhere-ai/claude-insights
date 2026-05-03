@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 class TestAcceptanceStatusPolling:
-
     def test_status_read_correctly_from_status_json(self, tmp_project, monkeypatch):
         """
         Given  .claude/status.json contains {"status": "working", "tool": "Read"}
@@ -26,6 +25,7 @@ class TestAcceptanceStatusPolling:
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
         import claude_monitor.state as state_module
+
         importlib.reload(db_module)
         importlib.reload(config_module)
         importlib.reload(state_module)
@@ -53,6 +53,7 @@ class TestAcceptanceStatusPolling:
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
         import claude_monitor.state as state_module
+
         importlib.reload(db_module)
         importlib.reload(config_module)
         importlib.reload(state_module)
@@ -61,16 +62,18 @@ class TestAcceptanceStatusPolling:
 
         status_file = tmp_project / ".claude" / "status.json"
         status_file.write_text(
-            json.dumps({
-                "status": "idle",
-                "ts": "2026-01-01T00:00:00Z",
-                "stats": {
-                    "input_tokens": 500,
-                    "output_tokens": 100,
-                    "cache_read_input_tokens": 0,
-                    "cache_creation_input_tokens": 0,
-                },
-            }),
+            json.dumps(
+                {
+                    "status": "idle",
+                    "ts": "2026-01-01T00:00:00Z",
+                    "stats": {
+                        "input_tokens": 500,
+                        "output_tokens": 100,
+                        "cache_read_input_tokens": 0,
+                        "cache_creation_input_tokens": 0,
+                    },
+                }
+            ),
             encoding="utf-8",
         )
 
@@ -111,6 +114,7 @@ class TestAcceptanceStatusPolling:
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
         import claude_monitor.state as state_module
+
         importlib.reload(db_module)
         importlib.reload(config_module)
         importlib.reload(state_module)
@@ -130,16 +134,22 @@ class TestAcceptanceStatusPolling:
         jsonl_dir.mkdir(parents=True, exist_ok=True)
         jsonl_file = jsonl_dir / "test_ca01.jsonl"
         jsonl_file.write_text(
-            json.dumps({
-                "type": "assistant",
-                "timestamp": "2026-01-01T10:00:05Z",
-                "message": {
-                    "model": "claude-sonnet-4-6",
-                    "usage": {"input_tokens": 100, "output_tokens": 50,
-                               "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                    "content": [{"type": "text", "text": "Here is my answer."}],
-                },
-            }),
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-01-01T10:00:05Z",
+                    "message": {
+                        "model": "claude-sonnet-4-6",
+                        "usage": {
+                            "input_tokens": 100,
+                            "output_tokens": 50,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        "content": [{"type": "text", "text": "Here is my answer."}],
+                    },
+                }
+            ),
             encoding="utf-8",
         )
 
@@ -174,6 +184,7 @@ class TestAcceptanceStatusPolling:
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
         import claude_monitor.state as state_module
+
         importlib.reload(db_module)
         importlib.reload(config_module)
         importlib.reload(state_module)

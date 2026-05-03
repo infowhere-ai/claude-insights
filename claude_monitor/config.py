@@ -1,4 +1,5 @@
 """Application configuration — read from environment at module load time."""
+
 import datetime
 import importlib.metadata
 import os
@@ -11,7 +12,9 @@ def _default_projects_root() -> str:
         result = subprocess.run(
             ["git", "worktree", "list"],
             cwd=str(Path(__file__).parent.parent),
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             first_line = result.stdout.splitlines()[0]

@@ -1,4 +1,5 @@
 """Configuration endpoints — roots, CLAUDE.md."""
+
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -37,7 +38,9 @@ async def update_roots(request: Request):
         if not p.is_dir():
             return JSONResponse({"error": f"Directory not found: {p}"}, status_code=400)
         if p == config.PROJECTS_ROOT:
-            return JSONResponse({"error": "This folder is already the primary folder"}, status_code=400)
+            return JSONResponse(
+                {"error": "This folder is already the primary folder"}, status_code=400
+            )
         if p not in state._extra_roots:
             state._extra_roots.append(p)
             service.save_roots_config()
@@ -71,7 +74,9 @@ async def get_claude_md(project: str):
         if candidate.is_file():
             try:
                 content = candidate.read_text(encoding="utf-8")
-                return JSONResponse({"content": content, "path": str(candidate.relative_to(project_path))})
+                return JSONResponse(
+                    {"content": content, "path": str(candidate.relative_to(project_path))}
+                )
             except Exception as e:
                 return JSONResponse({"error": str(e)}, status_code=500)
 

@@ -64,8 +64,9 @@ def init_db(db_path: Path | None = None) -> None:
         conn.close()
 
 
-def upsert_agent_run(agent: dict, project: str, session_id: str | None = None,
-                     db_path: Path | None = None) -> None:
+def upsert_agent_run(
+    agent: dict, project: str, session_id: str | None = None, db_path: Path | None = None
+) -> None:
     """Persist a completed agent run. Idempotent — safe to call multiple times."""
     duration = None
     try:
@@ -106,9 +107,14 @@ def upsert_agent_run(agent: dict, project: str, session_id: str | None = None,
         conn.close()
 
 
-def upsert_session_run(session_id: str, project: str, stats: dict,
-                       finished_at: str | None = None, agent_count: int = 0,
-                       db_path: Path | None = None) -> None:
+def upsert_session_run(
+    session_id: str,
+    project: str,
+    stats: dict,
+    finished_at: str | None = None,
+    agent_count: int = 0,
+    db_path: Path | None = None,
+) -> None:
     """Persist or update a session run with token stats. Idempotent."""
     conn = _connect(db_path)
     try:
@@ -148,8 +154,9 @@ def upsert_session_run(session_id: str, project: str, stats: dict,
         conn.close()
 
 
-def get_agent_history(project: str | None = None, limit: int = 100,
-                      db_path: Path | None = None) -> list[dict]:
+def get_agent_history(
+    project: str | None = None, limit: int = 100, db_path: Path | None = None
+) -> list[dict]:
     """Return recent agent runs, newest first."""
     target = db_path or DB_PATH
     if not Path(target).exists():
@@ -171,8 +178,9 @@ def get_agent_history(project: str | None = None, limit: int = 100,
         conn.close()
 
 
-def get_session_history(project: str | None = None, limit: int = 50,
-                        db_path: Path | None = None) -> list[dict]:
+def get_session_history(
+    project: str | None = None, limit: int = 50, db_path: Path | None = None
+) -> list[dict]:
     """Return recent session runs, newest first."""
     target = db_path or DB_PATH
     if not Path(target).exists():

@@ -1,4 +1,5 @@
 """Git integration endpoints — diff and pending (uncommitted) files."""
+
 import asyncio
 import subprocess
 from pathlib import Path
@@ -17,7 +18,9 @@ async def get_pending_files(project: str = Query(...)):
     if project in state._status_paths:
         project_path = state._status_paths[project].parents[1]
     else:
-        for candidate in [config.PROJECTS_ROOT / project] + [r / project for r in state._extra_roots]:
+        for candidate in [config.PROJECTS_ROOT / project] + [
+            r / project for r in state._extra_roots
+        ]:
             if candidate.is_dir():
                 project_path = candidate
                 break
@@ -30,15 +33,22 @@ async def get_pending_files(project: str = Query(...)):
             subprocess.run,
             ["git", "status", "--porcelain"],
             cwd=str(project_path),
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode != 0:
             return JSONResponse({"files": [], "error": result.stderr.strip()})
 
         STATUS_LABELS = {
-            "M": "modified", "A": "added", "D": "deleted",
-            "R": "renamed", "C": "copied", "U": "unmerged",
-            "?": "untracked", "!": "ignored",
+            "M": "modified",
+            "A": "added",
+            "D": "deleted",
+            "R": "renamed",
+            "C": "copied",
+            "U": "unmerged",
+            "?": "untracked",
+            "!": "ignored",
         }
 
         files = []
@@ -52,12 +62,14 @@ async def get_pending_files(project: str = Query(...)):
             rel = rel.strip().strip('"')
             code = xy[0].strip() or xy[1].strip() or "?"
             abs_path = str(project_path / rel)
-            files.append({
-                "path": abs_path,
-                "rel_path": rel,
-                "status_code": code,
-                "label": STATUS_LABELS.get(code, "changed"),
-            })
+            files.append(
+                {
+                    "path": abs_path,
+                    "rel_path": rel,
+                    "status_code": code,
+                    "label": STATUS_LABELS.get(code, "changed"),
+                }
+            )
 
         return {"files": files, "project_path": str(project_path)}
     except subprocess.TimeoutExpired:
@@ -84,7 +96,9 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
             subprocess.run,
             ["git", "diff", "HEAD", "--", str(file_path)],
             cwd=str(project_path),
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         diff = result.stdout.strip()
 
@@ -93,7 +107,9 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
                 subprocess.run,
                 ["git", "diff", "--cached", "--", str(file_path)],
                 cwd=str(project_path),
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             diff = result2.stdout.strip()
 
@@ -103,7 +119,9 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
                 subprocess.run,
                 ["git", "ls-files", "--error-unmatch", str(file_path)],
                 cwd=str(project_path),
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             is_untracked = ls_result.returncode != 0
             if is_untracked:
@@ -111,7 +129,9 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
                     subprocess.run,
                     ["git", "diff", "--no-index", "/dev/null", str(file_path)],
                     cwd=str(project_path),
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 diff = result3.stdout.strip()
 

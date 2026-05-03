@@ -31,7 +31,9 @@ Some body text here.
         assert result["description"] == ""
 
     def test_body_intro_extracted(self):
-        content = "---\nname: test\ndescription: desc\n---\n\nFirst paragraph.\n\nSecond paragraph.\n"
+        content = (
+            "---\nname: test\ndescription: desc\n---\n\nFirst paragraph.\n\nSecond paragraph.\n"
+        )
         result = service.parse_skill_md(content, "test")
         assert "First paragraph" in result["body_intro"]
         assert "Second paragraph" not in result["body_intro"]

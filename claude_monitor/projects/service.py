@@ -1,4 +1,5 @@
 """Project discovery and status reading."""
+
 import json
 from pathlib import Path
 

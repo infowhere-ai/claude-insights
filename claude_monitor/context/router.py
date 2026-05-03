@@ -1,4 +1,5 @@
 """Context inspector endpoint."""
+
 from pathlib import Path
 
 from fastapi import APIRouter, Query
@@ -21,13 +22,15 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
     def _add_rule(label: str, real_path: Path, category: str) -> None:
         try:
             size = real_path.stat().st_size
-            rules.append({
-                "label": label,
-                "real_path": str(real_path),
-                "size_bytes": size,
-                "tokens_est": size // 4,
-                "category": category,
-            })
+            rules.append(
+                {
+                    "label": label,
+                    "real_path": str(real_path),
+                    "size_bytes": size,
+                    "tokens_est": size // 4,
+                    "category": category,
+                }
+            )
         except OSError:
             pass
 
@@ -73,7 +76,11 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
                 elif real.is_dir():
                     for md_file in sorted(real.rglob("*.md")):
                         if md_file.is_file():
-                            _add_rule(f"~/.claude/rules/{entry.name}/{md_file.name}", md_file, "global-rule")
+                            _add_rule(
+                                f"~/.claude/rules/{entry.name}/{md_file.name}",
+                                md_file,
+                                "global-rule",
+                            )
             except OSError:
                 pass
 
@@ -95,6 +102,7 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
 
     if jsonl_path and jsonl_path.is_file():
         import json as _json
+
         tool_uses: dict[str, dict] = {}
         try:
             with jsonl_path.open(encoding="utf-8", errors="ignore") as f:
@@ -107,46 +115,58 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
                     except Exception:
                         continue
                     if d.get("type") == "assistant":
-                        for c in (d.get("message", {}).get("content", []) or []):
+                        for c in d.get("message", {}).get("content", []) or []:
                             if isinstance(c, dict) and c.get("type") == "tool_use":
                                 tool_uses[c["id"]] = {
                                     "name": c.get("name", ""),
                                     "input": c.get("input", {}),
                                 }
                     elif d.get("type") == "user":
-                        for c in (d.get("message", {}).get("content", []) or []):
+                        for c in d.get("message", {}).get("content", []) or []:
                             if not isinstance(c, dict) or c.get("type") != "tool_result":
                                 continue
                             tid = c.get("tool_use_id", "")
                             tu = tool_uses.get(tid, {})
                             tool_name = tu.get("name", "")
-                            if tool_name not in ("Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch"):
+                            if tool_name not in (
+                                "Read",
+                                "Write",
+                                "Edit",
+                                "Bash",
+                                "Glob",
+                                "Grep",
+                                "WebFetch",
+                            ):
                                 continue
                             result_content = c.get("content", "")
                             if isinstance(result_content, list):
                                 result_text = "\n".join(
-                                    x.get("text", "") for x in result_content
-                                    if isinstance(x, dict)
+                                    x.get("text", "") for x in result_content if isinstance(x, dict)
                                 )
                             else:
                                 result_text = str(result_content)
                             size_bytes = len(result_text.encode("utf-8"))
                             inp = tu.get("input", {})
                             label = (
-                                inp.get("file_path") or inp.get("path") or
-                                inp.get("command", "")[:60] or
-                                inp.get("url") or inp.get("query") or
-                                inp.get("pattern") or ""
+                                inp.get("file_path")
+                                or inp.get("path")
+                                or inp.get("command", "")[:60]
+                                or inp.get("url")
+                                or inp.get("query")
+                                or inp.get("pattern")
+                                or ""
                             )
-                            reads.append({
-                                "tool": tool_name,
-                                "label": label,
-                                "size_bytes": size_bytes,
-                                "tokens_est": size_bytes // 4,
-                                "is_error": c.get("is_error", False),
-                                "content": result_text[:8000],
-                                "total_chars": len(result_text),
-                            })
+                            reads.append(
+                                {
+                                    "tool": tool_name,
+                                    "label": label,
+                                    "size_bytes": size_bytes,
+                                    "tokens_est": size_bytes // 4,
+                                    "is_error": c.get("is_error", False),
+                                    "content": result_text[:8000],
+                                    "total_chars": len(result_text),
+                                }
+                            )
         except OSError:
             pass
 
@@ -163,6 +183,7 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
     conv_total_bytes = 0
     if jsonl_path and jsonl_path.is_file():
         import json as _json2
+
         try:
             with jsonl_path.open(encoding="utf-8", errors="ignore") as f:
                 for line in f:
@@ -191,20 +212,28 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
                     text = "\n".join(text_parts).strip()
                     if not text:
                         continue
-                    if text.startswith("<command-") or text.startswith("<local-command") or text.startswith("<system-reminder"):
+                    if (
+                        text.startswith("<command-")
+                        or text.startswith("<local-command")
+                        or text.startswith("<system-reminder")
+                    ):
                         continue
                     size_bytes = len(text.encode("utf-8"))
                     conv_total_bytes += size_bytes
-                    is_compaction = role == "user" and text.startswith("This session is being continued from a previous conversation")
-                    messages.append({
-                        "role": role,
-                        "is_compaction": is_compaction,
-                        "snippet": text[:120],
-                        "full_text": text[:8000],
-                        "total_chars": len(text),
-                        "size_bytes": size_bytes,
-                        "tokens_est": size_bytes // 4,
-                    })
+                    is_compaction = role == "user" and text.startswith(
+                        "This session is being continued from a previous conversation"
+                    )
+                    messages.append(
+                        {
+                            "role": role,
+                            "is_compaction": is_compaction,
+                            "snippet": text[:120],
+                            "full_text": text[:8000],
+                            "total_chars": len(text),
+                            "size_bytes": size_bytes,
+                            "tokens_est": size_bytes // 4,
+                        }
+                    )
         except OSError:
             pass
 

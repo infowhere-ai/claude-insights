@@ -1,4 +1,5 @@
 """Project token stats — reads from JSONL session files with mtime cache."""
+
 import json
 from pathlib import Path
 
@@ -22,7 +23,10 @@ def get_project_stats(project_path: Path, project_name: str) -> dict:
     latest_mtime = latest.stat().st_mtime
     cache_key = str(latest)
 
-    if state._jsonl_mtimes.get(cache_key) == latest_mtime and project_name in state._project_stats_cache:
+    if (
+        state._jsonl_mtimes.get(cache_key) == latest_mtime
+        and project_name in state._project_stats_cache
+    ):
         return state._project_stats_cache[project_name]
 
     session_input = 0

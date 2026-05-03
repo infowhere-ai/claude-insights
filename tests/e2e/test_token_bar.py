@@ -30,15 +30,20 @@ def test_ctx_tokens_shown(page: Page, server: ServerContext, project: str) -> No
     When   the token pane is opened
     Then   #tok-ctx shows 300 (input + cache_read + cache_creation)
     """
-    server.write_jsonl(project, [
-        server.assistant_entry(
-            tool="Read",
-            input_tokens=100,
-            output_tokens=50,
-            cache_read=200,
-            cache_creation=0,
-        )
-    ], filename="session-ctx.jsonl", newest=True)
+    server.write_jsonl(
+        project,
+        [
+            server.assistant_entry(
+                tool="Read",
+                input_tokens=100,
+                output_tokens=50,
+                cache_read=200,
+                cache_creation=0,
+            )
+        ],
+        filename="session-ctx.jsonl",
+        newest=True,
+    )
     server.write_status(project, "working", tool="Read")
 
     page.goto(f"{server.url}/insights")
@@ -56,14 +61,19 @@ def test_cache_tokens_shown(page: Page, server: ServerContext, project: str) -> 
     When   the token pane is observed
     Then   #tok-cache shows 200
     """
-    server.write_jsonl(project, [
-        server.assistant_entry(
-            tool="Read",
-            input_tokens=50,
-            output_tokens=30,
-            cache_read=200,
-        )
-    ], filename="session-cache.jsonl", newest=True)
+    server.write_jsonl(
+        project,
+        [
+            server.assistant_entry(
+                tool="Read",
+                input_tokens=50,
+                output_tokens=30,
+                cache_read=200,
+            )
+        ],
+        filename="session-cache.jsonl",
+        newest=True,
+    )
 
     page.goto(f"{server.url}/insights")
     page.locator("#project-select").select_option(label=project)

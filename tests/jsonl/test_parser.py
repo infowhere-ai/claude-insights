@@ -13,9 +13,14 @@ def _write_jsonl(path: Path, entries: list[dict]) -> None:
     path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
 
 
-def _assistant_entry(tool_name: str = "Read", ts: str = "2026-01-01T10:00:00Z",
-                     input_tokens: int = 100, output_tokens: int = 50,
-                     model: str = "claude-sonnet-4-6", thinking: str = "") -> dict:
+def _assistant_entry(
+    tool_name: str = "Read",
+    ts: str = "2026-01-01T10:00:00Z",
+    input_tokens: int = 100,
+    output_tokens: int = 50,
+    model: str = "claude-sonnet-4-6",
+    thinking: str = "",
+) -> dict:
     content: list[dict] = []
     if thinking:
         content.append({"type": "thinking", "thinking": thinking})
@@ -42,6 +47,7 @@ def _user_entry(cwd: str = "/home/user/project", ts: str = "2026-01-01T10:00:01Z
 
 # ── tool_input_summary ────────────────────────────────────────────────────────
 
+
 class TestToolInputSummary:
     def test_read_returns_file_path(self):
         assert parser.tool_input_summary("Read", {"file_path": "/src/main.py"}) == "/src/main.py"
@@ -67,10 +73,15 @@ class TestToolInputSummary:
         assert parser.tool_input_summary("Grep", {"pattern": "def test_"}) == "def test_"
 
     def test_webfetch_returns_url(self):
-        assert parser.tool_input_summary("WebFetch", {"url": "https://example.com"}) == "https://example.com"
+        assert (
+            parser.tool_input_summary("WebFetch", {"url": "https://example.com"})
+            == "https://example.com"
+        )
 
     def test_websearch_returns_query(self):
-        assert parser.tool_input_summary("WebSearch", {"query": "python asyncio"}) == "python asyncio"
+        assert (
+            parser.tool_input_summary("WebSearch", {"query": "python asyncio"}) == "python asyncio"
+        )
 
     def test_generic_returns_first_string_value(self):
         result = parser.tool_input_summary("Agent", {"description": "do something"})
@@ -86,9 +97,12 @@ class TestToolInputSummary:
 
 # ── tool_detail ───────────────────────────────────────────────────────────────
 
+
 class TestToolDetail:
     def test_bash_type(self):
-        detail = parser.tool_detail("Bash", {"command": "git status", "description": "Show git status"})
+        detail = parser.tool_detail(
+            "Bash", {"command": "git status", "description": "Show git status"}
+        )
         assert detail["type"] == "bash"
         assert detail["command"] == "git status"
         assert detail["description"] == "Show git status"
@@ -98,18 +112,23 @@ class TestToolDetail:
         assert detail["description"] == ""
 
     def test_edit_type_with_diff(self):
-        detail = parser.tool_detail("Edit", {
-            "file_path": "app.py",
-            "old_string": "foo = 1\n",
-            "new_string": "foo = 2\n",
-        })
+        detail = parser.tool_detail(
+            "Edit",
+            {
+                "file_path": "app.py",
+                "old_string": "foo = 1\n",
+                "new_string": "foo = 2\n",
+            },
+        )
         assert detail["type"] == "edit"
         assert detail["file_path"] == "app.py"
         assert "-foo = 1" in detail["diff"]
         assert "+foo = 2" in detail["diff"]
 
     def test_edit_empty_strings_no_diff(self):
-        detail = parser.tool_detail("Edit", {"file_path": "a.py", "old_string": "", "new_string": ""})
+        detail = parser.tool_detail(
+            "Edit", {"file_path": "a.py", "old_string": "", "new_string": ""}
+        )
         assert detail["type"] == "edit"
         assert detail["diff"] == ""
 
@@ -152,7 +171,9 @@ class TestToolDetail:
         assert detail["type"] == "web"
 
     def test_agent_type(self):
-        detail = parser.tool_detail("Agent", {"description": "Run subagent", "prompt": "Do the thing"})
+        detail = parser.tool_detail(
+            "Agent", {"description": "Run subagent", "prompt": "Do the thing"}
+        )
         assert detail["type"] == "agent"
         assert "Do the thing" in detail["prompt"]
 
@@ -163,6 +184,7 @@ class TestToolDetail:
 
 
 # ── get_jsonl_dir ─────────────────────────────────────────────────────────────
+
 
 class TestGetJsonlDir:
     def test_encodes_slashes_as_dashes(self):
@@ -177,6 +199,7 @@ class TestGetJsonlDir:
 
 
 # ── parse_jsonl_tail ──────────────────────────────────────────────────────────
+
 
 class TestParseJsonlTail:
     def test_extracts_last_tool_use(self, sample_jsonl):
@@ -201,12 +224,16 @@ class TestParseJsonlTail:
 
     def test_tool_is_none_when_no_tool_use(self, tmp_jsonl_dir):
         session = tmp_jsonl_dir / "no_tool.jsonl"
-        _write_jsonl(session, [{"type": "assistant", "message": {"content": [{"type": "text", "text": "hi"}]}}])
+        _write_jsonl(
+            session,
+            [{"type": "assistant", "message": {"content": [{"type": "text", "text": "hi"}]}}],
+        )
         result = parser.parse_jsonl_tail(session)
         assert result.get("tool") is None
 
 
 # ── detect_latest_thinking ────────────────────────────────────────────────────
+
 
 class TestDetectLatestThinking:
     def test_detects_thinking_block(self, sample_thinking_jsonl):
@@ -247,6 +274,7 @@ class TestDetectLatestThinking:
 
 # ── parse_session_detail ──────────────────────────────────────────────────────
 
+
 class TestParseSessionDetail:
     def test_extracts_tool_event(self, sample_jsonl):
         result = parser.parse_session_detail(sample_jsonl)
@@ -270,43 +298,67 @@ class TestParseSessionDetail:
 
     def test_duration_ms_calculated(self, tmp_jsonl_dir):
         session = tmp_jsonl_dir / "duration.jsonl"
-        _write_jsonl(session, [
-            {
-                "type": "assistant",
-                "timestamp": "2026-01-01T10:00:00Z",
-                "message": {
-                    "content": [{"type": "tool_use", "id": "t1", "name": "Read", "input": {}}],
-                    "usage": {"input_tokens": 1, "output_tokens": 1,
-                              "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
+        _write_jsonl(
+            session,
+            [
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-01-01T10:00:00Z",
+                    "message": {
+                        "content": [{"type": "tool_use", "id": "t1", "name": "Read", "input": {}}],
+                        "usage": {
+                            "input_tokens": 1,
+                            "output_tokens": 1,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                    },
                 },
-            },
-            {
-                "type": "user",
-                "timestamp": "2026-01-01T10:00:02Z",
-                "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]},
-            },
-        ])
+                {
+                    "type": "user",
+                    "timestamp": "2026-01-01T10:00:02Z",
+                    "message": {
+                        "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]
+                    },
+                },
+            ],
+        )
         result = parser.parse_session_detail(session)
         assert result["tools"][0]["duration_ms"] == 2000
 
     def test_is_error_flag_propagated(self, tmp_jsonl_dir):
         session = tmp_jsonl_dir / "error.jsonl"
-        _write_jsonl(session, [
-            {
-                "type": "assistant",
-                "timestamp": "2026-01-01T10:00:00Z",
-                "message": {
-                    "content": [{"type": "tool_use", "id": "t2", "name": "Bash", "input": {}}],
-                    "usage": {"input_tokens": 1, "output_tokens": 1,
-                              "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
+        _write_jsonl(
+            session,
+            [
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-01-01T10:00:00Z",
+                    "message": {
+                        "content": [{"type": "tool_use", "id": "t2", "name": "Bash", "input": {}}],
+                        "usage": {
+                            "input_tokens": 1,
+                            "output_tokens": 1,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                    },
                 },
-            },
-            {
-                "type": "user",
-                "timestamp": "2026-01-01T10:00:01Z",
-                "message": {"content": [{"type": "tool_result", "tool_use_id": "t2",
-                                         "content": "err", "is_error": True}]},
-            },
-        ])
+                {
+                    "type": "user",
+                    "timestamp": "2026-01-01T10:00:01Z",
+                    "message": {
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": "t2",
+                                "content": "err",
+                                "is_error": True,
+                            }
+                        ]
+                    },
+                },
+            ],
+        )
         result = parser.parse_session_detail(session)
         assert result["tools"][0]["success"] is False

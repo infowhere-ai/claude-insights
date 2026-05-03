@@ -21,28 +21,39 @@ def _write_jsonl(directory: Path, filename: str, messages: list) -> Path:
 
 
 class TestAcceptanceJsonlWatcher:
-
     def test_last_tool_extracted_from_tail(self, tmp_jsonl_dir):
         """
         Given  the JSONL contains an assistant message with tool_use name="Bash"
         When   parse_jsonl_tail is called
         Then   the returned dict contains tool="Bash"
         """
-        jsonl = _write_jsonl(tmp_jsonl_dir, "session.jsonl", [
-            {
-                "type": "assistant",
-                "timestamp": "2026-01-01T10:00:00Z",
-                "message": {
-                    "model": "claude-sonnet-4-6",
-                    "usage": {"input_tokens": 100, "output_tokens": 50,
-                               "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                    "content": [
-                        {"type": "tool_use", "id": "t1", "name": "Bash",
-                         "input": {"command": "ls -la"}},
-                    ],
+        jsonl = _write_jsonl(
+            tmp_jsonl_dir,
+            "session.jsonl",
+            [
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-01-01T10:00:00Z",
+                    "message": {
+                        "model": "claude-sonnet-4-6",
+                        "usage": {
+                            "input_tokens": 100,
+                            "output_tokens": 50,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "id": "t1",
+                                "name": "Bash",
+                                "input": {"command": "ls -la"},
+                            },
+                        ],
+                    },
                 },
-            },
-        ])
+            ],
+        )
 
         result = parser.parse_jsonl_tail(jsonl)
 
@@ -54,21 +65,32 @@ class TestAcceptanceJsonlWatcher:
         When   detect_latest_thinking is called
         Then   returns a dict with text, word_count and block_id
         """
-        jsonl = _write_jsonl(tmp_jsonl_dir, "think_session.jsonl", [
-            {
-                "type": "assistant",
-                "timestamp": "2026-01-01T10:00:00Z",
-                "message": {
-                    "model": "claude-sonnet-4-6",
-                    "usage": {"input_tokens": 10, "output_tokens": 5,
-                               "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                    "content": [
-                        {"type": "thinking", "thinking": "I need to think carefully about this."},
-                        {"type": "text", "text": "Here is my answer."},
-                    ],
+        jsonl = _write_jsonl(
+            tmp_jsonl_dir,
+            "think_session.jsonl",
+            [
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-01-01T10:00:00Z",
+                    "message": {
+                        "model": "claude-sonnet-4-6",
+                        "usage": {
+                            "input_tokens": 10,
+                            "output_tokens": 5,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        "content": [
+                            {
+                                "type": "thinking",
+                                "thinking": "I need to think carefully about this.",
+                            },
+                            {"type": "text", "text": "Here is my answer."},
+                        ],
+                    },
                 },
-            },
-        ])
+            ],
+        )
 
         result = parser.detect_latest_thinking(jsonl)
 
@@ -84,18 +106,26 @@ class TestAcceptanceJsonlWatcher:
         When   detect_latest_thinking is called
         Then   returns None
         """
-        jsonl = _write_jsonl(tmp_jsonl_dir, "empty_think.jsonl", [
-            {
-                "type": "assistant",
-                "timestamp": "2026-01-01T11:00:00Z",
-                "message": {
-                    "model": "claude-sonnet-4-6",
-                    "usage": {"input_tokens": 10, "output_tokens": 5,
-                               "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                    "content": [{"type": "thinking", "thinking": "   "}],
+        jsonl = _write_jsonl(
+            tmp_jsonl_dir,
+            "empty_think.jsonl",
+            [
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-01-01T11:00:00Z",
+                    "message": {
+                        "model": "claude-sonnet-4-6",
+                        "usage": {
+                            "input_tokens": 10,
+                            "output_tokens": 5,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        "content": [{"type": "thinking", "thinking": "   "}],
+                    },
                 },
-            },
-        ])
+            ],
+        )
 
         result = parser.detect_latest_thinking(jsonl)
         assert result is None
@@ -108,17 +138,29 @@ class TestAcceptanceJsonlWatcher:
         """
         jsonl = tmp_jsonl_dir / "corrupt.jsonl"
         lines = [
-            json.dumps({
-                "type": "assistant",
-                "timestamp": "2026-01-01T10:00:00Z",
-                "message": {
-                    "model": "claude-sonnet-4-6",
-                    "usage": {"input_tokens": 10, "output_tokens": 5,
-                               "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                    "content": [{"type": "tool_use", "id": "t1", "name": "Read",
-                                  "input": {"file_path": "/foo.py"}}],
-                },
-            }),
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-01-01T10:00:00Z",
+                    "message": {
+                        "model": "claude-sonnet-4-6",
+                        "usage": {
+                            "input_tokens": 10,
+                            "output_tokens": 5,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "id": "t1",
+                                "name": "Read",
+                                "input": {"file_path": "/foo.py"},
+                            }
+                        ],
+                    },
+                }
+            ),
             "{{INVALID JSON LINE}}",
         ]
         jsonl.write_text("\n".join(lines), encoding="utf-8")
@@ -133,18 +175,46 @@ class TestAcceptanceJsonlWatcher:
         Then   both have the same block_id (stable per timestamp)
         """
         ts = "2026-01-01T10:00:00Z"
-        jsonl1 = _write_jsonl(tmp_jsonl_dir, "think_a.jsonl", [
-            {"type": "assistant", "timestamp": ts,
-             "message": {"model": "m", "usage": {"input_tokens": 1, "output_tokens": 1,
-                          "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                          "content": [{"type": "thinking", "thinking": "First thought"}]}},
-        ])
-        jsonl2 = _write_jsonl(tmp_jsonl_dir, "think_b.jsonl", [
-            {"type": "assistant", "timestamp": ts,
-             "message": {"model": "m", "usage": {"input_tokens": 1, "output_tokens": 1,
-                          "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                          "content": [{"type": "thinking", "thinking": "Second thought"}]}},
-        ])
+        jsonl1 = _write_jsonl(
+            tmp_jsonl_dir,
+            "think_a.jsonl",
+            [
+                {
+                    "type": "assistant",
+                    "timestamp": ts,
+                    "message": {
+                        "model": "m",
+                        "usage": {
+                            "input_tokens": 1,
+                            "output_tokens": 1,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        "content": [{"type": "thinking", "thinking": "First thought"}],
+                    },
+                },
+            ],
+        )
+        jsonl2 = _write_jsonl(
+            tmp_jsonl_dir,
+            "think_b.jsonl",
+            [
+                {
+                    "type": "assistant",
+                    "timestamp": ts,
+                    "message": {
+                        "model": "m",
+                        "usage": {
+                            "input_tokens": 1,
+                            "output_tokens": 1,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                        },
+                        "content": [{"type": "thinking", "thinking": "Second thought"}],
+                    },
+                },
+            ],
+        )
 
         r1 = parser.detect_latest_thinking(jsonl1)
         r2 = parser.detect_latest_thinking(jsonl2)

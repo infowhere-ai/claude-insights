@@ -28,7 +28,9 @@ class TestRootsConfig:
             state._extra_roots[:] = original_extra
 
     def test_load_ignores_missing_file(self, tmp_path):
-        with patch.object(config_service, "_config_file", return_value=tmp_path / "nonexistent.json"):
+        with patch.object(
+            config_service, "_config_file", return_value=tmp_path / "nonexistent.json"
+        ):
             config_service.load_roots_config()
         assert isinstance(state._extra_roots, list)
 

@@ -49,6 +49,7 @@ def test_status_project_has_active_agents_key(app_client):
 
 def test_status_active_agents_reads_agent_files(app_client, tmp_project):
     import json as _json
+
     agents_dir = tmp_project / ".claude" / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
     agent = {

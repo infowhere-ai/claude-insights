@@ -12,6 +12,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Filesystem fixtures ────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def tmp_projects_root(tmp_path):
     root = tmp_path / "projects"
@@ -40,41 +41,45 @@ def tmp_jsonl_dir(tmp_path):
 def sample_jsonl(tmp_jsonl_dir):
     session = tmp_jsonl_dir / "abc123.jsonl"
     lines = [
-        json.dumps({
-            "type": "assistant",
-            "timestamp": "2026-01-01T10:00:00Z",
-            "message": {
-                "model": "claude-sonnet-4-6",
-                "usage": {
-                    "input_tokens": 100,
-                    "output_tokens": 50,
-                    "cache_read_input_tokens": 200,
-                    "cache_creation_input_tokens": 0,
+        json.dumps(
+            {
+                "type": "assistant",
+                "timestamp": "2026-01-01T10:00:00Z",
+                "message": {
+                    "model": "claude-sonnet-4-6",
+                    "usage": {
+                        "input_tokens": 100,
+                        "output_tokens": 50,
+                        "cache_read_input_tokens": 200,
+                        "cache_creation_input_tokens": 0,
+                    },
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "tool_001",
+                            "name": "Read",
+                            "input": {"file_path": "/home/user/my-project/app.py"},
+                        }
+                    ],
                 },
-                "content": [
-                    {
-                        "type": "tool_use",
-                        "id": "tool_001",
-                        "name": "Read",
-                        "input": {"file_path": "/home/user/my-project/app.py"},
-                    }
-                ],
-            },
-        }),
-        json.dumps({
-            "type": "user",
-            "timestamp": "2026-01-01T10:00:05Z",
-            "message": {
-                "content": [
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": "tool_001",
-                        "content": "file content here",
-                        "is_error": False,
-                    }
-                ]
-            },
-        }),
+            }
+        ),
+        json.dumps(
+            {
+                "type": "user",
+                "timestamp": "2026-01-01T10:00:05Z",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tool_001",
+                            "content": "file content here",
+                            "is_error": False,
+                        }
+                    ]
+                },
+            }
+        ),
     ]
     session.write_text("\n".join(lines), encoding="utf-8")
     return session
@@ -84,25 +89,35 @@ def sample_jsonl(tmp_jsonl_dir):
 def sample_thinking_jsonl(tmp_jsonl_dir):
     session = tmp_jsonl_dir / "think123.jsonl"
     lines = [
-        json.dumps({
-            "type": "assistant",
-            "timestamp": "2026-01-01T11:00:00Z",
-            "message": {
-                "model": "claude-sonnet-4-6",
-                "usage": {"input_tokens": 10, "output_tokens": 5,
-                           "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                "content": [
-                    {"type": "thinking", "thinking": "I need to carefully analyse the problem."},
-                    {"type": "text", "text": "Here is my answer."},
-                ],
-            },
-        }),
+        json.dumps(
+            {
+                "type": "assistant",
+                "timestamp": "2026-01-01T11:00:00Z",
+                "message": {
+                    "model": "claude-sonnet-4-6",
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 5,
+                        "cache_read_input_tokens": 0,
+                        "cache_creation_input_tokens": 0,
+                    },
+                    "content": [
+                        {
+                            "type": "thinking",
+                            "thinking": "I need to carefully analyse the problem.",
+                        },
+                        {"type": "text", "text": "Here is my answer."},
+                    ],
+                },
+            }
+        ),
     ]
     session.write_text("\n".join(lines), encoding="utf-8")
     return session
 
 
 # ── App fixture (with patched PROJECTS_ROOT) ──────────────────────────────────
+
 
 @pytest.fixture
 def app_client(tmp_projects_root, tmp_project, tmp_path, monkeypatch):
@@ -117,6 +132,7 @@ def app_client(tmp_projects_root, tmp_project, tmp_path, monkeypatch):
     import claude_monitor.config as config_module
     import claude_monitor.state as state_module
     import claude_monitor.main as app_module
+
     importlib.reload(db_module)
     importlib.reload(config_module)
     importlib.reload(state_module)

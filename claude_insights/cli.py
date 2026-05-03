@@ -17,9 +17,11 @@ from pathlib import Path
 def _version() -> str:
     try:
         from importlib.metadata import version
+
         return version("claude-insights")
     except Exception:
         from claude_insights import __version__
+
         return __version__
 
 
@@ -36,9 +38,7 @@ def _find(name: str) -> Path:
     fallback = Path.cwd() / name
     if fallback.exists():
         return fallback
-    raise FileNotFoundError(
-        f"{name} not found in package ({_pkg_dir()}) or cwd ({Path.cwd()})"
-    )
+    raise FileNotFoundError(f"{name} not found in package ({_pkg_dir()}) or cwd ({Path.cwd()})")
 
 
 def _cmd_start(host: str, port: int) -> None:
@@ -69,20 +69,21 @@ def main() -> None:
         prog="claude-insights",
         description="Real-time dashboard for Claude Code sessions.",
     )
-    parser.add_argument(
-        "--version", action="version", version=f"claude-insights {_version()}"
-    )
+    parser.add_argument("--version", action="version", version=f"claude-insights {_version()}")
 
     sub = parser.add_subparsers(dest="command", metavar="command")
 
     start_p = sub.add_parser("start", help="Start the dashboard server")
     start_p.add_argument(
-        "--port", type=int, default=int(os.getenv("PORT", "4000")),
-        help="Port to listen on (default: 4000, env: PORT)"
+        "--port",
+        type=int,
+        default=int(os.getenv("PORT", "4000")),
+        help="Port to listen on (default: 4000, env: PORT)",
     )
     start_p.add_argument(
-        "--host", default=os.getenv("HOST", "127.0.0.1"),
-        help="Host to bind to (default: 127.0.0.1, env: HOST)"
+        "--host",
+        default=os.getenv("HOST", "127.0.0.1"),
+        help="Host to bind to (default: 127.0.0.1, env: HOST)",
     )
 
     sub.add_parser("install", help="Install the Claude Code hook into ~/.claude/settings.json")

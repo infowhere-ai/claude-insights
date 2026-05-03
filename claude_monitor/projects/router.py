@@ -1,4 +1,5 @@
 """Project status endpoints."""
+
 from fastapi import APIRouter
 
 from claude_monitor import state

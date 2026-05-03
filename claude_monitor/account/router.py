@@ -1,4 +1,5 @@
 """Account info endpoint."""
+
 import asyncio
 import json
 from datetime import datetime, timedelta
@@ -22,7 +23,9 @@ def _get_account_sync() -> dict:
     daily_activity: list = []
     try:
         if config.CLAUDE_STATS_CACHE.exists():
-            daily_activity = json.loads(config.CLAUDE_STATS_CACHE.read_text(encoding="utf-8")).get("dailyActivity", [])
+            daily_activity = json.loads(config.CLAUDE_STATS_CACHE.read_text(encoding="utf-8")).get(
+                "dailyActivity", []
+            )
     except Exception:
         pass
 
@@ -49,7 +52,9 @@ def _get_account_sync() -> dict:
                             u = d["message"].get("usage", {})
                             token_totals["input"] += u.get("input_tokens", 0)
                             token_totals["output"] += u.get("output_tokens", 0)
-                            token_totals["cache_creation"] += u.get("cache_creation_input_tokens", 0)
+                            token_totals["cache_creation"] += u.get(
+                                "cache_creation_input_tokens", 0
+                            )
                             token_totals["cache_read"] += u.get("cache_read_input_tokens", 0)
                             if u.get("service_tier"):
                                 service_tier = u["service_tier"]

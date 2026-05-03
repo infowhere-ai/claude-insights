@@ -1,4 +1,5 @@
 """Skills endpoint."""
+
 from fastapi import APIRouter
 
 from claude_monitor import config
@@ -21,10 +22,16 @@ async def get_skills():
                 parsed = service.parse_skill_md(content, name)
                 skills.append({**parsed, "source": source, "path": str(skill_md)})
             except Exception:
-                skills.append({
-                    "name": name, "title": name, "description": "",
-                    "argument_hint": "", "body_intro": "",
-                    "source": source, "path": str(skill_md),
-                })
+                skills.append(
+                    {
+                        "name": name,
+                        "title": name,
+                        "description": "",
+                        "argument_hint": "",
+                        "body_intro": "",
+                        "source": source,
+                        "path": str(skill_md),
+                    }
+                )
     skills.sort(key=lambda s: (s["source"], s["name"]))
     return {"skills": skills}

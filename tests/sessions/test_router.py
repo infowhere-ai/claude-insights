@@ -13,8 +13,7 @@ def _write_jsonl(path: Path, entries: list[dict]) -> None:
     path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
 
 
-def _assistant_entry(tool: str = "Read", input_tokens: int = 100,
-                     output_tokens: int = 50) -> dict:
+def _assistant_entry(tool: str = "Read", input_tokens: int = 100, output_tokens: int = 50) -> dict:
     return {
         "type": "assistant",
         "timestamp": "2026-01-01T10:00:00Z",
@@ -84,9 +83,14 @@ def test_session_history_accepts_limit(app_client):
 class TestSessionsKnownProject:
     def test_sessions_known_project_returns_list(self, app_client, tmp_project):
         from claude_monitor.sessions import service as session_service
-        with patch.object(session_service, "list_sessions", return_value=[
-            {"session_id": "abc123", "is_active": True, "started_at": "2026-01-01T10:00:00Z"}
-        ]):
+
+        with patch.object(
+            session_service,
+            "list_sessions",
+            return_value=[
+                {"session_id": "abc123", "is_active": True, "started_at": "2026-01-01T10:00:00Z"}
+            ],
+        ):
             r = app_client.get("/api/sessions?project=my-project")
         assert r.status_code == 200
         data = r.json()
@@ -97,6 +101,7 @@ class TestSessionsKnownProject:
 class TestSessionDetailEndpoint:
     def test_session_detail_with_valid_jsonl(self, app_client, tmp_project, tmp_path):
         from claude_monitor import config as config_module
+
         project_path = tmp_project
         encoded = str(project_path).replace("/", "-")
         jsonl_dir = tmp_path / "claude_proj" / encoded
@@ -114,6 +119,7 @@ class TestSessionDetailEndpoint:
 
     def test_session_detail_missing_jsonl_returns_404(self, app_client, tmp_project, tmp_path):
         from claude_monitor import config as config_module
+
         with patch.object(config_module, "CLAUDE_PROJECTS_DIR", tmp_path / "nonexistent"):
             r = app_client.get("/api/session-detail?project=my-project&session_id=ghost")
         assert r.status_code == 404

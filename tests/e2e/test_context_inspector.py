@@ -47,36 +47,47 @@ def test_files_read_in_session_appear(page: Page, server: ServerContext, project
     """
     ts_use = "2026-01-01T10:00:00Z"
     ts_result = "2026-01-01T10:00:01Z"
-    server.write_jsonl(project, [
-        {
-            "type": "assistant",
-            "timestamp": ts_use,
-            "message": {
-                "model": "claude-sonnet-4-6",
-                "usage": {"input_tokens": 10, "output_tokens": 5,
-                          "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
-                "content": [{
-                    "type": "tool_use", "id": "t1", "name": "Read",
-                    "input": {"file_path": "/tmp/important_file.py"},
-                }],
+    server.write_jsonl(
+        project,
+        [
+            {
+                "type": "assistant",
+                "timestamp": ts_use,
+                "message": {
+                    "model": "claude-sonnet-4-6",
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 5,
+                        "cache_read_input_tokens": 0,
+                        "cache_creation_input_tokens": 0,
+                    },
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "t1",
+                            "name": "Read",
+                            "input": {"file_path": "/tmp/important_file.py"},
+                        }
+                    ],
+                },
             },
-        },
-        {
-            "type": "user",
-            "timestamp": ts_result,
-            "message": {
-                "content": [{
-                    "type": "tool_result",
-                    "tool_use_id": "t1",
-                    "content": "def main(): pass\n" * 10,
-                    "is_error": False,
-                }]
+            {
+                "type": "user",
+                "timestamp": ts_result,
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "t1",
+                            "content": "def main(): pass\n" * 10,
+                            "is_error": False,
+                        }
+                    ]
+                },
             },
-        },
-    ])
+        ],
+    )
 
     _open_with_session(page, server, project)
 
-    expect(page.locator("#ctx-inspect-body")).to_contain_text(
-        "important_file.py", timeout=TIMEOUT
-    )
+    expect(page.locator("#ctx-inspect-body")).to_contain_text("important_file.py", timeout=TIMEOUT)

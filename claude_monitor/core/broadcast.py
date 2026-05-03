@@ -1,4 +1,5 @@
 """SSE broadcast — send events to all connected clients."""
+
 import asyncio
 
 from claude_monitor import state

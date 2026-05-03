@@ -1,4 +1,5 @@
 """Config persistence — extra roots (monitor-roots.json)."""
+
 import json
 from pathlib import Path
 

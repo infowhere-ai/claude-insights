@@ -1,4 +1,5 @@
 """File operations endpoints — browse, preview, delete."""
+
 import asyncio
 import subprocess
 from pathlib import Path
@@ -63,7 +64,9 @@ async def delete_file(project: str = Query(...), path: str = Query(...)):
             subprocess.run,
             ["git", "ls-files", "--error-unmatch", str(file_path)],
             cwd=str(project_path),
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if ls.returncode == 0:
             return JSONResponse(

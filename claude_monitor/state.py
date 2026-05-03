@@ -1,4 +1,5 @@
 """In-memory application state — single source of truth for all mutable globals."""
+
 import asyncio
 from pathlib import Path
 

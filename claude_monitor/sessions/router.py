@@ -1,4 +1,5 @@
 """Session and agent history endpoints."""
+
 from claude_monitor import db
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse

@@ -81,6 +81,7 @@ def test_delete_file_unknown_project_returns_404(app_client):
 
 def test_delete_tracked_file_is_rejected(app_client, tmp_project):
     import subprocess
+
     subprocess.run(["git", "init", "-q"], cwd=str(tmp_project), check=True)
     subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=str(tmp_project), check=True)
     subprocess.run(["git", "config", "user.name", "T"], cwd=str(tmp_project), check=True)
@@ -96,8 +97,10 @@ class TestDeleteFileEndpoint:
     def test_delete_untracked_file_succeeds(self, app_client, tmp_project):
         untracked = tmp_project / "to_delete.txt"
         untracked.write_text("temp content")
-        with patch("claude_monitor.files.router.subprocess.run",
-                   return_value=_make_completed(stdout="", returncode=1)):
+        with patch(
+            "claude_monitor.files.router.subprocess.run",
+            return_value=_make_completed(stdout="", returncode=1),
+        ):
             r = app_client.delete(f"/api/file?project=my-project&path={untracked}")
         assert r.status_code == 200
         assert "deleted" in r.json()
@@ -109,10 +112,13 @@ class TestDeleteFileEndpoint:
 
     def test_delete_timeout_returns_504(self, app_client, tmp_project):
         import subprocess
+
         f = tmp_project / "some.txt"
         f.write_text("x")
-        with patch("claude_monitor.files.router.subprocess.run",
-                   side_effect=subprocess.TimeoutExpired(["git"], 5)):
+        with patch(
+            "claude_monitor.files.router.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["git"], 5),
+        ):
             r = app_client.delete(f"/api/file?project=my-project&path={f}")
         assert r.status_code == 504
 

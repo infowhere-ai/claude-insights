@@ -15,6 +15,7 @@ import claude_monitor.db as db
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def tmp_db(tmp_path):
     """Isolated SQLite DB per test. Returns the Path to the db file."""
@@ -23,8 +24,13 @@ def tmp_db(tmp_path):
     return db_path
 
 
-def _make_agent(agent_id="agent_abc123", state="done", tools=3,
-                started="2026-01-01T10:00:00Z", finished="2026-01-01T10:05:00Z"):
+def _make_agent(
+    agent_id="agent_abc123",
+    state="done",
+    tools=3,
+    started="2026-01-01T10:00:00Z",
+    finished="2026-01-01T10:05:00Z",
+):
     return {
         "id": agent_id,
         "state": state,
@@ -49,10 +55,14 @@ def _make_stats(started="2026-01-01T10:00:00Z"):
 
 # ── init_db ───────────────────────────────────────────────────────────────────
 
+
 def test_init_db_creates_tables(tmp_db):
     import sqlite3
+
     conn = sqlite3.connect(str(tmp_db))
-    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    tables = {
+        r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
     conn.close()
     assert "agent_runs" in tables
     assert "session_runs" in tables
@@ -65,6 +75,7 @@ def test_init_db_is_idempotent(tmp_db):
 
 
 # ── upsert_agent_run ──────────────────────────────────────────────────────────
+
 
 def test_upsert_agent_run_inserts(tmp_db):
     agent = _make_agent()
@@ -97,9 +108,14 @@ def test_upsert_agent_run_is_idempotent(tmp_db):
 
 def test_upsert_agent_run_updates_finished_at(tmp_db):
     """Second upsert with finished_at fills in previously missing value."""
-    agent_running = {"id": "agent_xyz", "state": "running",
-                     "started_at": "2026-01-01T10:00:00Z",
-                     "finished_at": None, "description": "do stuff", "tools_used": 0}
+    agent_running = {
+        "id": "agent_xyz",
+        "state": "running",
+        "started_at": "2026-01-01T10:00:00Z",
+        "finished_at": None,
+        "description": "do stuff",
+        "tools_used": 0,
+    }
     db.upsert_agent_run(agent_running, project="p", db_path=tmp_db)
 
     agent_done = dict(agent_running)
@@ -134,10 +150,17 @@ def test_upsert_agent_run_same_id_different_project(tmp_db):
 
 # ── upsert_session_run ────────────────────────────────────────────────────────
 
+
 def test_upsert_session_run_inserts(tmp_db):
     stats = _make_stats()
-    db.upsert_session_run("sess_01", "my-project", stats,
-                          finished_at="2026-01-01T11:00:00Z", agent_count=3, db_path=tmp_db)
+    db.upsert_session_run(
+        "sess_01",
+        "my-project",
+        stats,
+        finished_at="2026-01-01T11:00:00Z",
+        agent_count=3,
+        db_path=tmp_db,
+    )
     rows = db.get_session_history(project="my-project", db_path=tmp_db)
     assert len(rows) == 1
     row = rows[0]
@@ -192,12 +215,13 @@ def test_upsert_session_run_fills_finished_at(tmp_db):
 
 # ── get_agent_history ─────────────────────────────────────────────────────────
 
+
 def test_get_agent_history_returns_newest_first(tmp_db):
     for i in range(3):
         agent = _make_agent(
             agent_id=f"agent_{i:03d}",
-            started=f"2026-01-0{i+1}T10:00:00Z",
-            finished=f"2026-01-0{i+1}T10:05:00Z",
+            started=f"2026-01-0{i + 1}T10:00:00Z",
+            finished=f"2026-01-0{i + 1}T10:05:00Z",
         )
         db.upsert_agent_run(agent, project="p", db_path=tmp_db)
     rows = db.get_agent_history(project="p", db_path=tmp_db)
@@ -235,9 +259,10 @@ def test_get_agent_history_missing_db_returns_empty(tmp_path):
 
 # ── get_session_history ───────────────────────────────────────────────────────
 
+
 def test_get_session_history_returns_newest_first(tmp_db):
     for i in range(3):
-        stats = _make_stats(started=f"2026-01-0{i+1}T10:00:00Z")
+        stats = _make_stats(started=f"2026-01-0{i + 1}T10:00:00Z")
         db.upsert_session_run(f"sess_{i:03d}", "p", stats, db_path=tmp_db)
     rows = db.get_session_history(project="p", db_path=tmp_db)
     assert rows[0]["session_id"] == "sess_002"

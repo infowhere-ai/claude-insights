@@ -15,6 +15,7 @@ import pytest
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -34,6 +35,7 @@ def _wait_for_server(url: str, timeout: float = 15.0) -> None:
 
 # ── Server context ────────────────────────────────────────────────────────────
 
+
 class ServerContext:
     """Provides the server URL and helpers to inject test data."""
 
@@ -44,8 +46,9 @@ class ServerContext:
 
     # ── Status file helpers ───────────────────────────────────────────────────
 
-    def write_status(self, project: str, status: str,
-                     tool: str | None = None, extra: dict | None = None) -> None:
+    def write_status(
+        self, project: str, status: str, tool: str | None = None, extra: dict | None = None
+    ) -> None:
         data: dict = {
             "status": status,
             "state": status,
@@ -54,7 +57,9 @@ class ServerContext:
         if tool:
             data["tool"] = tool
             data["current_action"] = {
-                "hook": "PreToolUse", "tool": tool, "description": tool,
+                "hook": "PreToolUse",
+                "tool": tool,
+                "description": tool,
             }
         if extra:
             data.update(extra)
@@ -70,18 +75,20 @@ class ServerContext:
         d.mkdir(parents=True, exist_ok=True)
         return d
 
-    def write_jsonl(self, project: str, entries: list[dict],
-                    filename: str = "session.jsonl",
-                    newest: bool = False) -> Path:
+    def write_jsonl(
+        self,
+        project: str,
+        entries: list[dict],
+        filename: str = "session.jsonl",
+        newest: bool = False,
+    ) -> Path:
         d = self.jsonl_dir(project)
         if newest:
             # Remove all existing JSONL files so this is definitively the only/newest
             for old in d.glob("*.jsonl"):
                 old.unlink(missing_ok=True)
         f = d / filename
-        f.write_text(
-            "\n".join(json.dumps(e) for e in entries), encoding="utf-8"
-        )
+        f.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
         return f
 
     def assistant_entry(
@@ -99,8 +106,14 @@ class ServerContext:
         if thinking:
             content.append({"type": "thinking", "thinking": thinking})
         if tool:
-            content.append({"type": "tool_use", "id": "t1", "name": tool,
-                            "input": {"file_path": "/tmp/test.py"}})
+            content.append(
+                {
+                    "type": "tool_use",
+                    "id": "t1",
+                    "name": tool,
+                    "input": {"file_path": "/tmp/test.py"},
+                }
+            )
         return {
             "type": "assistant",
             "timestamp": ts or datetime.now(timezone.utc).isoformat(),
@@ -116,20 +129,25 @@ class ServerContext:
             },
         }
 
-    def user_tool_result_entry(self, tool_id: str = "t1",
-                               content: str = "result",
-                               is_error: bool = False,
-                               ts: str | None = None) -> dict:
+    def user_tool_result_entry(
+        self,
+        tool_id: str = "t1",
+        content: str = "result",
+        is_error: bool = False,
+        ts: str | None = None,
+    ) -> dict:
         return {
             "type": "user",
             "timestamp": ts or datetime.now(timezone.utc).isoformat(),
             "message": {
-                "content": [{
-                    "type": "tool_result",
-                    "tool_use_id": tool_id,
-                    "content": content,
-                    "is_error": is_error,
-                }]
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": content,
+                        "is_error": is_error,
+                    }
+                ]
             },
         }
 
@@ -137,14 +155,14 @@ class ServerContext:
         project = self.projects_root / name
         (project / ".claude").mkdir(parents=True, exist_ok=True)
         (project / ".claude" / "status.json").write_text(
-            json.dumps({"status": "idle", "state": "idle",
-                        "ts": "2026-01-01T00:00:00Z"}),
+            json.dumps({"status": "idle", "state": "idle", "ts": "2026-01-01T00:00:00Z"}),
             encoding="utf-8",
         )
         return project
 
 
 # ── Session-scoped server fixture ─────────────────────────────────────────────
+
 
 @pytest.fixture(scope="session")
 def server(tmp_path_factory):
@@ -159,8 +177,7 @@ def server(tmp_path_factory):
         p = projects_root / name
         (p / ".claude").mkdir(parents=True)
         (p / ".claude" / "status.json").write_text(
-            json.dumps({"status": "idle", "state": "idle",
-                        "ts": "2026-01-01T00:00:00Z"}),
+            json.dumps({"status": "idle", "state": "idle", "ts": "2026-01-01T00:00:00Z"}),
             encoding="utf-8",
         )
 
@@ -175,8 +192,18 @@ def server(tmp_path_factory):
     }
 
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "claude_monitor.main:app",
-         "--host", "127.0.0.1", "--port", str(port), "--log-level", "error"],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "claude_monitor.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--log-level",
+            "error",
+        ],
         env=env,
     )
 
@@ -187,8 +214,7 @@ def server(tmp_path_factory):
         proc.terminate()
         raise
 
-    ctx = ServerContext(url=url, projects_root=projects_root,
-                        claude_projects=claude_projects)
+    ctx = ServerContext(url=url, projects_root=projects_root, claude_projects=claude_projects)
     yield ctx
 
     proc.terminate()
@@ -197,6 +223,7 @@ def server(tmp_path_factory):
 
 # ── Per-test project fixture ──────────────────────────────────────────────────
 
+
 @pytest.fixture
 def project(server: ServerContext):
     """Reset 'test-project' to idle before each test. Returns the project name."""
@@ -204,5 +231,3 @@ def project(server: ServerContext):
     server.write_status(name, "idle")
     time.sleep(0.3)  # let poll_loop pick up the reset
     yield name
-
-

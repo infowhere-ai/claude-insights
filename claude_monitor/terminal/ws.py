@@ -1,4 +1,5 @@
 """Terminal WebSocket — bridges the claude CLI to the browser via PTY."""
+
 import asyncio
 import fcntl
 import json
@@ -37,8 +38,12 @@ async def terminal_ws(websocket: WebSocket):  # pragma: no cover
     env = {**os.environ, "TERM": "xterm-256color", "COLORTERM": "truecolor"}
     proc = subprocess.Popen(
         [claude_path],
-        stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
-        env=env, close_fds=True, cwd=str(Path.home()),
+        stdin=slave_fd,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        env=env,
+        close_fds=True,
+        cwd=str(Path.home()),
     )
     os.close(slave_fd)
     loop = asyncio.get_event_loop()
@@ -64,7 +69,9 @@ async def terminal_ws(websocket: WebSocket):  # pragma: no cover
                 msg = await websocket.receive()
                 if msg["type"] == "websocket.disconnect":
                     break
-                raw = msg.get("bytes") or (msg.get("text", "").encode() if msg.get("text") else None)
+                raw = msg.get("bytes") or (
+                    msg.get("text", "").encode() if msg.get("text") else None
+                )
                 if not raw:
                     continue
                 try:

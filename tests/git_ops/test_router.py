@@ -49,7 +49,10 @@ class TestDiffEndpoint:
     def test_diff_returns_modified_file(self, app_client, tmp_project):
         self._create_file(tmp_project, "app.py")
         diff_output = "diff --git a/app.py b/app.py\n-old\n+new\n"
-        with patch("claude_monitor.git_ops.router.subprocess.run", return_value=_make_completed(stdout=diff_output)):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run",
+            return_value=_make_completed(stdout=diff_output),
+        ):
             r = app_client.get("/api/diff?project=my-project&file=app.py")
         assert r.status_code == 200
         assert r.json()["diff"] == diff_output.strip()
@@ -77,16 +80,21 @@ class TestDiffEndpoint:
 
     def test_diff_timeout_returns_504(self, app_client, tmp_project):
         import subprocess
+
         self._create_file(tmp_project, "app.py")
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   side_effect=subprocess.TimeoutExpired(["git"], 10)):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["git"], 10),
+        ):
             r = app_client.get("/api/diff?project=my-project&file=app.py")
         assert r.status_code == 504
 
     def test_diff_exception_returns_500(self, app_client, tmp_project):
         self._create_file(tmp_project, "app.py")
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   side_effect=RuntimeError("git not found")):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run",
+            side_effect=RuntimeError("git not found"),
+        ):
             r = app_client.get("/api/diff?project=my-project&file=app.py")
         assert r.status_code == 500
 
@@ -94,8 +102,10 @@ class TestDiffEndpoint:
 class TestPendingEndpoint:
     def test_pending_returns_modified_files(self, app_client, tmp_project):
         porcelain = " M app.py\n?? untracked.py\n"
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   return_value=_make_completed(stdout=porcelain)):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run",
+            return_value=_make_completed(stdout=porcelain),
+        ):
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 200
         files = r.json()["files"]
@@ -105,36 +115,45 @@ class TestPendingEndpoint:
 
     def test_pending_renamed_file(self, app_client, tmp_project):
         porcelain = "R  old.py -> new.py\n"
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   return_value=_make_completed(stdout=porcelain)):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run",
+            return_value=_make_completed(stdout=porcelain),
+        ):
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 200
         files = r.json()["files"]
         assert any("new.py" in f["rel_path"] for f in files)
 
     def test_pending_git_error_returns_empty(self, app_client, tmp_project):
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   return_value=_make_completed(stdout="", returncode=128)):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run",
+            return_value=_make_completed(stdout="", returncode=128),
+        ):
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 200
         assert r.json()["files"] == []
 
     def test_pending_timeout_returns_504(self, app_client, tmp_project):
         import subprocess
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   side_effect=subprocess.TimeoutExpired(["git"], 10)):
+
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["git"], 10),
+        ):
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 504
 
     def test_pending_exception_returns_500(self, app_client, tmp_project):
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   side_effect=RuntimeError("unexpected")):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run", side_effect=RuntimeError("unexpected")
+        ):
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 500
 
     def test_pending_empty_porcelain_returns_empty(self, app_client, tmp_project):
-        with patch("claude_monitor.git_ops.router.subprocess.run",
-                   return_value=_make_completed(stdout="")):
+        with patch(
+            "claude_monitor.git_ops.router.subprocess.run", return_value=_make_completed(stdout="")
+        ):
             r = app_client.get("/api/pending?project=my-project")
         assert r.status_code == 200
         assert r.json()["files"] == []

@@ -1,4 +1,5 @@
 """JSONL session file parsing — tail reads, thinking detection, session detail."""
+
 import datetime
 import difflib
 import hashlib
@@ -77,14 +78,17 @@ def detect_latest_thinking(jsonl_path: Path) -> dict | None:
         if d.get("type") != "assistant":
             continue
         ts = d.get("timestamp", "")
-        for c in (d.get("message", {}).get("content", []) or []):
+        for c in d.get("message", {}).get("content", []) or []:
             if isinstance(c, dict) and c.get("type") == "thinking":
                 text = c.get("thinking", "").strip()
                 if text:
                     block_id = hashlib.md5(ts.encode()).hexdigest()[:12]
-                    last = {"block_id": block_id, "text": text,
-                            "word_count": len(text.split()),
-                            "timestamp": ts}
+                    last = {
+                        "block_id": block_id,
+                        "text": text,
+                        "word_count": len(text.split()),
+                        "timestamp": ts,
+                    }
     return last
 
 
@@ -105,37 +109,60 @@ def tool_input_summary(name: str, inp: dict) -> str:
 
 def tool_detail(name: str, inp: dict) -> dict:
     if name == "Bash":
-        return {"type": "bash", "command": inp.get("command", ""),
-                "description": inp.get("description", "")}
+        return {
+            "type": "bash",
+            "command": inp.get("command", ""),
+            "description": inp.get("description", ""),
+        }
     if name == "Edit":
         file_path = inp.get("file_path", inp.get("path", ""))
         old = inp.get("old_string", "")
         new = inp.get("new_string", "")
-        diff_lines = list(difflib.unified_diff(
-            old.splitlines(keepends=True),
-            new.splitlines(keepends=True),
-            fromfile=f"a/{file_path}",
-            tofile=f"b/{file_path}",
-            lineterm="",
-        ))
+        diff_lines = list(
+            difflib.unified_diff(
+                old.splitlines(keepends=True),
+                new.splitlines(keepends=True),
+                fromfile=f"a/{file_path}",
+                tofile=f"b/{file_path}",
+                lineterm="",
+            )
+        )
         return {"type": "edit", "file_path": file_path, "diff": "".join(diff_lines)}
     if name == "Write":
         content = inp.get("content", "")
-        return {"type": "write", "file_path": inp.get("file_path", inp.get("path", "")),
-                "content": content[:3000], "total_chars": len(content)}
+        return {
+            "type": "write",
+            "file_path": inp.get("file_path", inp.get("path", "")),
+            "content": content[:3000],
+            "total_chars": len(content),
+        }
     if name == "Read":
-        return {"type": "read", "file_path": inp.get("file_path", inp.get("path", "")),
-                "limit": inp.get("limit"), "offset": inp.get("offset")}
+        return {
+            "type": "read",
+            "file_path": inp.get("file_path", inp.get("path", "")),
+            "limit": inp.get("limit"),
+            "offset": inp.get("offset"),
+        }
     if name in ("Grep", "Glob"):
-        return {"type": "search", "tool": name, "pattern": inp.get("pattern", ""),
-                "path": inp.get("path", ""), "include": inp.get("include", "")}
+        return {
+            "type": "search",
+            "tool": name,
+            "pattern": inp.get("pattern", ""),
+            "path": inp.get("path", ""),
+            "include": inp.get("include", ""),
+        }
     if name in ("WebFetch", "WebSearch"):
         return {"type": "web", "url": inp.get("url", ""), "query": inp.get("query", "")}
     if name == "Agent":
-        return {"type": "agent", "description": inp.get("description", ""),
-                "prompt": inp.get("prompt", inp.get("instructions", ""))[:500]}
-    return {"type": "generic",
-            "fields": {k: str(v)[:500] for k, v in inp.items() if isinstance(v, str)}}
+        return {
+            "type": "agent",
+            "description": inp.get("description", ""),
+            "prompt": inp.get("prompt", inp.get("instructions", ""))[:500],
+        }
+    return {
+        "type": "generic",
+        "fields": {k: str(v)[:500] for k, v in inp.items() if isinstance(v, str)},
+    }
 
 
 def parse_session_detail(jsonl_path: Path) -> dict:
@@ -160,7 +187,7 @@ def parse_session_detail(jsonl_path: Path) -> dict:
     for entry in entries:
         if entry.get("type") != "user":
             continue
-        for c in (entry.get("message", {}).get("content", []) or []):
+        for c in entry.get("message", {}).get("content", []) or []:
             if isinstance(c, dict) and c.get("type") == "tool_result":
                 tool_results[c.get("tool_use_id", "")] = {
                     "timestamp": entry.get("timestamp"),
@@ -188,8 +215,9 @@ def parse_session_detail(jsonl_path: Path) -> dict:
             if c.get("type") == "thinking":
                 text = c.get("thinking", "").strip()
                 if text:
-                    thinking.append({"text": text, "timestamp": ts,
-                                     "word_count": len(text.split())})
+                    thinking.append(
+                        {"text": text, "timestamp": ts, "word_count": len(text.split())}
+                    )
             if c.get("type") == "tool_use":
                 tid = c.get("id", "")
                 tname = c.get("name", "")
@@ -204,12 +232,14 @@ def parse_session_detail(jsonl_path: Path) -> dict:
                         duration_ms = int((t2 - t1).total_seconds() * 1000)
                     except Exception:
                         pass
-                tools.append({
-                    "tool": tname,
-                    "input": tool_input_summary(tname, tinput),
-                    "detail": tool_detail(tname, tinput),
-                    "duration_ms": duration_ms,
-                    "success": not result.get("is_error", False),
-                    "timestamp": ts,
-                })
+                tools.append(
+                    {
+                        "tool": tname,
+                        "input": tool_input_summary(tname, tinput),
+                        "detail": tool_detail(tname, tinput),
+                        "duration_ms": duration_ms,
+                        "success": not result.get("is_error", False),
+                        "timestamp": ts,
+                    }
+                )
     return {"thinking": thinking, "tools": tools[-50:], "stats": stats}

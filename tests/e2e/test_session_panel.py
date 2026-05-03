@@ -22,9 +22,7 @@ def test_session_selector_populates(page: Page, server: ServerContext, project: 
     When   the dashboard loads and the project is selected
     Then   the session selector has at least one option
     """
-    server.write_jsonl(project, [
-        server.assistant_entry(tool="Read")
-    ], filename="session-abc.jsonl")
+    server.write_jsonl(project, [server.assistant_entry(tool="Read")], filename="session-abc.jsonl")
 
     page.goto(f"{server.url}/insights")
     page.locator("#project-select").select_option(label=project)
@@ -41,9 +39,9 @@ def test_sse_does_not_override_locked_session(
     Then   the dropdown keeps the user-selected session
     And    does not switch automatically
     """
-    server.write_jsonl(project, [
-        server.assistant_entry(tool="Read")
-    ], filename="session-locked.jsonl")
+    server.write_jsonl(
+        project, [server.assistant_entry(tool="Read")], filename="session-locked.jsonl"
+    )
 
     page.goto(f"{server.url}/insights")
     page.locator("#project-select").select_option(label=project)
@@ -89,6 +87,4 @@ def test_project_switch_resets_session_lock(
     locked = page.evaluate(
         "() => typeof _userLockedSession !== 'undefined' ? _userLockedSession : false"
     )
-    assert locked is False, (
-        f"_userLockedSession not reset after project switch: {locked}"
-    )
+    assert locked is False, f"_userLockedSession not reset after project switch: {locked}"

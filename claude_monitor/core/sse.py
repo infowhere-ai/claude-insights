@@ -1,4 +1,5 @@
 """Server-Sent Events endpoint."""
+
 import asyncio
 import json
 
@@ -35,5 +36,9 @@ async def sse_events(request: Request):  # pragma: no cover
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )

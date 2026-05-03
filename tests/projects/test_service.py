@@ -91,6 +91,7 @@ class TestDiscover:
         state._status_paths.clear()
         try:
             from claude_monitor import config as cfg
+
             original_root = cfg.PROJECTS_ROOT
             original_extra = list(state._extra_roots)
             cfg.PROJECTS_ROOT = tmp_path
@@ -113,6 +114,7 @@ class TestDiscover:
         state._status_paths.clear()
         try:
             from claude_monitor import config as cfg
+
             original_root = cfg.PROJECTS_ROOT
             original_extra = list(state._extra_roots)
             cfg.PROJECTS_ROOT = tmp_path
@@ -133,6 +135,7 @@ class TestDiscover:
         state._status_paths.clear()
         try:
             from claude_monitor import config as cfg
+
             original_root = cfg.PROJECTS_ROOT
             original_extra = list(state._extra_roots)
             cfg.PROJECTS_ROOT = tmp_path
@@ -157,6 +160,7 @@ class TestDiscover:
         state._status_paths.clear()
         try:
             from claude_monitor import config as cfg
+
             original_root = cfg.PROJECTS_ROOT
             original_extra = list(state._extra_roots)
             cfg.PROJECTS_ROOT = tmp_path

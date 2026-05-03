@@ -17,10 +17,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def _write_agent(agents_dir: Path, agent_id: str, state: str,
-                 started_at: str = "2026-01-01T10:00:00Z",
-                 finished_at: str | None = "2026-01-01T10:05:00Z",
-                 last_updated: str | None = None) -> Path:
+def _write_agent(
+    agents_dir: Path,
+    agent_id: str,
+    state: str,
+    started_at: str = "2026-01-01T10:00:00Z",
+    finished_at: str | None = "2026-01-01T10:05:00Z",
+    last_updated: str | None = None,
+) -> Path:
     agents_dir.mkdir(parents=True, exist_ok=True)
     agent_file = agents_dir / f"agent_{agent_id}.json"
     data = {
@@ -47,11 +51,11 @@ def _fresh_session_service(tmp_path, monkeypatch):
     db_module.init_db()
 
     from claude_monitor.sessions import service as session_service
+
     return session_service, db_path, state_module
 
 
 class TestAcceptanceAgentPersistence:
-
     def test_done_agent_persisted_to_sqlite(self, tmp_path, monkeypatch):
         """
         Given  agent_123.json exists with state="done" and recent finished_at
@@ -61,9 +65,13 @@ class TestAcceptanceAgentPersistence:
         session_service, db_path, _ = _fresh_session_service(tmp_path, monkeypatch)
         agents_dir = tmp_path / "agents"
 
-        _write_agent(agents_dir, "123", "done",
-                     started_at="2026-01-01T10:00:00Z",
-                     finished_at="2026-01-01T10:05:00Z")
+        _write_agent(
+            agents_dir,
+            "123",
+            "done",
+            started_at="2026-01-01T10:00:00Z",
+            finished_at="2026-01-01T10:05:00Z",
+        )
 
         finished_ts = datetime.fromisoformat("2026-01-01T10:05:00+00:00").timestamp()
         now_ts = finished_ts + 60
@@ -85,16 +93,22 @@ class TestAcceptanceAgentPersistence:
         session_service, _, _ = _fresh_session_service(tmp_path, monkeypatch)
         agents_dir = tmp_path / "agents"
 
-        agent_file = _write_agent(agents_dir, "old", "done",
-                                   started_at="2026-01-01T10:00:00Z",
-                                   finished_at="2026-01-01T10:05:00Z")
+        agent_file = _write_agent(
+            agents_dir,
+            "old",
+            "done",
+            started_at="2026-01-01T10:00:00Z",
+            finished_at="2026-01-01T10:05:00Z",
+        )
 
         finished_ts = datetime.fromisoformat("2026-01-01T10:05:00+00:00").timestamp()
         now_ts = finished_ts + 600
 
         session_service.persist_done_agents(agents_dir, "my-project", None, now_ts)
 
-        assert not agent_file.exists(), "Agent file older than 5min should be deleted after persistence"
+        assert not agent_file.exists(), (
+            "Agent file older than 5min should be deleted after persistence"
+        )
 
     def test_agent_not_persisted_twice(self, tmp_path, monkeypatch):
         """
@@ -134,9 +148,9 @@ class TestAcceptanceAgentPersistence:
         now_ts = time.time()
         now_iso = datetime.fromtimestamp(now_ts, tz=timezone.utc).isoformat()
 
-        agent_file = _write_agent(agents_dir, "456", "running",
-                                   started_at=now_iso, finished_at=None,
-                                   last_updated=now_iso)
+        agent_file = _write_agent(
+            agents_dir, "456", "running", started_at=now_iso, finished_at=None, last_updated=now_iso
+        )
 
         active = session_service.persist_done_agents(agents_dir, "my-project", None, now_ts)
 

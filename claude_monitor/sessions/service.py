@@ -1,4 +1,5 @@
 """Session and agent persistence logic."""
+
 import datetime
 import json
 import time
@@ -13,8 +14,9 @@ def current_session_id(project_name: str) -> str | None:
     return Path(path_str).stem if path_str else None
 
 
-def persist_done_agents(agents_dir: Path, project_name: str,
-                        session_id: str | None, now_ts: float) -> list[dict]:
+def persist_done_agents(
+    agents_dir: Path, project_name: str, session_id: str | None, now_ts: float
+) -> list[dict]:
     """Scan agents dir, persist done agents to SQLite, delete old files."""
     persisted = state._persisted_agent_ids.setdefault(project_name, set())
     active = []
@@ -95,8 +97,9 @@ def persist_and_clean_session(project_name: str, data: dict, agents_dir: Path | 
     agent_count = len(state._persisted_agent_ids.get(project_name, set()))
     finished_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
-        db.upsert_session_run(session_id, project_name, stats,
-                              finished_at=finished_at, agent_count=agent_count)
+        db.upsert_session_run(
+            session_id, project_name, stats, finished_at=finished_at, agent_count=agent_count
+        )
     except Exception:
         pass
 
@@ -132,13 +135,15 @@ def list_sessions(project_name: str) -> list[dict]:
                                 ended_at = ts
                         except Exception:
                             continue
-                sessions.append({
-                    "session_id": f.stem,
-                    "started_at": started_at,
-                    "ended_at": None if is_active else ended_at,
-                    "is_active": is_active,
-                    "_mtime": mtime,
-                })
+                sessions.append(
+                    {
+                        "session_id": f.stem,
+                        "started_at": started_at,
+                        "ended_at": None if is_active else ended_at,
+                        "is_active": is_active,
+                        "_mtime": mtime,
+                    }
+                )
             except OSError:
                 continue
     except OSError:

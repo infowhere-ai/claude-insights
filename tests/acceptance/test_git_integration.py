@@ -33,7 +33,6 @@ def git_project(tmp_projects_root):
 
 
 class TestAcceptanceGitIntegration:
-
     def test_pending_files_via_endpoint(self, app_client, tmp_project, git_project, monkeypatch):
         """
         Given  a project has 1 modified file

@@ -1,4 +1,5 @@
 """Basic page endpoints — health, root redirect, insights, version."""
+
 from pathlib import Path
 
 from fastapi import APIRouter

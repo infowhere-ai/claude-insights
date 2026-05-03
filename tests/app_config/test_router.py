@@ -16,7 +16,9 @@ def test_config_returns_primary_root(app_client, tmp_projects_root):
 
 
 def test_config_add_invalid_root(app_client):
-    r = app_client.post("/api/config/roots", json={"action": "add", "path": "/nonexistent/path/xyz"})
+    r = app_client.post(
+        "/api/config/roots", json={"action": "add", "path": "/nonexistent/path/xyz"}
+    )
     assert r.status_code == 400
 
 
@@ -78,6 +80,7 @@ def test_claude_md_project_with_file(app_client, tmp_project):
 
 def test_claude_md_found_in_extra_root(app_client, tmp_path):
     from claude_monitor import state
+
     extra_root = tmp_path / "extra"
     project = extra_root / "extra-project"
     project.mkdir(parents=True)
