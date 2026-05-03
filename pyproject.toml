@@ -87,6 +87,7 @@ pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["claude_monitor"]
+relative_files = true
 omit = [
     "tests/*",
     "dist/*",
