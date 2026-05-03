@@ -1,18 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(source .venv/bin/activate *)",
-      "Bash(pip install *)",
-      "Bash(playwright install *)",
-      "Bash(mkdir *)",
-      "Bash(cp *)",
-      "Bash(touch *)",
-      "Bash(pkill *)",
-      "Bash(rm *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(git rm *)"
+      "Bash(*)"
     ]
   }
 }
