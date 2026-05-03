@@ -1,12 +1,11 @@
 """
 Acceptance tests — Token Bar (CA-05).
 
-Dado que o JSONL tem usage com tokens conhecidos
-Quando o dashboard actualiza
-Então os tokens e percentagens são correctos
+Given the JSONL has usage with known token counts
+When the dashboard updates
+Then token values and percentages are correct
 
-Nota: #pane-tokens começa com classe hidden (btn-tokens não é active por defeito
-nesta versão). Clicar #btn-tokens abre o painel.
+Note: #pane-tokens starts with class hidden. Click #btn-tokens to open it.
 """
 
 import time
@@ -20,7 +19,7 @@ TIMEOUT = 5000
 
 
 def _open_tokens_pane(page: Page) -> None:
-    """Open token pane if it's hidden."""
+    """Open the token pane if it is hidden."""
     pane = page.locator("#pane-tokens")
     if "hidden" in (pane.get_attribute("class") or ""):
         page.locator("#btn-tokens").click()
@@ -28,11 +27,10 @@ def _open_tokens_pane(page: Page) -> None:
 
 def test_ctx_tokens_shown(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o JSONL tem input=100, cache_read=200, cache_creation=0
-    Quando     o painel de tokens é aberto
-    Então      #tok-ctx mostra 300 (input + cache_read + cache_creation)
+    Given  the JSONL has input=100, cache_read=200, cache_creation=0
+    When   the token pane is opened
+    Then   #tok-ctx shows 300 (input + cache_read + cache_creation)
     """
-    # Use unique filename so this is always the newest JSONL (avoids stale cache)
     server.write_jsonl(project, [
         server.assistant_entry(
             tool="Read",
@@ -55,9 +53,9 @@ def test_ctx_tokens_shown(page: Page, server: ServerContext, project: str) -> No
 
 def test_cache_tokens_shown(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o JSONL tem cache_read_input_tokens=200
-    Quando     o painel de tokens é observado
-    Então      #tok-cache mostra 200
+    Given  the JSONL has cache_read_input_tokens=200
+    When   the token pane is observed
+    Then   #tok-cache shows 200
     """
     server.write_jsonl(project, [
         server.assistant_entry(

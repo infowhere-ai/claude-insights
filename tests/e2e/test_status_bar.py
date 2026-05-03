@@ -1,9 +1,9 @@
 """
 Acceptance tests — Status Bar (CA-01).
 
-Dado que o dashboard está aberto com um projecto em estado idle
-Quando .claude/status.json muda para working/idle/compacting
-Então o status bar reflecte o novo estado em menos de 3 segundos
+Given the dashboard is open with a project in idle state
+When .claude/status.json changes to working/idle/compacting
+Then the status bar reflects the new state within 3 seconds
 """
 
 import time
@@ -30,9 +30,9 @@ def _set_working(server: ServerContext, project: str, tool: str) -> None:
 
 def test_status_idle_to_working(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o projecto está idle
-    Quando     status.json muda para working com tool="Read"
-    Então      #status-action mostra "— Read" em menos de 4s
+    Given  the project is idle
+    When   status.json changes to working with tool="Read"
+    Then   #status-action shows "— Read" within 4s
     """
     _open(page, server, project)
     _set_working(server, project, "Read")
@@ -42,16 +42,15 @@ def test_status_idle_to_working(page: Page, server: ServerContext, project: str)
 
 def test_status_working_to_idle(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o projecto está working
-    Quando     status.json muda para idle
-    Então      #status-label mostra IDLE e #status-action fica vazio
+    Given  the project is working
+    When   status.json changes to idle
+    Then   #status-label shows IDLE and #status-action is empty
     """
     _open(page, server, project)
     _set_working(server, project, "Bash")
     expect(page.locator("#status-action")).to_contain_text("Bash", timeout=TIMEOUT)
 
     server.write_status(project, "idle")
-    # Clear JSONL mtime so watcher also sees idle
     time.sleep(0.5)
 
     expect(page.locator("#status-label")).to_contain_text("IDLE", timeout=TIMEOUT)
@@ -60,9 +59,9 @@ def test_status_working_to_idle(page: Page, server: ServerContext, project: str)
 
 def test_status_compacting(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o projecto recebe estado compacting
-    Quando     o status bar é observado
-    Então      #status-label mostra COMPACTING
+    Given  the project receives compacting state
+    When   the status bar is observed
+    Then   #status-label shows COMPACTING
     """
     _open(page, server, project)
     server.write_status(project, "compacting")

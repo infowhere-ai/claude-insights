@@ -1,9 +1,9 @@
 """
 Acceptance tests — Reasoning Panel (CA-02).
 
-Dado que o JSONL tem thinking blocks
-Quando o dashboard carrega
-Então o painel de reasoning mostra o texto e a contagem de palavras
+Given the JSONL has thinking blocks
+When the dashboard loads
+Then the reasoning panel shows the text and word count
 """
 
 import time
@@ -18,9 +18,9 @@ TIMEOUT = 4000  # ms — jsonl_watcher_loop runs every 2s
 
 def test_thinking_block_appears(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o JSONL recebe uma entrada com thinking block não vazio
-    Quando     o painel de reasoning é observado
-    Então      o texto do thinking block aparece
+    Given  the JSONL receives an entry with a non-empty thinking block
+    When   the reasoning panel is observed
+    Then   the thinking block text appears
     """
     server.write_jsonl(project, [
         server.assistant_entry(thinking="I need to carefully analyse this problem.")
@@ -36,20 +36,19 @@ def test_thinking_block_appears(page: Page, server: ServerContext, project: str)
 
 def test_empty_thinking_block_not_shown(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o JSONL tem thinking block com apenas whitespace
-    Quando     o painel de reasoning é observado
-    Então      o bloco vazio não aparece como conteúdo real
-    E          o elemento mostra mensagem de ausência de reasoning
+    Given  the JSONL has a thinking block containing only whitespace
+    When   the reasoning panel is observed
+    Then   the empty block does not appear as real content
+    And    the element shows a no-reasoning placeholder message
     """
     server.write_jsonl(project, [
         server.assistant_entry(thinking="   \n\n  ")
-    ], filename=f"session-no-think.jsonl")
+    ], filename="session-no-think.jsonl")
 
     page.goto(f"{server.url}/insights")
     page.locator("#project-select").select_option(label=project)
     time.sleep(3)
 
-    # Whitespace thinking → "No reasoning in this session." (not actual content)
     expect(page.locator("#thinking-text")).not_to_contain_text(
         "carefully analyse", timeout=2000
     )
@@ -57,9 +56,9 @@ def test_empty_thinking_block_not_shown(page: Page, server: ServerContext, proje
 
 def test_thinking_history_modal_opens(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   existem thinking blocks na sessão
-    Quando     o utilizador clica no botão de reasoning history
-    Então      o modal abre com os blocos listados
+    Given  there are thinking blocks in the session
+    When   the user clicks the reasoning history button
+    Then   the modal opens with the blocks listed
     """
     server.write_jsonl(project, [
         server.assistant_entry(thinking="First thought about the problem."),

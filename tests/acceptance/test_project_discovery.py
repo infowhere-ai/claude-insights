@@ -2,7 +2,7 @@
 Acceptance tests — Project Discovery.
 
 Spec: standarts/private/projects/claude-monitor/specs/project-discovery.md
-Product Owner: Leandro Siciliano | Data: 2026-05-01
+Product Owner: Leandro Siciliano | Date: 2026-05-01
 """
 
 import importlib
@@ -30,7 +30,7 @@ def _make_project(root: Path, name: str, with_status: bool = True) -> Path:
 class TestAcceptanceProjectDiscovery:
 
     def _fresh_modules(self, monkeypatch, tmp_path):
-        """Helper: reload config+state with fresh PROJECTS_ROOT."""
+        """Reload config+state with fresh PROJECTS_ROOT."""
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
         import claude_monitor.state as state_module
@@ -47,9 +47,9 @@ class TestAcceptanceProjectDiscovery:
 
     def test_project_with_status_json_is_registered(self, tmp_path, monkeypatch):
         """
-        Dado que   existe um directório <root>/my-project/.claude/status.json
-        Quando     discover() é chamado
-        Então      "my-project" aparece em _status_paths
+        Given  a directory <root>/my-project/.claude/status.json exists
+        When   discover() is called
+        Then   "my-project" appears in _status_paths
         """
         _make_project(tmp_path, "my-project", with_status=True)
         config_module, state_module = self._fresh_modules(monkeypatch, tmp_path)
@@ -63,9 +63,9 @@ class TestAcceptanceProjectDiscovery:
 
     def test_project_without_status_json_not_registered(self, tmp_path, monkeypatch):
         """
-        Dado que   existe <root>/ghost-project/.claude/ mas sem status.json
-        Quando     discover() corre
-        Então      "ghost-project" não aparece em _status_paths
+        Given  <root>/ghost-project/.claude/ exists but without status.json
+        When   discover() runs
+        Then   "ghost-project" does not appear in _status_paths
         """
         _make_project(tmp_path, "ghost-project", with_status=False)
         config_module, state_module = self._fresh_modules(monkeypatch, tmp_path)
@@ -77,11 +77,11 @@ class TestAcceptanceProjectDiscovery:
 
     def test_subproject_ignored_when_parent_exists(self, tmp_path, monkeypatch):
         """
-        Dado que   existem project/.claude/status.json
-                   e project/backend/.claude/status.json
-        Quando     discover() corre
-        Então      "project" aparece em _status_paths
-                   e "backend" não aparece
+        Given  project/.claude/status.json exists
+        And    project/backend/.claude/status.json also exists
+        When   discover() runs
+        Then   "project" appears in _status_paths
+        And    "backend" does not appear
         """
         _make_project(tmp_path, "project", with_status=True)
         _make_project(tmp_path / "project", "backend", with_status=True)
@@ -97,10 +97,10 @@ class TestAcceptanceProjectDiscovery:
 
     def test_project_removed_when_status_json_disappears(self, tmp_path, monkeypatch):
         """
-        Dado que   "my-project" estava em _status_paths
-        And        o ficheiro .claude/status.json foi apagado
-        Quando     discover() corre na próxima iteração
-        Então      "my-project" é removido de _status_paths
+        Given  "my-project" was in _status_paths
+        And    the .claude/status.json file was deleted
+        When   discover() runs on the next iteration
+        Then   "my-project" is removed from _status_paths
         """
         project = _make_project(tmp_path, "my-project", with_status=True)
         config_module, state_module = self._fresh_modules(monkeypatch, tmp_path)
@@ -116,9 +116,9 @@ class TestAcceptanceProjectDiscovery:
 
     def test_pending_project_tracked_separately(self, tmp_path, monkeypatch):
         """
-        Dado que   existe <root>/pending-project/.claude/ sem status.json
-        Quando     discover() corre
-        Então      "pending-project" aparece em _pending_projects
+        Given  <root>/pending-project/.claude/ exists without status.json
+        When   discover() runs
+        Then   "pending-project" appears in _pending_projects
         """
         _make_project(tmp_path, "pending-project", with_status=False)
         config_module, state_module = self._fresh_modules(monkeypatch, tmp_path)

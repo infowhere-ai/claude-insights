@@ -2,7 +2,7 @@
 Acceptance tests — JSONL Watcher.
 
 Spec: standarts/private/projects/claude-monitor/specs/jsonl-watcher.md
-Product Owner: Leandro Siciliano | Data: 2026-05-01
+Product Owner: Leandro Siciliano | Date: 2026-05-01
 """
 
 import json
@@ -25,9 +25,9 @@ class TestAcceptanceJsonlWatcher:
 
     def test_last_tool_extracted_from_tail(self, tmp_jsonl_dir):
         """
-        Dado que   o JSONL contém um assistant message com tool_use name="Bash"
-        Quando     parse_jsonl_tail é chamado
-        Então      o dict retornado contém tool="Bash"
+        Given  the JSONL contains an assistant message with tool_use name="Bash"
+        When   parse_jsonl_tail is called
+        Then   the returned dict contains tool="Bash"
         """
         jsonl = _write_jsonl(tmp_jsonl_dir, "session.jsonl", [
             {
@@ -51,9 +51,9 @@ class TestAcceptanceJsonlWatcher:
 
     def test_thinking_block_detected(self, tmp_jsonl_dir):
         """
-        Dado que   o JSONL contém um thinking block não vazio
-        Quando     detect_latest_thinking é chamado
-        Então      retorna dict com text, word_count e block_id
+        Given  the JSONL contains a non-empty thinking block
+        When   detect_latest_thinking is called
+        Then   returns a dict with text, word_count and block_id
         """
         jsonl = _write_jsonl(tmp_jsonl_dir, "think_session.jsonl", [
             {
@@ -81,9 +81,9 @@ class TestAcceptanceJsonlWatcher:
 
     def test_empty_thinking_block_not_returned(self, tmp_jsonl_dir):
         """
-        Dado que   o JSONL contém um thinking block vazio ou só whitespace
-        Quando     detect_latest_thinking é chamado
-        Então      retorna None
+        Given  the JSONL contains a thinking block that is empty or whitespace only
+        When   detect_latest_thinking is called
+        Then   returns None
         """
         jsonl = _write_jsonl(tmp_jsonl_dir, "empty_think.jsonl", [
             {
@@ -103,9 +103,9 @@ class TestAcceptanceJsonlWatcher:
 
     def test_invalid_json_line_in_tail_does_not_raise(self, tmp_jsonl_dir):
         """
-        Dado que   o tail do JSONL contém uma linha malformada
-        Quando     parse_jsonl_tail é chamado
-        Então      não levanta excepção e a linha inválida é ignorada
+        Given  the JSONL tail contains a malformed line
+        When   parse_jsonl_tail is called
+        Then   does not raise and the invalid line is ignored
         """
         jsonl = tmp_jsonl_dir / "corrupt.jsonl"
         lines = [
@@ -129,9 +129,9 @@ class TestAcceptanceJsonlWatcher:
 
     def test_thinking_block_same_timestamp_has_same_block_id(self, tmp_jsonl_dir):
         """
-        Dado que   dois thinking blocks têm o mesmo timestamp
-        Quando     detect_latest_thinking é chamado
-        Então      ambos têm o mesmo block_id (estável por timestamp)
+        Given  two thinking blocks share the same timestamp
+        When   detect_latest_thinking is called on each
+        Then   both have the same block_id (stable per timestamp)
         """
         ts = "2026-01-01T10:00:00Z"
         jsonl1 = _write_jsonl(tmp_jsonl_dir, "think_a.jsonl", [

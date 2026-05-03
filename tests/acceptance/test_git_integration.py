@@ -2,7 +2,7 @@
 Acceptance tests — Git Integration.
 
 Spec: standarts/private/projects/claude-monitor/specs/git-integration.md
-Product Owner: Leandro Siciliano | Data: 2026-05-01
+Product Owner: Leandro Siciliano | Date: 2026-05-01
 """
 
 import subprocess
@@ -36,9 +36,9 @@ class TestAcceptanceGitIntegration:
 
     def test_pending_files_via_endpoint(self, app_client, tmp_project, git_project, monkeypatch):
         """
-        Dado que   um projecto tem 1 ficheiro modificado
-        Quando     GET /api/pending?project=<name>
-        Então      a resposta lista o ficheiro com status "modified"
+        Given  a project has 1 modified file
+        When   GET /api/pending?project=<name>
+        Then   response lists the file with status "modified"
         """
         from claude_monitor import state
         from claude_monitor.projects import service as project_service
@@ -62,9 +62,9 @@ class TestAcceptanceGitIntegration:
 
     def test_diff_of_modified_file(self, app_client, git_project, monkeypatch):
         """
-        Dado que   README.md foi modificado mas não staged
-        Quando     GET /api/diff?project=<name>&file=README.md
-        Então      a resposta contém unified diff
+        Given  README.md was modified but not staged
+        When   GET /api/diff?project=<name>&file=README.md
+        Then   response contains unified diff
         """
         from claude_monitor import state
 
@@ -85,9 +85,9 @@ class TestAcceptanceGitIntegration:
 
     def test_diff_of_untracked_file(self, app_client, git_project, monkeypatch):
         """
-        Dado que   new_file.py é untracked
-        Quando     GET /api/diff?project=<name>&file=new_file.py
-        Então      a resposta contém diff mostrando o ficheiro como novo
+        Given  new_file.py is untracked
+        When   GET /api/diff?project=<name>&file=new_file.py
+        Then   response contains diff showing the file as new
         """
         from claude_monitor import state
 
@@ -108,9 +108,9 @@ class TestAcceptanceGitIntegration:
 
     def test_unknown_project_returns_404(self, app_client):
         """
-        Dado que   "unknown-project" não está em _status_paths
-        Quando     GET /api/pending?project=unknown-project
-        Então      a resposta é 404
+        Given  "unknown-project" is not in _status_paths
+        When   GET /api/pending?project=unknown-project
+        Then   response is 404
         """
         r = app_client.get("/api/pending?project=unknown-project")
         assert r.status_code == 404

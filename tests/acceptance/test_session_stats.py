@@ -2,7 +2,7 @@
 Acceptance tests — Session Stats.
 
 Spec: standarts/private/projects/claude-monitor/specs/session-stats.md
-Product Owner: Leandro Siciliano | Data: 2026-05-01
+Product Owner: Leandro Siciliano | Date: 2026-05-01
 """
 
 import importlib
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def _setup_project_stats(tmp_path, monkeypatch, messages: list):
-    """Helper: creates project dir + JSONL in the expected location for get_project_stats."""
+    """Create project dir + JSONL in the expected location for get_project_stats."""
     import claude_monitor.db as db_module
     import claude_monitor.config as config_module
     import claude_monitor.state as state_module
@@ -45,10 +45,10 @@ class TestAcceptanceSessionStats:
 
     def test_session_ctx_tokens_computed_correctly(self, tmp_path, monkeypatch):
         """
-        Dado que   o JSONL tem usage: {input: 100, output: 50, cache_read: 200, cache_creation: 0}
-        Quando     get_project_stats é chamado
-        Então      session_ctx_tokens = 300 (input + cache_read + cache_creation)
-                   e session_output_tokens = 50
+        Given  the JSONL has usage: {input: 100, output: 50, cache_read: 200, cache_creation: 0}
+        When   get_project_stats is called
+        Then   session_ctx_tokens = 300 (input + cache_read + cache_creation)
+        And    session_output_tokens = 50
         """
         messages = [{
             "type": "assistant",
@@ -74,9 +74,9 @@ class TestAcceptanceSessionStats:
 
     def test_stats_cached_when_mtime_unchanged(self, tmp_path, monkeypatch):
         """
-        Dado que   o JSONL foi parseado e as stats cacheadas
-        Quando     get_project_stats é chamado novamente sem mudança de mtime
-        Então      o cache é usado (stats retornadas são as mesmas)
+        Given  the JSONL was parsed and stats cached
+        When   get_project_stats is called again without mtime change
+        Then   the cache is used (returned stats are identical)
         """
         messages = [{
             "type": "assistant",
@@ -99,9 +99,9 @@ class TestAcceptanceSessionStats:
 
     def test_model_detected_from_last_assistant_message(self, tmp_path, monkeypatch):
         """
-        Dado que   o JSONL tem um assistant message com model="claude-sonnet-4-6"
-        Quando     get_project_stats é chamado
-        Então      stats["model"] = "claude-sonnet-4-6"
+        Given  the JSONL has an assistant message with model="claude-sonnet-4-6"
+        When   get_project_stats is called
+        Then   stats["model"] = "claude-sonnet-4-6"
         """
         messages = [{
             "type": "assistant",
@@ -120,9 +120,9 @@ class TestAcceptanceSessionStats:
 
     def test_stats_endpoint_returns_token_data(self, app_client, tmp_project):
         """
-        Dado que   o projecto está registado e tem stats
-        Quando     GET /api/insights-stats?project=<name>
-        Então      a resposta contém campos de tokens
+        Given  the project is registered and has stats
+        When   GET /api/insights-stats?project=<name>
+        Then   the response contains token fields
         """
         r = app_client.get(f"/api/insights-stats?project={tmp_project.name}")
         assert r.status_code == 200

@@ -1,9 +1,9 @@
 """
 Acceptance tests — Context Inspector (CA-06).
 
-Dado que o projecto tem CLAUDE.md e ficheiros lidos na sessão
-Quando uma sessão está activa e o context inspector é observado
-Então as regras e ficheiros aparecem com tamanhos correctos
+Given the project has a CLAUDE.md and files read in the session
+When a session is active and the context inspector is observed
+Then rules and files appear with correct sizes
 """
 
 import time
@@ -20,20 +20,19 @@ def _open_with_session(page: Page, server: ServerContext, project: str) -> None:
     """Navigate, select project, and wait for session to auto-select."""
     page.goto(f"{server.url}/insights")
     page.locator("#project-select").select_option(label=project)
-    # Wait for session to be listed and auto-selected (triggers loadContextInspect)
     time.sleep(2)
 
 
 def test_claude_md_listed_with_size(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   o projecto tem CLAUDE.md com 400 bytes de conteúdo e uma sessão JSONL
-    Quando     o dashboard carrega com a sessão activa
-    Então      o CLAUDE.md aparece no context inspector
+    Given  the project has a CLAUDE.md with 400 bytes of content and a JSONL session
+    When   the dashboard loads with an active session
+    Then   CLAUDE.md appears in the context inspector
     """
     project_path = server.projects_root / project
     (project_path / "CLAUDE.md").write_text("A" * 400, encoding="utf-8")
 
-    # JSONL is required so currentSessionId gets set → loadContextInspect fires
+    # JSONL required so currentSessionId is set → loadContextInspect fires
     server.write_jsonl(project, [server.assistant_entry(tool="Read")])
 
     _open_with_session(page, server, project)
@@ -43,9 +42,9 @@ def test_claude_md_listed_with_size(page: Page, server: ServerContext, project: 
 
 def test_files_read_in_session_appear(page: Page, server: ServerContext, project: str) -> None:
     """
-    Dado que   a sessão JSONL tem tool_use Read + result para um ficheiro
-    Quando     o context inspector é observado
-    Então      o ficheiro lido aparece na lista de reads
+    Given  the session JSONL has a tool_use Read + result for a file
+    When   the context inspector is observed
+    Then   the read file appears in the reads list
     """
     ts_use = "2026-01-01T10:00:00Z"
     ts_result = "2026-01-01T10:00:01Z"

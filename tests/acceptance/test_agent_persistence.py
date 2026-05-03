@@ -2,7 +2,7 @@
 Acceptance tests — Agent Persistence.
 
 Spec: standarts/private/projects/claude-monitor/specs/agent-persistence.md
-Product Owner: Leandro Siciliano | Data: 2026-05-01
+Product Owner: Leandro Siciliano | Date: 2026-05-01
 """
 
 import importlib
@@ -55,9 +55,9 @@ class TestAcceptanceAgentPersistence:
 
     def test_done_agent_persisted_to_sqlite(self, tmp_path, monkeypatch):
         """
-        Dado que   existe agent_123.json com state="done" e finished_at recente
-        Quando     persist_done_agents() é chamado
-        Então      o agente é inserido em agent_runs no SQLite
+        Given  agent_123.json exists with state="done" and recent finished_at
+        When   persist_done_agents() is called
+        Then   the agent is inserted into agent_runs in SQLite
         """
         session_service, db_path, _ = _fresh_session_service(tmp_path, monkeypatch)
         agents_dir = tmp_path / "agents"
@@ -79,9 +79,9 @@ class TestAcceptanceAgentPersistence:
 
     def test_done_old_agent_file_deleted(self, tmp_path, monkeypatch):
         """
-        Dado que   agent_old.json tem finished_at > 5min atrás
-        Quando     persist_done_agents() é chamado
-        Então      o ficheiro agent_old.json é apagado após persistência
+        Given  agent_old.json has finished_at > 5 minutes ago
+        When   persist_done_agents() is called
+        Then   agent_old.json is deleted after persistence
         """
         session_service, _, _ = _fresh_session_service(tmp_path, monkeypatch)
         agents_dir = tmp_path / "agents"
@@ -99,9 +99,9 @@ class TestAcceptanceAgentPersistence:
 
     def test_agent_not_persisted_twice(self, tmp_path, monkeypatch):
         """
-        Dado que   agent_123 foi persistido na iteração anterior
-        Quando     persist_done_agents() corre novamente com mesmo agent
-        Então      o agente não é re-inserido em SQLite
+        Given  agent_123 was persisted in the previous iteration
+        When   persist_done_agents() runs again with the same agent
+        Then   the agent is not re-inserted into SQLite
         """
         session_service, db_path, _ = _fresh_session_service(tmp_path, monkeypatch)
         agents_dir = tmp_path / "agents"
@@ -122,12 +122,12 @@ class TestAcceptanceAgentPersistence:
         conn.close()
         assert count == 1, f"Agent should be persisted only once, got count={count}"
 
-    def test_running_recent_agent_not_in_active_list_but_file_kept(self, tmp_path, monkeypatch):
+    def test_running_recent_agent_kept_in_active_list(self, tmp_path, monkeypatch):
         """
-        Dado que   agent_456.json tem state="running" e last_updated recente
-        Quando     persist_done_agents() corre
-        Então      o ficheiro não é apagado
-                   e o agente aparece na lista de activos retornada
+        Given  agent_456.json has state="running" and a recent last_updated
+        When   persist_done_agents() runs
+        Then   the file is not deleted
+        And    the agent appears in the returned active list
         """
         session_service, _, _ = _fresh_session_service(tmp_path, monkeypatch)
         agents_dir = tmp_path / "agents"
@@ -147,11 +147,11 @@ class TestAcceptanceAgentPersistence:
 
     def test_corrupt_agent_json_does_not_break_others(self, tmp_path, monkeypatch):
         """
-        Dado que   agent_bad.json contém JSON inválido
-                   e agent_good.json está correcto e done
-        Quando     persist_done_agents() corre
-        Então      agent_bad.json é ignorado
-                   e agent_good.json é persistido normalmente
+        Given  agent_bad.json contains invalid JSON
+        And    agent_good.json is correct and done
+        When   persist_done_agents() runs
+        Then   agent_bad.json is ignored
+        And    agent_good.json is persisted normally
         """
         session_service, db_path, _ = _fresh_session_service(tmp_path, monkeypatch)
         agents_dir = tmp_path / "agents"

@@ -2,7 +2,7 @@
 Acceptance tests — Status Polling.
 
 Spec: standarts/private/projects/claude-monitor/specs/status-polling.md
-Product Owner: Leandro Siciliano | Data: 2026-05-01
+Product Owner: Leandro Siciliano | Date: 2026-05-01
 """
 
 import importlib
@@ -22,9 +22,9 @@ class TestAcceptanceStatusPolling:
 
     def test_status_read_correctly_from_status_json(self, tmp_project, monkeypatch):
         """
-        Dado que   .claude/status.json contém {"status": "working", "tool": "Read"}
-        Quando     read_status é chamado
-        Então      o dict retornado contém status="working" e tool="Read"
+        Given  .claude/status.json contains {"status": "working", "tool": "Read"}
+        When   read_status is called
+        Then   the returned dict contains status="working" and tool="Read"
         """
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
@@ -49,9 +49,9 @@ class TestAcceptanceStatusPolling:
 
     def test_hook_stats_have_priority_over_jsonl_stats(self, tmp_project, monkeypatch):
         """
-        Dado que   status.json contém stats.input_tokens=500
-        Quando     read_status é chamado
-        Então      stats.input_tokens=500 está no resultado
+        Given  status.json contains stats.input_tokens=500
+        When   read_status is called
+        Then   stats.input_tokens=500 is present in the result
         """
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
@@ -85,9 +85,9 @@ class TestAcceptanceStatusPolling:
 
     def test_project_goes_idle_when_status_json_missing(self, app_client, tmp_project):
         """
-        Dado que   status.json é apagado
-        Quando     o estado é lido
-        Então      o projecto aparece como idle ou não reporta estado activo
+        Given  status.json is deleted
+        When   the status endpoint is polled
+        Then   the project appears as idle or does not report an active state
         """
         status_file = tmp_project / ".claude" / "status.json"
         status_file.unlink()
@@ -106,11 +106,11 @@ class TestAcceptanceStatusPolling:
         """
         CA-01: PostToolUse wrote idle; JSONL newer with final text (no tool) → stays idle.
 
-        Dado que   PostToolUse wrote {"status":"idle"} to status.json (T2)
-        And          JSONL was then updated with final text response (T3 > T2)
-        And          the JSONL tail has no tool_use (tool = None)
-        Quando       jsonl_watcher_loop processes the project (one pass)
-        Então         the project state remains "idle"
+        Given  PostToolUse wrote {"status":"idle"} to status.json (T2)
+        And    JSONL was then updated with final text response (T3 > T2)
+        And    the JSONL tail has no tool_use (tool = None)
+        When   jsonl_watcher_loop processes the project (one pass)
+        Then   the project state remains "idle"
         """
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
@@ -181,11 +181,11 @@ class TestAcceptanceStatusPolling:
         """
         CA-02: JSONL newer with active tool → flips to working.
 
-        Dado que   JSONL tail has an active tool_use (tool = "Bash")
-        And          JSONL mtime is newer than status.json mtime
-        And          age <= JSONL_ACTIVE_SECONDS
-        Quando       jsonl_watcher_loop processes the project (one pass)
-        Então         the project state becomes "working"
+        Given  JSONL tail has an active tool_use (tool = "Bash")
+        And    JSONL mtime is newer than status.json mtime
+        And    age <= JSONL_ACTIVE_SECONDS
+        When   jsonl_watcher_loop processes the project (one pass)
+        Then   the project state becomes "working"
         """
         import claude_monitor.db as db_module
         import claude_monitor.config as config_module
@@ -229,9 +229,9 @@ class TestAcceptanceStatusPolling:
 
     def test_health_endpoint_reports_monitored_count(self, app_client):
         """
-        Dado que   há projectos monitorizados
-        Quando     GET /health
-        Então      projects_monitored >= 1
+        Given  there are monitored projects
+        When   GET /health
+        Then   projects_monitored >= 1
         """
         r = app_client.get("/health")
         assert r.status_code == 200
