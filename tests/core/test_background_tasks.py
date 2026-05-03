@@ -1,6 +1,7 @@
 """Tests for asyncio background task GC safety in lifespan."""
 
 import asyncio
+import inspect
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -78,3 +79,32 @@ class TestBackgroundTaskGCSafety:
                 assert "=" in stripped or stripped.startswith("t =") or stripped.startswith("t="), (
                     f"Untracked create_task found: {stripped!r}"
                 )
+
+
+class TestTimezoneAwareDatetime:
+    """
+    Verify that background.py does not use the deprecated datetime.utcnow().
+
+    datetime.datetime.utcnow() is deprecated in Python 3.12+ and flagged by
+    Sonar as a CRITICAL code smell because it returns a naive datetime that
+    is ambiguous (no timezone info). The correct replacement is
+    datetime.datetime.now(datetime.timezone.utc), which returns a
+    timezone-aware datetime equivalent to UTC.
+
+    Red: fails if background.py still contains utcnow().
+    Green: passes after replacing with datetime.now(datetime.timezone.utc).
+    """
+
+    def test_background_does_not_use_utcnow(self):
+        """
+        Given that background.py is the only module using utcnow()
+        When we inspect its source code
+        Then it must not contain the deprecated utcnow() call
+        """
+        import claude_monitor.core.background as background_module
+
+        source = inspect.getsource(background_module)
+        assert "utcnow()" not in source, (
+            "background.py uses deprecated datetime.utcnow() — "
+            "replace with datetime.now(datetime.timezone.utc)"
+        )

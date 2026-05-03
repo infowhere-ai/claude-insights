@@ -86,7 +86,10 @@ async def poll_loop() -> None:  # pragma: no cover
                         data["notification"] = None
 
                     event = {
-                        "timestamp": data.get("ts", datetime.datetime.utcnow().isoformat() + "Z"),
+                        "timestamp": data.get(
+                            "ts",
+                            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        ),
                         "status": data.get("status", "idle"),
                         "tool": data.get("tool"),
                         "message": data.get("tool")
