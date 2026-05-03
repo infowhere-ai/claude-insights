@@ -192,6 +192,65 @@ class TestPersistAndCleanSession:
             state._persisted_agent_ids.update(original_persisted)
 
 
+class TestParseAgentFile:
+    def test_returns_data_and_id_on_valid_json(self, tmp_path):
+        agent_file = tmp_path / "agent_abc.json"
+        data = {"id": "abc", "state": "done", "started_at": "2026-01-01T10:00:00Z"}
+        agent_file.write_text(json.dumps(data))
+        result_data, result_id = session_service._parse_agent_file(agent_file)
+        assert result_data == data
+        assert result_id == "abc"
+
+    def test_falls_back_to_stem_when_no_id(self, tmp_path):
+        agent_file = tmp_path / "agent_xyz.json"
+        data = {"state": "done"}
+        agent_file.write_text(json.dumps(data))
+        _, result_id = session_service._parse_agent_file(agent_file)
+        assert result_id == "agent_xyz"
+
+    def test_raises_on_invalid_json(self, tmp_path):
+        agent_file = tmp_path / "agent_bad.json"
+        agent_file.write_text("not json {{{")
+        with pytest.raises(Exception):
+            session_service._parse_agent_file(agent_file)
+
+
+class TestIsStaleRunning:
+    def test_returns_false_for_recent_timestamp(self):
+        from datetime import datetime, timezone
+        recent = datetime.now(timezone.utc).isoformat()
+        data = {"last_updated": recent}
+        assert session_service._is_stale_running(data, time.time()) is False
+
+    def test_returns_true_for_old_timestamp(self):
+        data = {"last_updated": "2020-01-01T00:00:00Z"}
+        assert session_service._is_stale_running(data, time.time()) is True
+
+    def test_returns_false_when_no_timestamp(self):
+        data = {}
+        assert session_service._is_stale_running(data, time.time()) is False
+
+
+class TestAgeOfDoneAgent:
+    def test_returns_age_in_seconds(self):
+        from datetime import datetime, timezone
+        now_ts = time.time()
+        old_ts = datetime.fromtimestamp(now_ts - 500, tz=timezone.utc).isoformat()
+        data = {"finished_at": old_ts}
+        age = session_service._age_of_done_agent(data, now_ts)
+        assert 490 < age < 510
+
+    def test_returns_inf_when_no_finished_at(self):
+        data = {}
+        age = session_service._age_of_done_agent(data, time.time())
+        assert age == float("inf")
+
+    def test_returns_inf_on_bad_timestamp(self):
+        data = {"finished_at": "not-a-date"}
+        age = session_service._age_of_done_agent(data, time.time())
+        assert age == float("inf")
+
+
 class TestJsonlWatcherStateDecision:
     @pytest.mark.xfail(
         reason="Known bug: watcher flips idle→working even without active tool. Needs Playwright."

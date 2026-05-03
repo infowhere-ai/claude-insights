@@ -14,57 +14,97 @@ def current_session_id(project_name: str) -> str | None:
     return Path(path_str).stem if path_str else None
 
 
+def _parse_agent_file(agent_file: Path) -> tuple[dict, str]:
+    """Read and parse an agent JSON file. Returns (agent_data, agent_id) or raises."""
+    agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+    agent_id = agent_data.get("id", agent_file.stem)
+    return agent_data, agent_id
+
+
+def _is_stale_running(agent_data: dict, now_ts: float) -> bool:
+    """Return True if a running agent's last_updated/started_at is >600s old."""
+    ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
+    if not ts_str:
+        return False
+    try:
+        ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        return (now_ts - ts.timestamp()) > 600
+    except Exception:
+        return False
+
+
+def _age_of_done_agent(agent_data: dict, now_ts: float) -> float:
+    """Return seconds since agent finished_at, or inf if unavailable."""
+    finished_at = agent_data.get("finished_at", "")
+    if not finished_at:
+        return float("inf")
+    try:
+        ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+        return now_ts - ft.timestamp()
+    except Exception:
+        return float("inf")
+
+
+def _process_running_agent(agent_data: dict, now_ts: float, active: list) -> None:
+    """Append a running agent to active list if not stale."""
+    if not _is_stale_running(agent_data, now_ts):
+        active.append(agent_data)
+
+
+def _process_done_agent(
+    agent_data: dict,
+    agent_id: str,
+    agent_file: Path,
+    now_ts: float,
+    persisted: set,
+    active: list,
+    project_name: str,
+    session_id: str | None,
+) -> None:
+    """Persist a done agent to SQLite and append/delete depending on age."""
+    if agent_id not in persisted:
+        try:
+            db.upsert_agent_run(agent_data, project_name, session_id)
+            persisted.add(agent_id)
+        except Exception:
+            pass
+
+    age = _age_of_done_agent(agent_data, now_ts)
+    if age < 300:
+        active.append(agent_data)
+    else:
+        try:
+            agent_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def persist_done_agents(
     agents_dir: Path, project_name: str, session_id: str | None, now_ts: float
 ) -> list[dict]:
     """Scan agents dir, persist done agents to SQLite, delete old files."""
     persisted = state._persisted_agent_ids.setdefault(project_name, set())
-    active = []
+    active: list[dict] = []
     for agent_file in list(agents_dir.glob("agent_*.json")):
         try:
-            agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+            agent_data, agent_id = _parse_agent_file(agent_file)
         except Exception:
             continue
 
         agent_state = agent_data.get("state")
-        agent_id = agent_data.get("id", agent_file.stem)
-
         if agent_state == "running":
-            ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
-            stale = False
-            if ts_str:
-                try:
-                    ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                    stale = (now_ts - ts.timestamp()) > 600
-                except Exception:
-                    pass
-            if not stale:
-                active.append(agent_data)
-
+            _process_running_agent(agent_data, now_ts, active)
         elif agent_state == "done":
-            finished_at = agent_data.get("finished_at", "")
-            age = float("inf")
-            if finished_at:
-                try:
-                    ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
-                    age = now_ts - ft.timestamp()
-                except Exception:
-                    pass
-
-            if agent_id not in persisted:
-                try:
-                    db.upsert_agent_run(agent_data, project_name, session_id)
-                    persisted.add(agent_id)
-                except Exception:
-                    pass
-
-            if age < 300:
-                active.append(agent_data)
-            else:
-                try:
-                    agent_file.unlink(missing_ok=True)
-                except Exception:
-                    pass
+            _process_done_agent(
+                agent_data,
+                agent_id,
+                agent_file,
+                now_ts,
+                persisted,
+                active,
+                project_name,
+                session_id,
+            )
 
     active.sort(key=lambda a: a.get("started_at", ""))
     return active
