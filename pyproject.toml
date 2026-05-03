@@ -60,6 +60,8 @@ dev = [
     "pytest-cov>=5.0.0",
     "httpx>=0.27.0",
     "anyio>=4.0.0",
+    "pytest-playwright>=0.5.0",
+    "pytest-timeout>=2.3.0",
 ]
 
 [tool.pytest.ini_options]
@@ -68,6 +70,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "--cov=claude_monitor --cov-report=xml:coverage.xml --cov-report=term-missing"
+# E2E tests: run with -p no:cov (server runs in subprocess, coverage not applicable)
 
 [tool.coverage.run]
 source = ["claude_monitor"]

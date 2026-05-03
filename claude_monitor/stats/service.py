@@ -7,7 +7,7 @@ from claude_monitor import config, state
 
 def get_project_stats(project_path: Path, project_name: str) -> dict:
     encoded = str(project_path).replace("/", "-")
-    jsonl_dir = Path.home() / ".claude" / "projects" / encoded
+    jsonl_dir = config.CLAUDE_PROJECTS_DIR / encoded
     if not jsonl_dir.is_dir():
         return {}
 

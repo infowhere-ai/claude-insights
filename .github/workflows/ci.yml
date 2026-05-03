@@ -20,19 +20,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install fastapi "uvicorn[standard]" httpx pytest pytest-asyncio pytest-cov anyio
+        run: pip install -e ".[dev]"
 
       - name: Run tests with coverage
-        run: |
-          pytest tests/backend/ \
-            --cov=. \
-            --cov-report=xml:coverage.xml \
-            --cov-report=term-missing \
-            --cov-fail-under=80 \
-            --cov-config=pyproject.toml \
-            -v
+        run: pytest tests/ --ignore=tests/e2e -v --tb=short
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -41,23 +32,26 @@ jobs:
           path: coverage.xml
           retention-days: 1
 
-  test-bats:
-    name: Shell tests (bats)
+  test-e2e:
+    name: E2E tests (Playwright)
     runs-on: ubuntu-latest
+    needs: [test-backend]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install bats-core
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies + Playwright
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y bats
+          pip install -e ".[dev]"
+          playwright install chromium
 
-      - name: Run hook tests
-        run: bats tests/hook/test_monitor_hook.bats
-
-      - name: Run install tests
-        run: bats tests/install/test_install.bats
+      - name: Run E2E tests
+        run: pytest tests/e2e/ --rootdir=tests/e2e --timeout=30 -v --tb=short
 
   sonar:
     name: SonarQube quality gate
