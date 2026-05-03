@@ -1,6 +1,7 @@
 """FastAPI application entry point."""
 import asyncio
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from claude_monitor import db
@@ -26,31 +27,8 @@ from claude_monitor.stats import service as stats_service
 from claude_monitor.stats.router import router as stats_router
 from claude_monitor.terminal.ws import router as terminal_router
 
-app = FastAPI(title="claude-monitor", version=config.VERSION)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["*"],
-)
-
-app.include_router(pages_router)
-app.include_router(projects_router)
-app.include_router(sessions_router)
-app.include_router(stats_router)
-app.include_router(git_router)
-app.include_router(skills_router)
-app.include_router(files_router)
-app.include_router(app_config_router)
-app.include_router(account_router)
-app.include_router(context_router)
-app.include_router(terminal_router)
-app.include_router(sse_router)
-
-
-@app.on_event("startup")
-async def startup() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     from claude_monitor.sessions import service as session_service
     db.init_db()
     config_service.load_roots_config()
@@ -76,6 +54,32 @@ async def startup() -> None:
     asyncio.create_task(background.discovery_loop())
     asyncio.create_task(background.poll_loop())
     asyncio.create_task(background.jsonl_watcher_loop())
+    yield
+
+
+app = FastAPI(title="claude-insights", version=config.VERSION, lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["null"],                    # file:// protocol
+    allow_origin_regex=config.CORS_ORIGIN_REGEX,  # localhost by default
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["*"],
+)
+
+app.include_router(pages_router)
+app.include_router(projects_router)
+app.include_router(sessions_router)
+app.include_router(stats_router)
+app.include_router(git_router)
+app.include_router(skills_router)
+app.include_router(files_router)
+app.include_router(app_config_router)
+app.include_router(account_router)
+app.include_router(context_router)
+app.include_router(terminal_router)
+app.include_router(sse_router)
+
 
 
 _static_dir = Path(__file__).parent.parent / "static"

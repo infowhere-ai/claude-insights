@@ -35,7 +35,7 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
         if candidate.is_file():
             _add_rule(candidate.name, candidate, "claude-md")
 
-    global_claude = Path.home() / ".claude" / "CLAUDE.md"
+    global_claude = config.CLAUDE_GLOBAL_MD
     if global_claude.is_file():
         _add_rule("~/.claude/CLAUDE.md", global_claude, "global")
 
@@ -63,7 +63,7 @@ async def get_context_inspect(project: str = Query(...), session_id: str = Query
             except OSError:
                 pass
 
-    global_rules = Path.home() / ".claude" / "rules"
+    global_rules = config.CLAUDE_RULES_DIR
     if global_rules.is_dir():
         for entry in sorted(global_rules.iterdir()):
             try:

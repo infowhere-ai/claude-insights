@@ -2,30 +2,27 @@
 import asyncio
 import json
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from fastapi import APIRouter
+
+from claude_monitor import config
 
 router = APIRouter(tags=["account"])
 
 
 def _get_account_sync() -> dict:
     """Synchronous worker — runs in a thread via asyncio.to_thread()."""
-    home = Path.home()
-
     settings: dict = {}
     try:
-        sp = home / ".claude" / "settings.json"
-        if sp.exists():
-            settings = json.loads(sp.read_text(encoding="utf-8"))
+        if config.CLAUDE_SETTINGS_FILE.exists():
+            settings = json.loads(config.CLAUDE_SETTINGS_FILE.read_text(encoding="utf-8"))
     except Exception:
         pass
 
     daily_activity: list = []
     try:
-        sc = home / ".claude" / "stats-cache.json"
-        if sc.exists():
-            daily_activity = json.loads(sc.read_text(encoding="utf-8")).get("dailyActivity", [])
+        if config.CLAUDE_STATS_CACHE.exists():
+            daily_activity = json.loads(config.CLAUDE_STATS_CACHE.read_text(encoding="utf-8")).get("dailyActivity", [])
     except Exception:
         pass
 
@@ -33,7 +30,7 @@ def _get_account_sync() -> dict:
     token_totals = {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0}
     service_tier: str = "standard"
 
-    projects_dir = home / ".claude" / "projects"
+    projects_dir = config.CLAUDE_PROJECTS_DIR
     if projects_dir.is_dir():
         for jsonl_file in projects_dir.rglob("*.jsonl"):
             try:

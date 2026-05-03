@@ -1,8 +1,7 @@
 """Skills endpoint."""
-from pathlib import Path
-
 from fastapi import APIRouter
 
+from claude_monitor import config
 from claude_monitor.skills import service
 
 router = APIRouter(tags=["skills"])
@@ -11,7 +10,7 @@ router = APIRouter(tags=["skills"])
 @router.get("/api/skills")
 async def get_skills():
     skills = []
-    search_dirs = [(Path.home() / ".claude" / "skills", "user")]
+    search_dirs = [(config.CLAUDE_SKILLS_DIR, "user")]
     for base, source in search_dirs:
         if not base.is_dir():
             continue

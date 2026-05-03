@@ -16,12 +16,13 @@ def test_skills_returns_list(app_client):
 
 
 def test_skills_with_skill_md_file(app_client, tmp_path):
-    skills_dir = tmp_path / ".claude" / "skills" / "my-skill"
+    from claude_monitor import config
+    skills_dir = tmp_path / "skills" / "my-skill"
     skills_dir.mkdir(parents=True)
     (skills_dir / "SKILL.md").write_text(
         "---\nname: My Skill\ndescription: Does things\n---\n\nBody text."
     )
-    with patch("pathlib.Path.home", return_value=tmp_path):
+    with patch.object(config, "CLAUDE_SKILLS_DIR", tmp_path / "skills"):
         r = app_client.get("/api/skills")
     assert r.status_code == 200
     skills = r.json()["skills"]
@@ -32,8 +33,9 @@ def test_skills_handles_unreadable_file(app_client, tmp_path):
     skills_dir = tmp_path / ".claude" / "skills" / "broken-skill"
     skills_dir.mkdir(parents=True)
     (skills_dir / "SKILL.md").write_text("content")
-    with patch("pathlib.Path.home", return_value=tmp_path):
-        from claude_monitor.skills import service as skill_service
-        with patch.object(skill_service, "parse_skill_md", side_effect=Exception("parse error")):
-            r = app_client.get("/api/skills")
+    from claude_monitor import config
+    from claude_monitor.skills import service as skill_service
+    with patch.object(config, "CLAUDE_SKILLS_DIR", tmp_path / "skills"), \
+         patch.object(skill_service, "parse_skill_md", side_effect=Exception("parse error")):
+        r = app_client.get("/api/skills")
     assert r.status_code == 200
