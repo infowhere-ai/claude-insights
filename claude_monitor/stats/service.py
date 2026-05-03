@@ -6,6 +6,28 @@ from pathlib import Path
 from claude_monitor import config, state
 
 
+def _parse_token_entry(entry: dict) -> dict | None:
+    """Extract token counts and model from a JSONL assistant entry.
+
+    Returns a dict with keys input, output, cache_read, ctx, model,
+    or None if the entry is not an assistant message.
+    """
+    if entry.get("type") != "assistant" or "message" not in entry:
+        return None
+    msg = entry["message"]
+    u = msg.get("usage", {})
+    input_tokens = u.get("input_tokens", 0)
+    cache_read = u.get("cache_read_input_tokens", 0)
+    cache_create = u.get("cache_creation_input_tokens", 0)
+    return {
+        "input": input_tokens,
+        "output": u.get("output_tokens", 0),
+        "cache_read": cache_read,
+        "ctx": input_tokens + cache_read + cache_create,
+        "model": msg.get("model", ""),
+    }
+
+
 def get_project_stats(project_path: Path, project_name: str) -> dict:
     encoded = str(project_path).replace("/", "-")
     jsonl_dir = config.CLAUDE_PROJECTS_DIR / encoded
@@ -29,10 +51,7 @@ def get_project_stats(project_path: Path, project_name: str) -> dict:
     ):
         return state._project_stats_cache[project_name]
 
-    session_input = 0
-    session_output = 0
-    session_cache_read = 0
-    last_input_tokens = 0
+    session_input = session_output = session_cache_read = last_ctx = 0
     model = ""
     try:
         with latest.open(encoding="utf-8", errors="ignore") as f:
@@ -44,19 +63,15 @@ def get_project_stats(project_path: Path, project_name: str) -> dict:
                     d = json.loads(line)
                 except Exception:
                     continue
-                if d.get("type") == "assistant" and "message" in d:
-                    u = d["message"].get("usage", {})
-                    session_input += u.get("input_tokens", 0)
-                    session_output += u.get("output_tokens", 0)
-                    session_cache_read += u.get("cache_read_input_tokens", 0)
-                    last_input_tokens = (
-                        u.get("input_tokens", 0)
-                        + u.get("cache_read_input_tokens", 0)
-                        + u.get("cache_creation_input_tokens", 0)
-                    )
-                    m = d["message"].get("model", "")
-                    if m:
-                        model = m
+                tokens = _parse_token_entry(d)
+                if tokens is None:
+                    continue
+                session_input += tokens["input"]
+                session_output += tokens["output"]
+                session_cache_read += tokens["cache_read"]
+                last_ctx = tokens["ctx"]
+                if tokens["model"]:
+                    model = tokens["model"]
     except OSError:
         return {}
 
@@ -64,7 +79,7 @@ def get_project_stats(project_path: Path, project_name: str) -> dict:
         "session_input_tokens": session_input,
         "session_output_tokens": session_output,
         "session_cache_read": session_cache_read,
-        "session_ctx_tokens": last_input_tokens,
+        "session_ctx_tokens": last_ctx,
         "model": model,
     }
     state._jsonl_mtimes[cache_key] = latest_mtime
