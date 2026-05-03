@@ -12,6 +12,39 @@ from claude_monitor import config, state
 router = APIRouter(tags=["files"])
 
 
+def _resolve_project_path(project: str) -> Path | None:
+    """Return the project root Path or None if not found."""
+    if project in state._status_paths:
+        return state._status_paths[project].parent.parent
+    for root in [config.PROJECTS_ROOT] + list(state._extra_roots):
+        candidate = root / project
+        if candidate.is_dir() and (candidate / ".claude").is_dir():
+            return candidate
+    return None
+
+
+def _validate_file_within_project(file_path: Path, project_path: Path) -> JSONResponse | None:
+    """Return a JSONResponse error if file_path is outside project_path, else None."""
+    try:
+        file_path.relative_to(project_path.resolve())
+        return None
+    except ValueError:
+        return JSONResponse({"error": "path outside project"}, status_code=400)
+
+
+async def _check_git_tracked(file_path: Path, project_path: Path) -> bool:
+    """Return True if the file is tracked by git, False otherwise."""
+    ls = await asyncio.to_thread(
+        subprocess.run,
+        ["git", "ls-files", "--error-unmatch", str(file_path)],
+        cwd=str(project_path),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    return ls.returncode == 0
+
+
 @router.get("/api/browse")
 async def browse_directory(path: str = Query(default="")):
     target = Path(path).expanduser().resolve() if path else Path.home()
@@ -30,16 +63,7 @@ async def browse_directory(path: str = Query(default="")):
 
 @router.delete("/api/file")
 async def delete_file(project: str = Query(...), path: str = Query(...)):
-    project_path: Path | None = None
-    if project in state._status_paths:
-        project_path = state._status_paths[project].parent.parent
-    else:
-        for root in [config.PROJECTS_ROOT] + list(state._extra_roots):
-            candidate = root / project
-            if candidate.is_dir() and (candidate / ".claude").is_dir():
-                project_path = candidate
-                break
-
+    project_path = _resolve_project_path(project)
     if project_path is None or not project_path.is_dir():
         return JSONResponse({"error": "project not found"}, status_code=404)
 
@@ -48,10 +72,9 @@ async def delete_file(project: str = Query(...), path: str = Query(...)):
         file_path = project_path / file_path
     file_path = file_path.resolve()
 
-    try:
-        file_path.relative_to(project_path.resolve())
-    except ValueError:
-        return JSONResponse({"error": "path outside project"}, status_code=400)
+    error = _validate_file_within_project(file_path, project_path)
+    if error is not None:
+        return error
 
     if not file_path.exists():
         return JSONResponse({"error": "file not found"}, status_code=404)
@@ -60,15 +83,7 @@ async def delete_file(project: str = Query(...), path: str = Query(...)):
         return JSONResponse({"error": "path is not a file"}, status_code=400)
 
     try:
-        ls = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "ls-files", "--error-unmatch", str(file_path)],
-            cwd=str(project_path),
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if ls.returncode == 0:
+        if await _check_git_tracked(file_path, project_path):
             return JSONResponse(
                 {"error": "file is tracked by git — only untracked files can be deleted here"},
                 status_code=400,

@@ -6,6 +6,8 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
@@ -127,6 +129,59 @@ class TestDeleteFileEndpoint:
         outside.write_text("x")
         r = app_client.delete(f"/api/file?project=my-project&path={outside}")
         assert r.status_code == 400
+
+
+class TestResolveProjectPath:
+    def test_returns_path_for_known_project(self, tmp_project):
+        from claude_monitor.files import router as files_router
+
+        result = files_router._resolve_project_path("my-project")
+        assert result is not None
+        assert result.is_dir()
+
+    def test_returns_none_for_unknown_project(self):
+        from claude_monitor.files import router as files_router
+
+        result = files_router._resolve_project_path("totally-unknown-project-xyz")
+        assert result is None
+
+
+class TestValidateFileWithinProject:
+    def test_raises_nothing_for_file_inside_project(self, tmp_project):
+        from claude_monitor.files import router as files_router
+        from fastapi.responses import JSONResponse
+
+        file_inside = (tmp_project / "app.py").resolve()
+        # Should not raise
+        result = files_router._validate_file_within_project(file_inside, tmp_project)
+        assert result is None
+
+    def test_returns_error_response_for_file_outside(self, tmp_project, tmp_path):
+        from claude_monitor.files import router as files_router
+
+        outside = (tmp_path / "other" / "secret.txt").resolve()
+        result = files_router._validate_file_within_project(outside, tmp_project)
+        assert result is not None  # Should return error JSONResponse
+
+
+class TestCheckGitTracked:
+    @pytest.mark.asyncio
+    async def test_returns_true_when_git_ls_files_returncode_zero(self, tmp_project):
+        from claude_monitor.files import router as files_router
+
+        ls_result = _make_completed(stdout="app.py", returncode=0)
+        with patch("claude_monitor.files.router.asyncio.to_thread", return_value=ls_result):
+            result = await files_router._check_git_tracked(tmp_project / "app.py", tmp_project)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_git_ls_files_nonzero(self, tmp_project):
+        from claude_monitor.files import router as files_router
+
+        ls_result = _make_completed(stdout="", returncode=1)
+        with patch("claude_monitor.files.router.asyncio.to_thread", return_value=ls_result):
+            result = await files_router._check_git_tracked(tmp_project / "untracked.py", tmp_project)
+        assert result is False
 
 
 class TestAsyncSubprocessSafety:
