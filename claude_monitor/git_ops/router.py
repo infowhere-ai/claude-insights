@@ -67,9 +67,7 @@ def _resolve_pending_project_path(project: str) -> Path | None:
     """
     if project in state._status_paths:
         return state._status_paths[project].parents[1]
-    for candidate in [config.PROJECTS_ROOT / project] + [
-        r / project for r in state._extra_roots
-    ]:
+    for candidate in [config.PROJECTS_ROOT / project] + [r / project for r in state._extra_roots]:
         if candidate.is_dir():
             return candidate
     return None

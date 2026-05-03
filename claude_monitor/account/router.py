@@ -32,9 +32,7 @@ def _read_daily_activity(cache_file: Path) -> list:
     return []
 
 
-def _sum_tokens_from_jsonl(
-    projects_dir: Path, week_ago: datetime
-) -> tuple[dict, str]:
+def _sum_tokens_from_jsonl(projects_dir: Path, week_ago: datetime) -> tuple[dict, str]:
     """Iterate JSONL files under projects_dir modified after week_ago.
 
     Returns (token_totals, service_tier).
@@ -62,9 +60,7 @@ def _sum_tokens_from_jsonl(
                         u = d["message"].get("usage", {})
                         token_totals["input"] += u.get("input_tokens", 0)
                         token_totals["output"] += u.get("output_tokens", 0)
-                        token_totals["cache_creation"] += u.get(
-                            "cache_creation_input_tokens", 0
-                        )
+                        token_totals["cache_creation"] += u.get("cache_creation_input_tokens", 0)
                         token_totals["cache_read"] += u.get("cache_read_input_tokens", 0)
                         if u.get("service_tier"):
                             service_tier = u["service_tier"]

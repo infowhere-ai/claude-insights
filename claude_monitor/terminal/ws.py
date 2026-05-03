@@ -43,9 +43,7 @@ async def _ws_to_pty(
             msg = await websocket.receive()
             if msg["type"] == "websocket.disconnect":
                 break
-            raw = msg.get("bytes") or (
-                msg.get("text", "").encode() if msg.get("text") else None
-            )
+            raw = msg.get("bytes") or (msg.get("text", "").encode() if msg.get("text") else None)
             if not raw:
                 continue
             try:
