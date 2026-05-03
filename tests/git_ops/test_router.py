@@ -226,6 +226,95 @@ class TestDiffUntrackedHelper:
         assert diff == ""
 
 
+class TestResolvePendingProjectPath:
+    """Tests for the _resolve_pending_project_path helper."""
+
+    def test_returns_path_from_status_paths(self, tmp_path):
+        """_resolve_pending_project_path returns project path from state._status_paths."""
+        from claude_monitor.git_ops import router as git_router
+        from claude_monitor import state
+
+        proj_path = tmp_path / "my-project"
+        proj_path.mkdir()
+        status_path = proj_path / ".claude" / "status.json"
+        status_path.parent.mkdir(parents=True)
+        status_path.write_text("{}")
+
+        original = dict(state._status_paths)
+        state._status_paths["my-project"] = status_path
+        try:
+            result = git_router._resolve_pending_project_path("my-project")
+            assert result == proj_path
+        finally:
+            state._status_paths.clear()
+            state._status_paths.update(original)
+
+    def test_returns_none_for_unknown_project(self, tmp_path):
+        """_resolve_pending_project_path returns None when project is not found."""
+        from claude_monitor.git_ops import router as git_router
+        from claude_monitor import state, config
+
+        original_paths = dict(state._status_paths)
+        original_extra = list(state._extra_roots)
+        original_root = config.PROJECTS_ROOT
+        state._status_paths.clear()
+        state._extra_roots.clear()
+        config.PROJECTS_ROOT = tmp_path
+        try:
+            result = git_router._resolve_pending_project_path("ghost-project")
+            assert result is None
+        finally:
+            state._status_paths.clear()
+            state._status_paths.update(original_paths)
+            state._extra_roots[:] = original_extra
+            config.PROJECTS_ROOT = original_root
+
+
+class TestParsePorcelainLine:
+    """Tests for the _parse_porcelain_line helper."""
+
+    def test_parses_modified_file(self, tmp_project):
+        """_parse_porcelain_line returns dict for a modified file line."""
+        from claude_monitor.git_ops import router as git_router
+
+        result = git_router._parse_porcelain_line(" M app.py", tmp_project)
+        assert result is not None
+        assert result["rel_path"] == "app.py"
+        assert result["label"] == "modified"
+        assert result["status_code"] == "M"
+
+    def test_parses_untracked_file(self, tmp_project):
+        """_parse_porcelain_line returns dict with untracked label for ?? prefix."""
+        from claude_monitor.git_ops import router as git_router
+
+        result = git_router._parse_porcelain_line("?? newfile.py", tmp_project)
+        assert result is not None
+        assert result["label"] == "untracked"
+
+    def test_parses_renamed_file(self, tmp_project):
+        """_parse_porcelain_line returns new filename for renamed files."""
+        from claude_monitor.git_ops import router as git_router
+
+        result = git_router._parse_porcelain_line("R  old.py -> new.py", tmp_project)
+        assert result is not None
+        assert "new.py" in result["rel_path"]
+
+    def test_returns_none_for_empty_line(self, tmp_project):
+        """_parse_porcelain_line returns None for blank/whitespace lines."""
+        from claude_monitor.git_ops import router as git_router
+
+        assert git_router._parse_porcelain_line("   ", tmp_project) is None
+        assert git_router._parse_porcelain_line("", tmp_project) is None
+
+    def test_uses_changed_label_for_unknown_code(self, tmp_project):
+        """_parse_porcelain_line falls back to 'changed' for unknown status codes."""
+        from claude_monitor.git_ops import router as git_router
+
+        result = git_router._parse_porcelain_line("X  mystery.py", tmp_project)
+        assert result is not None
+        assert result["label"] == "changed"
+
+
 class TestAsyncSubprocessSafety:
     """
     Verify subprocess.run is called via asyncio.to_thread, not directly.

@@ -12,6 +12,17 @@ from claude_monitor import config, state
 
 router = APIRouter(tags=["git"])
 
+_STATUS_LABELS = {
+    "M": "modified",
+    "A": "added",
+    "D": "deleted",
+    "R": "renamed",
+    "C": "copied",
+    "U": "unmerged",
+    "?": "untracked",
+    "!": "ignored",
+}
+
 
 async def _git_run(cmd: list[str], cwd: Path, timeout: int) -> CompletedProcess:
     """Run a git command in a thread pool. Returns CompletedProcess."""
@@ -48,18 +59,46 @@ async def _diff_untracked(project_path: Path, file_path: Path) -> tuple[str, boo
     return "", False
 
 
+def _resolve_pending_project_path(project: str) -> Path | None:
+    """Resolve the filesystem path for a project name.
+
+    Checks state._status_paths first, then PROJECTS_ROOT and extra roots.
+    Returns None when the project cannot be found.
+    """
+    if project in state._status_paths:
+        return state._status_paths[project].parents[1]
+    for candidate in [config.PROJECTS_ROOT / project] + [
+        r / project for r in state._extra_roots
+    ]:
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _parse_porcelain_line(line: str, project_path: Path) -> dict | None:
+    """Parse a single line of `git status --porcelain` output.
+
+    Returns a file-info dict or None if the line is blank.
+    """
+    if not line.strip():
+        return None
+    xy = line[:2]
+    rel = line[3:]
+    if " -> " in rel:
+        rel = rel.split(" -> ", 1)[1]
+    rel = rel.strip().strip('"')
+    code = xy[0].strip() or xy[1].strip() or "?"
+    return {
+        "path": str(project_path / rel),
+        "rel_path": rel,
+        "status_code": code,
+        "label": _STATUS_LABELS.get(code, "changed"),
+    }
+
+
 @router.get("/api/pending")
 async def get_pending_files(project: str = Query(...)):
-    project_path: Path | None = None
-    if project in state._status_paths:
-        project_path = state._status_paths[project].parents[1]
-    else:
-        for candidate in [config.PROJECTS_ROOT / project] + [
-            r / project for r in state._extra_roots
-        ]:
-            if candidate.is_dir():
-                project_path = candidate
-                break
+    project_path = _resolve_pending_project_path(project)
 
     if project_path is None or not project_path.is_dir():
         return JSONResponse({"error": "project not found"}, status_code=404)
@@ -76,36 +115,11 @@ async def get_pending_files(project: str = Query(...)):
         if result.returncode != 0:
             return JSONResponse({"files": [], "error": result.stderr.strip()})
 
-        STATUS_LABELS = {
-            "M": "modified",
-            "A": "added",
-            "D": "deleted",
-            "R": "renamed",
-            "C": "copied",
-            "U": "unmerged",
-            "?": "untracked",
-            "!": "ignored",
-        }
-
         files = []
         for line in result.stdout.splitlines():
-            if not line.strip():
-                continue
-            xy = line[:2]
-            rel = line[3:]
-            if " -> " in rel:
-                rel = rel.split(" -> ", 1)[1]
-            rel = rel.strip().strip('"')
-            code = xy[0].strip() or xy[1].strip() or "?"
-            abs_path = str(project_path / rel)
-            files.append(
-                {
-                    "path": abs_path,
-                    "rel_path": rel,
-                    "status_code": code,
-                    "label": STATUS_LABELS.get(code, "changed"),
-                }
-            )
+            entry = _parse_porcelain_line(line, project_path)
+            if entry is not None:
+                files.append(entry)
 
         return {"files": files, "project_path": str(project_path)}
     except subprocess.TimeoutExpired:
