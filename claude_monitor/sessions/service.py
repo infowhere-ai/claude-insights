@@ -144,6 +144,41 @@ def persist_and_clean_session(project_name: str, data: dict, agents_dir: Path | 
         pass
 
 
+def _read_session_file(f: Path, now: float) -> dict | None:
+    """Read a single JSONL session file and return its metadata dict.
+
+    Returns None on OSError. The returned dict contains a '_mtime' key
+    for sorting, which should be removed by the caller.
+    """
+    try:
+        mtime = f.stat().st_mtime
+        is_active = (now - mtime) <= config.JSONL_ACTIVE_SECONDS
+        started_at = ended_at = None
+        with f.open(encoding="utf-8", errors="ignore") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                    ts = d.get("timestamp")
+                    if ts and started_at is None:
+                        started_at = ts
+                    if ts:
+                        ended_at = ts
+                except Exception:
+                    continue
+        return {
+            "session_id": f.stem,
+            "started_at": started_at,
+            "ended_at": None if is_active else ended_at,
+            "is_active": is_active,
+            "_mtime": mtime,
+        }
+    except OSError:
+        return None
+
+
 def list_sessions(project_name: str) -> list[dict]:
     """Lists root-level JSONL sessions for a project, newest-first."""
     if project_name not in state._status_paths:
@@ -157,35 +192,9 @@ def list_sessions(project_name: str) -> list[dict]:
     sessions = []
     try:
         for f in jsonl_dir.glob("*.jsonl"):
-            try:
-                mtime = f.stat().st_mtime
-                is_active = (now - mtime) <= config.JSONL_ACTIVE_SECONDS
-                started_at = ended_at = None
-                with f.open(encoding="utf-8", errors="ignore") as fh:
-                    for line in fh:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            d = json.loads(line)
-                            ts = d.get("timestamp")
-                            if ts and started_at is None:
-                                started_at = ts
-                            if ts:
-                                ended_at = ts
-                        except Exception:
-                            continue
-                sessions.append(
-                    {
-                        "session_id": f.stem,
-                        "started_at": started_at,
-                        "ended_at": None if is_active else ended_at,
-                        "is_active": is_active,
-                        "_mtime": mtime,
-                    }
-                )
-            except OSError:
-                continue
+            entry = _read_session_file(f, now)
+            if entry is not None:
+                sessions.append(entry)
     except OSError:
         return []
     sessions.sort(key=lambda s: s["_mtime"], reverse=True)

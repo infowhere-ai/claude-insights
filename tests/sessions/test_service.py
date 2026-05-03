@@ -253,6 +253,60 @@ class TestAgeOfDoneAgent:
         assert age == float("inf")
 
 
+class TestReadSessionFile:
+    """Tests for the _read_session_file helper extracted from list_sessions."""
+
+    def _write_jsonl(self, path: Path, entries: list[dict]) -> None:
+        path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
+
+    def test_returns_session_dict_with_timestamps(self, tmp_path):
+        """_read_session_file returns dict with session_id, started_at, and _mtime."""
+        import time as time_mod
+
+        jsonl_file = tmp_path / "sess123.jsonl"
+        self._write_jsonl(
+            jsonl_file,
+            [
+                {"timestamp": "2026-01-01T10:00:00Z", "type": "human"},
+                {"timestamp": "2026-01-01T10:05:00Z", "type": "assistant"},
+            ],
+        )
+        # File is recent, so it will be marked active and ended_at will be None
+        now = time_mod.time()
+        result = session_service._read_session_file(jsonl_file, now)
+        assert result is not None
+        assert result["session_id"] == "sess123"
+        assert result["started_at"] == "2026-01-01T10:00:00Z"
+        # is_active=True → ended_at is None per implementation contract
+        assert result["is_active"] is True
+        assert result["ended_at"] is None
+        assert "_mtime" in result
+
+    def test_returns_none_on_os_error(self, tmp_path):
+        """_read_session_file returns None when file cannot be opened."""
+        missing = tmp_path / "ghost.jsonl"
+        result = session_service._read_session_file(missing, time.time())
+        assert result is None
+
+    def test_handles_jsonl_with_no_timestamps(self, tmp_path):
+        """_read_session_file returns None timestamps for entries without timestamp field."""
+        jsonl_file = tmp_path / "notimestamp.jsonl"
+        self._write_jsonl(jsonl_file, [{"type": "human", "content": "hello"}])
+        result = session_service._read_session_file(jsonl_file, time.time())
+        assert result is not None
+        assert result["started_at"] is None
+        assert result["ended_at"] is None
+
+    def test_is_active_when_recently_modified(self, tmp_path):
+        """_read_session_file marks session active when file was modified recently."""
+        jsonl_file = tmp_path / "active.jsonl"
+        self._write_jsonl(jsonl_file, [{"timestamp": "2026-01-01T10:00:00Z"}])
+        now = time.time()
+        result = session_service._read_session_file(jsonl_file, now)
+        assert result is not None
+        assert result["is_active"] is True
+
+
 class TestJsonlWatcherStateDecision:
     @pytest.mark.xfail(
         reason="Known bug: watcher flips idle→working even without active tool. Needs Playwright."
