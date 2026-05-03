@@ -87,7 +87,7 @@ jobs:
     runs-on: self-hosted
     needs: [test]
     # Only run on the original repo — forks and external contributors don't have these secrets
-    if: github.repository == 'infowhere-ai/claude-insights' && github.event_name != 'pull_request'
+    if: github.repository == 'infowhere-be/claude-monitor' && github.event_name != 'pull_request'
 
     steps:
       - uses: actions/checkout@v4

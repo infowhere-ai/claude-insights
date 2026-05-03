@@ -8,8 +8,6 @@ Then token values and percentages are correct
 Note: #pane-tokens starts with class hidden. Click #btn-tokens to open it.
 """
 
-import time
-
 from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import ServerContext
@@ -48,11 +46,11 @@ def test_ctx_tokens_shown(page: Page, server: ServerContext, project: str) -> No
 
     page.goto(f"{server.url}/insights")
     page.locator("#project-select").select_option(label=project)
-    time.sleep(1)
 
     _open_tokens_pane(page)
 
-    expect(page.locator("#tok-ctx")).to_contain_text("300", timeout=TIMEOUT)
+    # Allow extra time for SSE to deliver the new JSONL data
+    expect(page.locator("#tok-ctx")).to_contain_text("300", timeout=8000)
 
 
 def test_cache_tokens_shown(page: Page, server: ServerContext, project: str) -> None:
@@ -77,8 +75,7 @@ def test_cache_tokens_shown(page: Page, server: ServerContext, project: str) -> 
 
     page.goto(f"{server.url}/insights")
     page.locator("#project-select").select_option(label=project)
-    time.sleep(1)
 
     _open_tokens_pane(page)
 
-    expect(page.locator("#tok-cache")).to_contain_text("200", timeout=TIMEOUT)
+    expect(page.locator("#tok-cache")).to_contain_text("200", timeout=8000)
