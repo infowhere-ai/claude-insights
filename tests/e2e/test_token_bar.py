@@ -27,7 +27,16 @@ def test_ctx_tokens_shown(page: Page, server: ServerContext, project: str) -> No
     Given  the JSONL has input=100, cache_read=200, cache_creation=0
     When   the token pane is opened
     Then   #tok-ctx shows 300 (input + cache_read + cache_creation)
+
+    Note: navigate first so SSE is connected before the JSONL arrives,
+    avoiding a race where the watcher hasn't picked up the file yet.
     """
+    # 1. Establish SSE connection first
+    page.goto(f"{server.url}/insights")
+    page.locator("#project-select").select_option(label=project)
+    _open_tokens_pane(page)
+
+    # 2. Write data — SSE is already listening
     server.write_jsonl(
         project,
         [
@@ -44,12 +53,7 @@ def test_ctx_tokens_shown(page: Page, server: ServerContext, project: str) -> No
     )
     server.write_status(project, "working", tool="Read")
 
-    page.goto(f"{server.url}/insights")
-    page.locator("#project-select").select_option(label=project)
-
-    _open_tokens_pane(page)
-
-    # Allow extra time for SSE to deliver the new JSONL data
+    # 3. Wait for SSE to deliver the update
     expect(page.locator("#tok-ctx")).to_contain_text("300", timeout=8000)
 
 
@@ -59,6 +63,12 @@ def test_cache_tokens_shown(page: Page, server: ServerContext, project: str) -> 
     When   the token pane is observed
     Then   #tok-cache shows 200
     """
+    # 1. Establish SSE connection first
+    page.goto(f"{server.url}/insights")
+    page.locator("#project-select").select_option(label=project)
+    _open_tokens_pane(page)
+
+    # 2. Write data — SSE is already listening
     server.write_jsonl(
         project,
         [
@@ -73,9 +83,5 @@ def test_cache_tokens_shown(page: Page, server: ServerContext, project: str) -> 
         newest=True,
     )
 
-    page.goto(f"{server.url}/insights")
-    page.locator("#project-select").select_option(label=project)
-
-    _open_tokens_pane(page)
-
+    # 3. Wait for SSE to deliver the update
     expect(page.locator("#tok-cache")).to_contain_text("200", timeout=8000)
