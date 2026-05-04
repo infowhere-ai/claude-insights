@@ -32,6 +32,35 @@ def _read_daily_activity(cache_file: Path) -> list:
     return []
 
 
+def _sum_tokens_from_file(f: Path, week_ago: datetime) -> tuple[dict, str] | None:
+    """Process one JSONL file and return (partial_totals, tier) or None if skipped/error."""
+    try:
+        if datetime.fromtimestamp(f.stat().st_mtime) < week_ago:
+            return None
+        totals = {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0}
+        tier: str = "standard"
+        with f.open(encoding="utf-8", errors="ignore") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                except Exception:
+                    continue
+                if d.get("type") == "assistant" and "message" in d:
+                    u = d["message"].get("usage", {})
+                    totals["input"] += u.get("input_tokens", 0)
+                    totals["output"] += u.get("output_tokens", 0)
+                    totals["cache_creation"] += u.get("cache_creation_input_tokens", 0)
+                    totals["cache_read"] += u.get("cache_read_input_tokens", 0)
+                    if u.get("service_tier"):
+                        tier = u["service_tier"]
+        return totals, tier
+    except Exception:
+        return None
+
+
 def _sum_tokens_from_jsonl(projects_dir: Path, week_ago: datetime) -> tuple[dict, str]:
     """Iterate JSONL files under projects_dir modified after week_ago.
 
@@ -44,28 +73,14 @@ def _sum_tokens_from_jsonl(projects_dir: Path, week_ago: datetime) -> tuple[dict
         return token_totals, service_tier
 
     for jsonl_file in projects_dir.rglob("*.jsonl"):
-        try:
-            if datetime.fromtimestamp(jsonl_file.stat().st_mtime) < week_ago:
-                continue
-            with jsonl_file.open(encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        d = json.loads(line)
-                    except Exception:
-                        continue
-                    if d.get("type") == "assistant" and "message" in d:
-                        u = d["message"].get("usage", {})
-                        token_totals["input"] += u.get("input_tokens", 0)
-                        token_totals["output"] += u.get("output_tokens", 0)
-                        token_totals["cache_creation"] += u.get("cache_creation_input_tokens", 0)
-                        token_totals["cache_read"] += u.get("cache_read_input_tokens", 0)
-                        if u.get("service_tier"):
-                            service_tier = u["service_tier"]
-        except Exception:
-            pass
+        result = _sum_tokens_from_file(jsonl_file, week_ago)
+        if result is None:
+            continue
+        partial, tier = result
+        for key in token_totals:
+            token_totals[key] += partial[key]
+        if tier != "standard":
+            service_tier = tier
 
     return token_totals, service_tier
 

@@ -156,6 +156,95 @@ class TestReadDailyActivity:
         assert result == []
 
 
+class TestSumTokensFromFile:
+    def _write_jsonl(self, path: Path, entries: list[dict]) -> None:
+        path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
+
+    def test_returns_partial_totals_for_recent_file(self, tmp_path):
+        """
+        Given a recent JSONL file with assistant usage entries
+        When _sum_tokens_from_file is called
+        Then it returns (partial_totals_dict, tier) with the correct values
+        """
+        from claude_monitor.account.router import _sum_tokens_from_file
+
+        f = tmp_path / "sess.jsonl"
+        self._write_jsonl(
+            f,
+            [
+                {
+                    "type": "assistant",
+                    "message": {
+                        "usage": {
+                            "input_tokens": 200,
+                            "output_tokens": 100,
+                            "cache_creation_input_tokens": 10,
+                            "cache_read_input_tokens": 30,
+                            "service_tier": "priority",
+                        }
+                    },
+                }
+            ],
+        )
+        week_ago = datetime.now() - timedelta(days=7)
+        result = _sum_tokens_from_file(f, week_ago)
+        assert result is not None
+        totals, tier = result
+        assert totals["input"] == 200
+        assert totals["output"] == 100
+        assert totals["cache_creation"] == 10
+        assert totals["cache_read"] == 30
+        assert tier == "priority"
+
+    def test_returns_none_for_old_file(self, tmp_path):
+        """
+        Given a JSONL file older than week_ago
+        When _sum_tokens_from_file is called
+        Then it returns None
+        """
+        from claude_monitor.account.router import _sum_tokens_from_file
+
+        f = tmp_path / "old.jsonl"
+        self._write_jsonl(f, [{"type": "assistant", "message": {"usage": {"input_tokens": 999}}}])
+        import time as time_mod
+
+        old_time = time_mod.time() - 8 * 24 * 3600
+        import os
+
+        os.utime(f, (old_time, old_time))
+        week_ago = datetime.now() - timedelta(days=7)
+        result = _sum_tokens_from_file(f, week_ago)
+        assert result is None
+
+    def test_returns_none_on_oserror(self, tmp_path):
+        """
+        Given a non-existent JSONL file
+        When _sum_tokens_from_file is called
+        Then it returns None
+        """
+        from claude_monitor.account.router import _sum_tokens_from_file
+
+        week_ago = datetime.now() - timedelta(days=7)
+        result = _sum_tokens_from_file(tmp_path / "ghost.jsonl", week_ago)
+        assert result is None
+
+    def test_returns_default_tier_when_no_service_tier(self, tmp_path):
+        """
+        Given a JSONL file with no service_tier field
+        When _sum_tokens_from_file is called
+        Then tier in result is 'standard'
+        """
+        from claude_monitor.account.router import _sum_tokens_from_file
+
+        f = tmp_path / "no_tier.jsonl"
+        self._write_jsonl(f, [{"type": "assistant", "message": {"usage": {"input_tokens": 5}}}])
+        week_ago = datetime.now() - timedelta(days=7)
+        result = _sum_tokens_from_file(f, week_ago)
+        assert result is not None
+        _, tier = result
+        assert tier == "standard"
+
+
 class TestSumTokensFromJsonl:
     def _write_jsonl(self, path: Path, entries: list[dict]) -> None:
         path.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
