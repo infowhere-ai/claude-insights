@@ -45,7 +45,21 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Run tests with coverage
-        run: pytest tests/ --ignore=tests/e2e -v --tb=short
+        run: pytest tests/ --ignore=tests/e2e -v --tb=short --cov-fail-under=80
+
+      - name: Smoke-test package imports
+        if: matrix.python-version == '3.12'
+        run: |
+          python -c "
+          from claude_monitor.main import app
+          from claude_monitor.terminal.ws import router
+          from claude_monitor.git_ops.router import router as git_router
+          from claude_monitor.sessions.router import router as sess_router
+          from claude_monitor.stats.router import router as stats_router
+          from claude_monitor.files.router import router as files_router
+          from claude_monitor.context.router import router as ctx_router
+          print('All routers imported successfully')
+          "
 
       - name: Upload coverage report
         if: matrix.python-version == '3.12'
@@ -87,7 +101,7 @@ jobs:
     runs-on: self-hosted
     needs: [test]
     # Only run on the original repo — forks and external contributors don't have these secrets
-    if: github.repository == 'infowhere-be/claude-monitor' && github.event_name != 'pull_request'
+    if: github.repository == 'infowhere-ai/claude-insights' && github.event_name != 'pull_request'
 
     steps:
       - uses: actions/checkout@v4
