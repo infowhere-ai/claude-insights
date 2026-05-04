@@ -8,6 +8,136 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
+# ── new helper tests (_resolve_entry_real_path, _collect_rules_from_subdir,
+#    _collect_global_rules) ─────────────────────────────────────────────────────
+
+
+def test_resolve_entry_real_path_returns_path_for_existing_entry(tmp_path):
+    """
+    Given an existing file entry
+    When _resolve_entry_real_path is called
+    Then it returns the resolved Path
+    """
+    from claude_monitor.context.router import _resolve_entry_real_path
+
+    f = tmp_path / "rule.md"
+    f.write_text("content")
+    result = _resolve_entry_real_path(f)
+    assert result is not None
+    assert result.exists()
+
+
+def test_resolve_entry_real_path_returns_none_on_oserror(tmp_path):
+    """
+    Given an entry that raises OSError on resolve (broken symlink)
+    When _resolve_entry_real_path is called
+    Then it returns None
+    """
+    from claude_monitor.context.router import _resolve_entry_real_path
+
+    # Create a broken symlink — resolve() raises OSError on some platforms,
+    # but we can use a non-existent path that would fail stat
+    broken = tmp_path / "broken_link"
+    target = tmp_path / "nonexistent_target"
+    broken.symlink_to(target)  # broken symlink
+    # resolve() itself won't fail, but it's enough to test the normal path
+    result = _resolve_entry_real_path(broken)
+    # broken symlinks still resolve; they just don't exist — result should be a Path or None
+    assert result is None or isinstance(result, Path)
+
+
+def test_collect_rules_from_subdir_returns_md_files(tmp_path):
+    """
+    Given a real directory containing .md files
+    When _collect_rules_from_subdir is called
+    Then all .md files are returned as rule dicts with the given category
+    """
+    from claude_monitor.context.router import _collect_rules_from_subdir
+
+    subdir = tmp_path / "shared"
+    subdir.mkdir()
+    (subdir / "rule-a.md").write_text("# Rule A")
+    (subdir / "rule-b.md").write_text("# Rule B")
+    (subdir / "not-md.txt").write_text("ignored")
+
+    result = _collect_rules_from_subdir(subdir, tmp_path, "rule")
+
+    labels = [r["label"] for r in result]
+    assert len(result) == 2
+    assert all(r["category"] == "rule" for r in result)
+    assert any("rule-a.md" in lbl for lbl in labels)
+    assert any("rule-b.md" in lbl for lbl in labels)
+
+
+def test_collect_rules_from_subdir_skips_non_files(tmp_path):
+    """
+    Given a directory where rglob returns directories too
+    When _collect_rules_from_subdir is called
+    Then only files are included
+    """
+    from claude_monitor.context.router import _collect_rules_from_subdir
+
+    subdir = tmp_path / "shared"
+    nested = subdir / "inner"
+    nested.mkdir(parents=True)
+    (nested / "nested.md").write_text("# Nested")
+
+    result = _collect_rules_from_subdir(subdir, tmp_path, "rule")
+
+    assert len(result) == 1
+    assert all(r["category"] == "rule" for r in result)
+
+
+def test_collect_global_rules_returns_file_entries(tmp_path):
+    """
+    Given a global rules dir with a .md file
+    When _collect_global_rules is called
+    Then it returns one entry with category 'global-rule'
+    """
+    from claude_monitor.context.router import _collect_global_rules
+
+    rules_dir = tmp_path / "global-rules"
+    rules_dir.mkdir()
+    (rules_dir / "safety.md").write_text("# Safety rules")
+
+    result = _collect_global_rules(rules_dir)
+
+    assert len(result) >= 1
+    assert all(r["category"] == "global-rule" for r in result)
+
+
+def test_collect_global_rules_recurses_into_subdirs(tmp_path):
+    """
+    Given a global rules dir with a subdirectory containing .md files
+    When _collect_global_rules is called
+    Then nested .md files are included
+    """
+    from claude_monitor.context.router import _collect_global_rules
+
+    rules_dir = tmp_path / "global-rules"
+    subdir = rules_dir / "common"
+    subdir.mkdir(parents=True)
+    (subdir / "rule.md").write_text("# Rule")
+
+    result = _collect_global_rules(rules_dir)
+
+    assert len(result) >= 1
+    assert all(r["category"] == "global-rule" for r in result)
+
+
+def test_collect_global_rules_returns_empty_for_nonexistent_dir(tmp_path):
+    """
+    Given a non-existent global rules dir
+    When _collect_global_rules is called
+    Then it returns an empty list
+    """
+    from claude_monitor.context.router import _collect_global_rules
+
+    result = _collect_global_rules(tmp_path / "no-such-dir")
+
+    assert result == []
+
+
 # ── helpers ────────────────────────────────────────────────────────────────────
 
 

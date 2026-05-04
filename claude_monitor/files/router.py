@@ -104,7 +104,7 @@ async def delete_file(project: str = Query(...), path: str = Query(...)):
 async def get_file_preview(path: str = Query(...)):
     MAX_CHARS = 50_000
     fp = Path(path)
-    if not fp.suffix == ".md":
+    if fp.suffix != ".md":
         return JSONResponse({"error": "only .md files allowed"}, status_code=400)
     if not fp.is_file():
         return JSONResponse({"error": "file not found"}, status_code=404)

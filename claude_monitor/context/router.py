@@ -36,15 +36,43 @@ def _make_rule_dict(label: str, real_path: Path, category: str) -> dict | None:
         return None
 
 
+def _resolve_entry_real_path(entry: Path) -> Path | None:
+    """Resolve a directory entry to its real path. Returns None on OSError or broken symlink."""
+    try:
+        real = entry.resolve()
+    except OSError:
+        return None
+    # A broken symlink resolves but is not a file or directory — treat as missing
+    if not real.exists():
+        return None
+    return real
+
+
+def _collect_rules_from_subdir(real: Path, projects_root: Path, category: str) -> list[dict]:
+    """Collect rule dicts for all .md files under a resolved directory."""
+    collected: list[dict] = []
+    for md_file in sorted(real.rglob("*.md")):
+        if not md_file.is_file():
+            continue
+        label = md_file.name
+        try:
+            label = str(md_file.relative_to(projects_root))
+        except ValueError:
+            pass
+        item = _make_rule_dict(label, md_file, category)
+        if item:
+            collected.append(item)
+    return collected
+
+
 def _add_rules_from_dir(rules_dir: Path, projects_root: Path, category: str) -> list[dict]:
     """Walk a rules directory and collect rule dicts for files and subdirectories."""
     collected: list[dict] = []
     if not rules_dir.is_dir():
         return collected
     for entry in sorted(rules_dir.iterdir()):
-        try:
-            real = entry.resolve()
-        except OSError:
+        real = _resolve_entry_real_path(entry)
+        if real is None:
             continue
         try:
             if real.is_file():
@@ -57,15 +85,35 @@ def _add_rules_from_dir(rules_dir: Path, projects_root: Path, category: str) -> 
                 if item:
                     collected.append(item)
             elif real.is_dir():
+                collected.extend(_collect_rules_from_subdir(real, projects_root, category))
+        except OSError:
+            pass
+    return collected
+
+
+def _collect_global_rules(rules_dir: Path) -> list[dict]:
+    """Collect global-rule dicts from ~/.claude/rules (files and subdirectories)."""
+    collected: list[dict] = []
+    if not rules_dir.is_dir():
+        return collected
+    for entry in sorted(rules_dir.iterdir()):
+        real = _resolve_entry_real_path(entry)
+        if real is None:
+            continue
+        try:
+            if real.is_file():
+                item = _make_rule_dict(f"~/.claude/rules/{entry.name}", real, "global-rule")
+                if item:
+                    collected.append(item)
+            elif real.is_dir():
                 for md_file in sorted(real.rglob("*.md")):
                     if not md_file.is_file():
                         continue
-                    label = md_file.name
-                    try:
-                        label = str(md_file.relative_to(projects_root))
-                    except ValueError:
-                        pass
-                    item = _make_rule_dict(label, md_file, category)
+                    item = _make_rule_dict(
+                        f"~/.claude/rules/{entry.name}/{md_file.name}",
+                        md_file,
+                        "global-rule",
+                    )
                     if item:
                         collected.append(item)
         except OSError:
@@ -92,31 +140,7 @@ def _collect_rules(project_path: Path, projects_root: Path) -> list[dict]:
             rules.append(item)
 
     rules.extend(_add_rules_from_dir(project_path / ".claude" / "rules", projects_root, "rule"))
-
-    if config.CLAUDE_RULES_DIR.is_dir():
-        for entry in sorted(config.CLAUDE_RULES_DIR.iterdir()):
-            try:
-                real = entry.resolve()
-            except OSError:
-                continue
-            try:
-                if real.is_file():
-                    item = _make_rule_dict(f"~/.claude/rules/{entry.name}", real, "global-rule")
-                    if item:
-                        rules.append(item)
-                elif real.is_dir():
-                    for md_file in sorted(real.rglob("*.md")):
-                        if not md_file.is_file():
-                            continue
-                        item = _make_rule_dict(
-                            f"~/.claude/rules/{entry.name}/{md_file.name}",
-                            md_file,
-                            "global-rule",
-                        )
-                        if item:
-                            rules.append(item)
-            except OSError:
-                pass
+    rules.extend(_collect_global_rules(config.CLAUDE_RULES_DIR))
 
     rules.sort(key=lambda r: r["size_bytes"], reverse=True)
     return rules

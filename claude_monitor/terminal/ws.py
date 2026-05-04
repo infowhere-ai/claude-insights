@@ -11,7 +11,7 @@ import termios
 from pathlib import Path
 from typing import Callable
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket
 
 router = APIRouter(tags=["terminal"])
 
@@ -25,7 +25,7 @@ async def _pty_to_ws(master_fd: int, websocket: WebSocket, alive_ref: list[bool]
             if not data:
                 break
             await websocket.send_bytes(data)
-    except (OSError, Exception):
+    except Exception:
         pass
     finally:
         alive_ref[0] = False
@@ -57,7 +57,7 @@ async def _ws_to_pty(
                 os.write(master_fd, raw)
             except OSError:
                 break
-    except (WebSocketDisconnect, Exception):
+    except Exception:
         pass
     finally:
         alive_ref[0] = False

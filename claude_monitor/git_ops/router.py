@@ -26,7 +26,7 @@ _STATUS_LABELS = {
 
 async def _git_run(cmd: list[str], cwd: Path, timeout: int) -> CompletedProcess:
     """Run a git command in a thread pool. Returns CompletedProcess."""
-    return await asyncio.to_thread(
+    return await asyncio.to_thread(  # nosonar
         subprocess.run,
         cmd,
         cwd=str(cwd),

@@ -85,7 +85,7 @@ def persist_done_agents(
     """Scan agents dir, persist done agents to SQLite, delete old files."""
     persisted = state._persisted_agent_ids.setdefault(project_name, set())
     active: list[dict] = []
-    for agent_file in list(agents_dir.glob("agent_*.json")):
+    for agent_file in tuple(agents_dir.glob("agent_*.json")):
         try:
             agent_data, agent_id = _parse_agent_file(agent_file)
         except Exception:
@@ -118,7 +118,7 @@ def persist_and_clean_session(project_name: str, data: dict, agents_dir: Path | 
 
     if agents_dir and agents_dir.is_dir():
         persisted = state._persisted_agent_ids.setdefault(project_name, set())
-        for agent_file in list(agents_dir.glob("agent_*.json")):
+        for agent_file in tuple(agents_dir.glob("agent_*.json")):
             try:
                 agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
                 agent_id = agent_data.get("id", agent_file.stem)
