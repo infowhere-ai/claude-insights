@@ -2,7 +2,7 @@ name: release
 
 on:
   push:
-    branches: [main]
+    tags: ["v*"]
 
 jobs:
   # ── 1. Build macOS binary (arm64) ──────────────────────────────────────────
