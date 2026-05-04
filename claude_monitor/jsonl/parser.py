@@ -48,6 +48,21 @@ def _extract_tool_from_content(content: list) -> str | None:
     return None
 
 
+def _parse_jsonl_tail_line(
+    d: dict, current_cwd: str | None, current_tool: str | None
+) -> tuple[str | None, str | None]:
+    """Extract tool and cwd from a single parsed JSONL line without overwriting existing values."""
+    cwd = current_cwd
+    tool = current_tool
+    if cwd is None and d.get("cwd"):
+        cwd = d["cwd"]
+    if tool is None and d.get("type") == "assistant":
+        content = d.get("message", {}).get("content", [])
+        if isinstance(content, list):
+            tool = _extract_tool_from_content(content)
+    return tool, cwd
+
+
 def parse_jsonl_tail(jsonl_path: Path) -> dict:
     """Read last 8 KB of a JSONL session file. Returns {tool, cwd}."""
     raw = _read_tail_bytes(jsonl_path, 8192)
@@ -60,12 +75,7 @@ def parse_jsonl_tail(jsonl_path: Path) -> dict:
             d = json.loads(line)
         except Exception:
             continue
-        if not cwd and d.get("cwd"):
-            cwd = d["cwd"]
-        if tool is None and d.get("type") == "assistant":
-            content = d.get("message", {}).get("content", [])
-            if isinstance(content, list):
-                tool = _extract_tool_from_content(content)
+        tool, cwd = _parse_jsonl_tail_line(d, cwd, tool)
         if cwd and tool:
             break
     return {"tool": tool, "cwd": cwd}

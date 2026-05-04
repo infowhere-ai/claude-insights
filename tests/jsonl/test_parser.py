@@ -531,6 +531,82 @@ class TestGetJsonlDir:
         assert result.parent == Path.home() / ".claude" / "projects"
 
 
+# ── _parse_jsonl_tail_line ────────────────────────────────────────────────────
+
+
+class TestParseJsonlTailLine:
+    """Tests for _parse_jsonl_tail_line helper (extracted from parse_jsonl_tail)."""
+
+    def test_extracts_cwd_from_user_entry(self):
+        """
+        Given a user entry with a cwd field
+        When _parse_jsonl_tail_line is called with cwd=None, tool=None
+        Then it returns (tool=None, cwd='/some/path')
+        """
+        from claude_monitor.jsonl.parser import _parse_jsonl_tail_line
+
+        d = {"type": "user", "cwd": "/some/path", "message": {"content": []}}
+        tool, cwd = _parse_jsonl_tail_line(d, current_cwd=None, current_tool=None)
+        assert cwd == "/some/path"
+        assert tool is None
+
+    def test_extracts_tool_from_assistant_entry(self):
+        """
+        Given an assistant entry with a tool_use block
+        When _parse_jsonl_tail_line is called with tool=None
+        Then it returns the tool name
+        """
+        from claude_monitor.jsonl.parser import _parse_jsonl_tail_line
+
+        d = {
+            "type": "assistant",
+            "message": {"content": [{"type": "tool_use", "name": "Bash", "id": "t1", "input": {}}]},
+        }
+        tool, cwd = _parse_jsonl_tail_line(d, current_cwd=None, current_tool=None)
+        assert tool == "Bash"
+        assert cwd is None
+
+    def test_does_not_overwrite_existing_cwd(self):
+        """
+        Given a user entry with cwd and current_cwd already set
+        When _parse_jsonl_tail_line is called
+        Then the existing cwd is preserved
+        """
+        from claude_monitor.jsonl.parser import _parse_jsonl_tail_line
+
+        d = {"type": "user", "cwd": "/new/path", "message": {"content": []}}
+        tool, cwd = _parse_jsonl_tail_line(d, current_cwd="/old/path", current_tool=None)
+        assert cwd == "/old/path"
+
+    def test_does_not_overwrite_existing_tool(self):
+        """
+        Given an assistant entry and current_tool already set
+        When _parse_jsonl_tail_line is called
+        Then the existing tool is preserved
+        """
+        from claude_monitor.jsonl.parser import _parse_jsonl_tail_line
+
+        d = {
+            "type": "assistant",
+            "message": {"content": [{"type": "tool_use", "name": "Read", "id": "t1", "input": {}}]},
+        }
+        tool, cwd = _parse_jsonl_tail_line(d, current_cwd=None, current_tool="Bash")
+        assert tool == "Bash"
+
+    def test_returns_none_for_unknown_type(self):
+        """
+        Given an entry that is neither user nor assistant
+        When _parse_jsonl_tail_line is called
+        Then nothing changes
+        """
+        from claude_monitor.jsonl.parser import _parse_jsonl_tail_line
+
+        d = {"type": "system", "message": {}}
+        tool, cwd = _parse_jsonl_tail_line(d, current_cwd=None, current_tool=None)
+        assert tool is None
+        assert cwd is None
+
+
 # ── parse_jsonl_tail ──────────────────────────────────────────────────────────
 
 
