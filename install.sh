@@ -170,7 +170,15 @@ check_requirements() {
         red "claude CLI not found. Install Claude Code first: https://claude.ai/code"
         ok=false
     else
-        green "claude CLI $(claude --version 2>/dev/null | head -1 || echo 'found')"
+        _claude_ver=$(claude --version 2>/dev/null | head -1 || echo "")
+        _claude_major=$(echo "$_claude_ver" | grep -oE '^[0-9]+' || echo "0")
+        if [ "${_claude_major}" -lt 1 ] 2>/dev/null; then
+            red "Claude Code $_claude_ver found — version 1.0+ is required."
+            red "Update with: npm install -g @anthropic-ai/claude-code@latest"
+            ok=false
+        else
+            green "claude CLI $_claude_ver"
+        fi
     fi
 
     if ! command -v git &>/dev/null; then
