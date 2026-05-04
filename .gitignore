@@ -1,8 +1,34 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.egg
+*.egg-info/
+pip-wheel-metadata/
 .venv/
 .env
+.env.*
+!.env.example
+
+# Build artefacts (mas não scripts de packaging em dist/)
+dist/claude-*/
+dist/*.whl
+dist/*.tar.gz
+dist/*.deb
+
+# Test coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+
+# Type checking / lint
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
 
 # Claude — estado e logs
 .claude/status.json
@@ -10,39 +36,39 @@ __pycache__/
 .claude/weekly_tokens.json
 
 # Claude — configs internas (NUNCA para repo público)
+.claude/settings.json
 .claude/rules/
 .claude/plans/
 .claude/agents/
+
+# Ferramentas internas
 .superpowers/
 .worktrees/
+.wrangler/
+.playwright-mcp/
 
-# IDE
-.idea/
-.vscode/
-
-# OS
-.DS_Store
-
-# Runtime
-.claude-monitor.log
-.claude-monitor.pid
-
-# Internal docs (não relevantes para repo público)
+# Documentação interna
 docs/superpowers/
+docs/plans/
+docs/specs/
+docs/deploy/
 
 # Debug scripts internos
 debug-*.mjs
 debug-*.js
 
-# Build artefacts
-dist/
-*.whl
-*.egg-info/
+# IDE
+.idea/
+.vscode/
+*.iml
 
-# Test coverage
-coverage.xml
-htmlcov/
-.pytest_cache/
+# OS
+.DS_Store
+Thumbs.db
 
-# Playwright
-.playwright-mcp/
+# Runtime
+.claude-monitor.log
+.claude-monitor.pid
+
+# Backup files
+*.backup-*

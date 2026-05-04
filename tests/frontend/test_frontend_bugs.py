@@ -7,12 +7,12 @@ Each test fetches /insights and inspects the returned HTML for the presence
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 # ── Bug 7 — active_agents panel must exist in the HTML ────────────────────────
+
 
 def test_bug7_agents_panel_present(app_client):
     """The active_agents panel div must be in insights.html."""
@@ -57,6 +57,7 @@ def test_bug7_render_called_on_sse_update(app_client):
 
 # ── Bug 8 — userLockedSession flag prevents SSE overriding manual selection ───
 
+
 def test_bug8_locked_session_flag_declared(app_client):
     """The _userLockedSession flag must be declared as a JS variable."""
     r = app_client.get("/insights")
@@ -99,6 +100,7 @@ def test_bug8_lock_reset_on_project_switch(app_client):
 
 # ── Bug 9 — unreleased GitHub repo link must not be in the About dialog ───────
 
+
 def test_bug9_github_link_removed(app_client):
     """The href to the unreleased github.com/infowhere-ai/claude-insights must be gone."""
     r = app_client.get("/insights")
@@ -121,14 +123,13 @@ def test_bug9_about_dialog_still_renders(app_client):
 
 # ── Bug 10 — mobile media queries must be present ────────────────────────────
 
+
 def test_bug10_media_query_present(app_client):
     """insights.html must contain at least one @media rule for small viewports."""
     r = app_client.get("/insights")
     assert r.status_code == 200
     html = r.text
-    assert "@media" in html, (
-        "Bug 10: no @media CSS rules found — layout breaks on mobile"
-    )
+    assert "@media" in html, "Bug 10: no @media CSS rules found — layout breaks on mobile"
 
 
 def test_bug10_mobile_breakpoint_768(app_client):

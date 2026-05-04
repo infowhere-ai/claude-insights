@@ -1,0 +1,203 @@
+"""Session and agent persistence logic."""
+
+import datetime
+import json
+import time
+from pathlib import Path
+
+from claude_monitor import db
+from claude_monitor import config, state
+
+
+def current_session_id(project_name: str) -> str | None:
+    path_str = state._jsonl_cache.get(project_name, {}).get("jsonl_path")
+    return Path(path_str).stem if path_str else None
+
+
+def _parse_agent_file(agent_file: Path) -> tuple[dict, str]:
+    """Read and parse an agent JSON file. Returns (agent_data, agent_id) or raises."""
+    agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+    agent_id = agent_data.get("id", agent_file.stem)
+    return agent_data, agent_id
+
+
+def _is_stale_running(agent_data: dict, now_ts: float) -> bool:
+    """Return True if a running agent's last_updated/started_at is >600s old."""
+    ts_str = agent_data.get("last_updated") or agent_data.get("started_at", "")
+    if not ts_str:
+        return False
+    try:
+        ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        return (now_ts - ts.timestamp()) > 600
+    except Exception:
+        return False
+
+
+def _age_of_done_agent(agent_data: dict, now_ts: float) -> float:
+    """Return seconds since agent finished_at, or inf if unavailable."""
+    finished_at = agent_data.get("finished_at", "")
+    if not finished_at:
+        return float("inf")
+    try:
+        ft = datetime.datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+        return now_ts - ft.timestamp()
+    except Exception:
+        return float("inf")
+
+
+def _process_running_agent(agent_data: dict, now_ts: float, active: list) -> None:
+    """Append a running agent to active list if not stale."""
+    if not _is_stale_running(agent_data, now_ts):
+        active.append(agent_data)
+
+
+def _process_done_agent(
+    agent_data: dict,
+    agent_id: str,
+    agent_file: Path,
+    now_ts: float,
+    persisted: set,
+    active: list,
+    project_name: str,
+    session_id: str | None,
+) -> None:
+    """Persist a done agent to SQLite and append/delete depending on age."""
+    if agent_id not in persisted:
+        try:
+            db.upsert_agent_run(agent_data, project_name, session_id)
+            persisted.add(agent_id)
+        except Exception:
+            pass
+
+    age = _age_of_done_agent(agent_data, now_ts)
+    if age < 300:
+        active.append(agent_data)
+    else:
+        try:
+            agent_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def persist_done_agents(
+    agents_dir: Path, project_name: str, session_id: str | None, now_ts: float
+) -> list[dict]:
+    """Scan agents dir, persist done agents to SQLite, delete old files."""
+    persisted = state._persisted_agent_ids.setdefault(project_name, set())
+    active: list[dict] = []
+    for agent_file in tuple(agents_dir.glob("agent_*.json")):
+        try:
+            agent_data, agent_id = _parse_agent_file(agent_file)
+        except Exception:
+            continue
+
+        agent_state = agent_data.get("state")
+        if agent_state == "running":
+            _process_running_agent(agent_data, now_ts, active)
+        elif agent_state == "done":
+            _process_done_agent(
+                agent_data,
+                agent_id,
+                agent_file,
+                now_ts,
+                persisted,
+                active,
+                project_name,
+                session_id,
+            )
+
+    active.sort(key=lambda a: a.get("started_at", ""))
+    return active
+
+
+def persist_and_clean_session(project_name: str, data: dict, agents_dir: Path | None) -> None:
+    """Persist session summary to SQLite and delete all remaining agent files."""
+    session_id = current_session_id(project_name)
+    if not session_id:
+        return
+
+    if agents_dir and agents_dir.is_dir():
+        persisted = state._persisted_agent_ids.setdefault(project_name, set())
+        for agent_file in tuple(agents_dir.glob("agent_*.json")):
+            try:
+                agent_data = json.loads(agent_file.read_text(encoding="utf-8"))
+                agent_id = agent_data.get("id", agent_file.stem)
+                if agent_id not in persisted:
+                    db.upsert_agent_run(agent_data, project_name, session_id)
+                    persisted.add(agent_id)
+            except Exception:
+                pass
+            try:
+                agent_file.unlink(missing_ok=True)
+            except Exception:
+                pass
+        state._persisted_agent_ids.pop(project_name, None)
+
+    stats = data.get("stats", {})
+    agent_count = len(state._persisted_agent_ids.get(project_name, set()))
+    finished_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    try:
+        db.upsert_session_run(
+            session_id, project_name, stats, finished_at=finished_at, agent_count=agent_count
+        )
+    except Exception:
+        pass
+
+
+def _read_session_file(f: Path, now: float) -> dict | None:
+    """Read a single JSONL session file and return its metadata dict.
+
+    Returns None on OSError. The returned dict contains a '_mtime' key
+    for sorting, which should be removed by the caller.
+    """
+    try:
+        mtime = f.stat().st_mtime
+        is_active = (now - mtime) <= config.JSONL_ACTIVE_SECONDS
+        started_at = ended_at = None
+        with f.open(encoding="utf-8", errors="ignore") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                    ts = d.get("timestamp")
+                    if ts and started_at is None:
+                        started_at = ts
+                    if ts:
+                        ended_at = ts
+                except Exception:
+                    continue
+        return {
+            "session_id": f.stem,
+            "started_at": started_at,
+            "ended_at": None if is_active else ended_at,
+            "is_active": is_active,
+            "_mtime": mtime,
+        }
+    except OSError:
+        return None
+
+
+def list_sessions(project_name: str) -> list[dict]:
+    """Lists root-level JSONL sessions for a project, newest-first."""
+    if project_name not in state._status_paths:
+        return []
+    project_path = state._status_paths[project_name].parents[1]
+    encoded = str(project_path).replace("/", "-")
+    jsonl_dir = config.CLAUDE_PROJECTS_DIR / encoded
+    if not jsonl_dir.is_dir():
+        return []
+    now = time.time()
+    sessions = []
+    try:
+        for f in jsonl_dir.glob("*.jsonl"):
+            entry = _read_session_file(f, now)
+            if entry is not None:
+                sessions.append(entry)
+    except OSError:
+        return []
+    sessions.sort(key=lambda s: s["_mtime"], reverse=True)
+    for s in sessions:
+        del s["_mtime"]
+    return sessions
