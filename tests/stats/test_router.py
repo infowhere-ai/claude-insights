@@ -189,6 +189,116 @@ def _assistant_entry(tool: str = "Read", input_tokens: int = 100, output_tokens:
     }
 
 
+class TestAggregateSessionStats:
+    """Tests for _aggregate_session_stats helper (extracted from get_insights_stats)."""
+
+    def _setup_jsonl_dir(self, tmp_path: Path) -> Path:
+        encoded = str(tmp_path / "proj").replace("/", "-")
+        d = tmp_path / "claude_p" / encoded
+        d.mkdir(parents=True)
+        return d
+
+    def test_returns_zero_totals_for_empty_dir(self, tmp_path):
+        """
+        Given a JSONL directory with no files
+        When _aggregate_session_stats is called
+        Then all counters are zero and tool_counts is empty
+        """
+        from claude_monitor.stats.router import _aggregate_session_stats
+
+        jsonl_dir = tmp_path / "empty_dir"
+        jsonl_dir.mkdir()
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _aggregate_session_stats(jsonl_dir, cutoff)
+
+        assert result["sessions_total"] == 0
+        assert result["sessions_count"] == 0
+        assert result["total_input"] == 0
+        assert result["total_output"] == 0
+        assert result["total_cache"] == 0
+        assert result["tool_counts"] == {}
+
+    def test_aggregates_recent_sessions(self, tmp_path):
+        """
+        Given a JSONL dir with one recent file containing assistant entries
+        When _aggregate_session_stats is called
+        Then sessions_count=1 and totals reflect the file
+        """
+        from claude_monitor.stats.router import _aggregate_session_stats
+
+        jsonl_dir = tmp_path / "recent"
+        jsonl_dir.mkdir()
+        f = jsonl_dir / "sess.jsonl"
+        f.write_text(
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [{"type": "tool_use", "name": "Read"}],
+                        "usage": {
+                            "input_tokens": 100,
+                            "output_tokens": 50,
+                            "cache_read_input_tokens": 20,
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _aggregate_session_stats(jsonl_dir, cutoff)
+
+        assert result["sessions_total"] == 1
+        assert result["sessions_count"] == 1
+        assert result["total_input"] == 100
+        assert result["total_output"] == 50
+        assert result["total_cache"] == 20
+        assert result["tool_counts"].get("Read") == 1
+
+    def test_sessions_total_includes_old_files(self, tmp_path):
+        """
+        Given one old and one recent JSONL file
+        When _aggregate_session_stats is called
+        Then sessions_total=2 but sessions_count=1
+        """
+        from claude_monitor.stats.router import _aggregate_session_stats
+
+        jsonl_dir = tmp_path / "mixed"
+        jsonl_dir.mkdir()
+        recent = jsonl_dir / "recent.jsonl"
+        recent.write_text(
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [],
+                        "usage": {
+                            "input_tokens": 10,
+                            "output_tokens": 5,
+                            "cache_read_input_tokens": 0,
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        old = jsonl_dir / "old.jsonl"
+        old.write_text(
+            json.dumps({"type": "assistant", "message": {"usage": {"input_tokens": 999}}}),
+            encoding="utf-8",
+        )
+        import os
+
+        old_time = time.time() - 10 * 24 * 3600
+        os.utime(old, (old_time, old_time))
+
+        cutoff = time.time() - 7 * 24 * 3600
+        result = _aggregate_session_stats(jsonl_dir, cutoff)
+
+        assert result["sessions_total"] == 2
+        assert result["sessions_count"] == 1
+
+
 def test_weekly_stats_returns_dict(app_client):
     r = app_client.get("/api/weekly-stats")
     assert r.status_code == 200

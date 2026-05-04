@@ -70,6 +70,40 @@ def _scan_jsonl_for_window_tokens(f: Path, cutoff: float) -> dict | None:
         return None
 
 
+def _aggregate_session_stats(jsonl_dir: Path, cutoff: float) -> dict:
+    """Scan all JSONL files in a directory and aggregate token/tool stats.
+
+    Returns a dict with sessions_total, sessions_count, total_input,
+    total_output, total_cache, and tool_counts.
+    """
+    sessions_total = 0
+    sessions_count = 0
+    total_input = total_output = total_cache = 0
+    tool_counts: dict[str, int] = {}
+    try:
+        for f in jsonl_dir.glob("*.jsonl"):
+            sessions_total += 1
+            result = _scan_jsonl_for_stats(f, cutoff)
+            if result is None:
+                continue
+            sessions_count += 1
+            total_input += result["input"]
+            total_output += result["output"]
+            total_cache += result["cache"]
+            for name, count in result["tools"].items():
+                tool_counts[name] = tool_counts.get(name, 0) + count
+    except OSError:
+        pass
+    return {
+        "sessions_total": sessions_total,
+        "sessions_count": sessions_count,
+        "total_input": total_input,
+        "total_output": total_output,
+        "total_cache": total_cache,
+        "tool_counts": tool_counts,
+    }
+
+
 @router.get("/api/weekly-stats")
 async def get_weekly_stats():
     result = {}
@@ -100,31 +134,15 @@ async def get_insights_stats(project: str = Query(...)):
             "top_tool_count": 0,
         }
     cutoff = time.time() - 7 * 24 * 3600
-    sessions_total = 0
-    sessions_count = 0
-    total_input = total_output = total_cache = 0
-    tool_counts: dict[str, int] = {}
-    try:
-        for f in jsonl_dir.glob("*.jsonl"):
-            sessions_total += 1
-            result = _scan_jsonl_for_stats(f, cutoff)
-            if result is None:
-                continue
-            sessions_count += 1
-            total_input += result["input"]
-            total_output += result["output"]
-            total_cache += result["cache"]
-            for name, count in result["tools"].items():
-                tool_counts[name] = tool_counts.get(name, 0) + count
-    except OSError:
-        pass
-    total_tokens = total_input + total_output
-    total_real = total_input + total_cache
-    cache_hit_pct = round(total_cache / total_real * 100) if total_real > 0 else 0
+    agg = _aggregate_session_stats(jsonl_dir, cutoff)
+    total_tokens = agg["total_input"] + agg["total_output"]
+    total_real = agg["total_input"] + agg["total_cache"]
+    cache_hit_pct = round(agg["total_cache"] / total_real * 100) if total_real > 0 else 0
+    tool_counts = agg["tool_counts"]
     top_tool = max(tool_counts, key=tool_counts.get) if tool_counts else None
     return {
-        "sessions_count": sessions_total,
-        "sessions_7d": sessions_count,
+        "sessions_count": agg["sessions_total"],
+        "sessions_7d": agg["sessions_count"],
         "total_tokens": total_tokens,
         "cache_hit_pct": cache_hit_pct,
         "top_tool": top_tool,
