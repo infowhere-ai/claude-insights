@@ -37,7 +37,7 @@ jobs:
         run: mv dist/claude-insights dist/claude-insights-macos-arm64
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-macos-arm64
           path: dist/claude-insights-macos-arm64
@@ -74,7 +74,7 @@ jobs:
         run: mv dist/claude-insights dist/claude-insights-linux-x86_64
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-linux-x86_64
           path: dist/claude-insights-linux-x86_64
@@ -99,7 +99,7 @@ jobs:
           python -m hatchling build --target wheel
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-wheel
           path: dist/*.whl
