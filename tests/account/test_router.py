@@ -4,7 +4,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -163,7 +163,7 @@ class TestSumTokensFromFile:
     def test_returns_partial_totals_for_recent_file(self, tmp_path):
         """
         Given a recent JSONL file with assistant usage entries
-        When _sum_tokens_from_file is called
+        When _sum_tokens_from_file is called with a timezone-aware week_ago
         Then it returns (partial_totals_dict, tier) with the correct values
         """
         from claude_monitor.account.router import _sum_tokens_from_file
@@ -186,7 +186,7 @@ class TestSumTokensFromFile:
                 }
             ],
         )
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         result = _sum_tokens_from_file(f, week_ago)
         assert result is not None
         totals, tier = result
@@ -199,8 +199,8 @@ class TestSumTokensFromFile:
     def test_returns_none_for_old_file(self, tmp_path):
         """
         Given a JSONL file older than week_ago
-        When _sum_tokens_from_file is called
-        Then it returns None
+        When _sum_tokens_from_file is called with a timezone-aware week_ago
+        Then it returns None (file is correctly skipped)
         """
         from claude_monitor.account.router import _sum_tokens_from_file
 
@@ -212,33 +212,33 @@ class TestSumTokensFromFile:
         import os
 
         os.utime(f, (old_time, old_time))
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         result = _sum_tokens_from_file(f, week_ago)
         assert result is None
 
     def test_returns_none_on_oserror(self, tmp_path):
         """
         Given a non-existent JSONL file
-        When _sum_tokens_from_file is called
+        When _sum_tokens_from_file is called with a timezone-aware week_ago
         Then it returns None
         """
         from claude_monitor.account.router import _sum_tokens_from_file
 
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         result = _sum_tokens_from_file(tmp_path / "ghost.jsonl", week_ago)
         assert result is None
 
     def test_returns_default_tier_when_no_service_tier(self, tmp_path):
         """
         Given a JSONL file with no service_tier field
-        When _sum_tokens_from_file is called
+        When _sum_tokens_from_file is called with a timezone-aware week_ago
         Then tier in result is 'standard'
         """
         from claude_monitor.account.router import _sum_tokens_from_file
 
         f = tmp_path / "no_tier.jsonl"
         self._write_jsonl(f, [{"type": "assistant", "message": {"usage": {"input_tokens": 5}}}])
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         result = _sum_tokens_from_file(f, week_ago)
         assert result is not None
         _, tier = result
@@ -270,7 +270,7 @@ class TestSumTokensFromJsonl:
                 }
             ],
         )
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         totals, tier = account_router._sum_tokens_from_jsonl(tmp_path, week_ago)
         assert totals["input"] == 100
         assert totals["output"] == 50
@@ -289,7 +289,7 @@ class TestSumTokensFromJsonl:
         )
         old_time = time.time() - 8 * 24 * 3600
         os.utime(old_file, (old_time, old_time))
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         totals, tier = account_router._sum_tokens_from_jsonl(tmp_path, week_ago)
         assert totals["input"] == 0
 
@@ -301,13 +301,13 @@ class TestSumTokensFromJsonl:
             proj_dir / "sess.jsonl",
             [{"type": "assistant", "message": {"usage": {"input_tokens": 10}}}],
         )
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         _, tier = account_router._sum_tokens_from_jsonl(tmp_path, week_ago)
         assert tier == "standard"
 
     def test_returns_empty_totals_when_projects_dir_missing(self, tmp_path):
         """_sum_tokens_from_jsonl returns zero totals when projects dir does not exist."""
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         totals, tier = account_router._sum_tokens_from_jsonl(tmp_path / "no-dir", week_ago)
         assert totals["input"] == 0
         assert tier == "standard"

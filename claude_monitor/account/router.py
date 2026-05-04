@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -35,7 +35,7 @@ def _read_daily_activity(cache_file: Path) -> list:
 def _sum_tokens_from_file(f: Path, week_ago: datetime) -> tuple[dict, str] | None:
     """Process one JSONL file and return (partial_totals, tier) or None if skipped/error."""
     try:
-        if datetime.fromtimestamp(f.stat().st_mtime) < week_ago:
+        if datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc) < week_ago:
             return None
         totals = {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0}
         tier: str = "standard"
@@ -89,7 +89,7 @@ def _get_account_sync() -> dict:
     """Synchronous worker — runs in a thread via asyncio.to_thread()."""
     settings = _read_settings(config.CLAUDE_SETTINGS_FILE)
     daily_activity = _read_daily_activity(config.CLAUDE_STATS_CACHE)
-    week_ago = datetime.now() - timedelta(days=7)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     token_totals, service_tier = _sum_tokens_from_jsonl(config.CLAUDE_PROJECTS_DIR, week_ago)
 
     return {

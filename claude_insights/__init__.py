@@ -1,3 +1,8 @@
 """claude-insights — real-time dashboard for Claude Code sessions."""
 
-__version__ = "1.0.0b1"
+try:
+    from importlib.metadata import version, PackageNotFoundError
+
+    __version__ = version("claude-insights")
+except PackageNotFoundError:
+    __version__ = "dev"
