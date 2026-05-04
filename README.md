@@ -126,9 +126,13 @@ Claude Code  →  hook fires  →  .claude/status.json  →  Claude Insights (SS
 ## Requirements
 
 - Python 3.10+
-- [Claude Code CLI](https://claude.ai/code) (`claude`) in PATH
+- [Claude Code CLI](https://claude.ai/code) **1.0+** (`claude`) in PATH
 - macOS or Linux
 - Git
+
+> **Claude Code version:** claude-insights requires Claude Code **1.0 or later** (hooks support).
+> The `PreCompact` hook (compacting state indicator) requires **1.5+** and is optional —
+> the dashboard works without it. Update with `npm install -g @anthropic-ai/claude-code@latest`.
 
 ---
 
