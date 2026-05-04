@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 import pty
+import re
 import shutil
 import struct
 import termios
@@ -14,6 +15,10 @@ from typing import Callable
 from fastapi import APIRouter, WebSocket
 
 router = APIRouter(tags=["terminal"])
+
+# Only accept connections from localhost origins (http or https, with optional port).
+# This blocks malicious file:// pages and remote origins from opening a shell.
+_ALLOWED_ORIGIN_RE = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$")
 
 
 async def _pty_to_ws(master_fd: int, websocket: WebSocket, alive_ref: list[bool]) -> None:
@@ -65,6 +70,10 @@ async def _ws_to_pty(
 
 @router.websocket("/ws/terminal")
 async def terminal_ws(websocket: WebSocket):  # pragma: no cover
+    origin = websocket.headers.get("origin", "")
+    if not _ALLOWED_ORIGIN_RE.match(origin):
+        await websocket.close(code=1008, reason="Origin not allowed")
+        return
     await websocket.accept()
 
     claude_path = shutil.which("claude")

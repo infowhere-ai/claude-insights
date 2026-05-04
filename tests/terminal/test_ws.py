@@ -41,7 +41,10 @@ class TestTerminalAsyncSubprocessSafety:
             ) as mock_exec,
         ):
             try:
-                with app_client.websocket_connect("/ws/terminal") as ws:
+                with app_client.websocket_connect(
+                    "/ws/terminal",
+                    headers={"origin": "http://localhost:19001"},
+                ) as ws:
                     ws.close()
             except Exception:
                 pass
@@ -221,3 +224,54 @@ class TestWsToPty:
             await _ws_to_pty(10, websocket, alive_ref, set_winsize)
 
         mock_write.assert_called_once_with(10, b"hello")
+
+
+class TestTerminalOriginCheck:
+    """
+    Verify the _ALLOWED_ORIGIN_RE pattern allows localhost only.
+
+    Given: the regex defined in claude_monitor.terminal.ws._ALLOWED_ORIGIN_RE
+    When:  matched against various origin strings
+    Then:  localhost origins match; all others do not
+
+    Red: fails before the regex is defined (ImportError or AttributeError).
+    Green: passes after _ALLOWED_ORIGIN_RE is added to ws.py.
+    """
+
+    def _re(self):
+        from claude_monitor.terminal.ws import _ALLOWED_ORIGIN_RE
+
+        return _ALLOWED_ORIGIN_RE
+
+    @pytest.mark.parametrize(
+        "origin",
+        [
+            "http://localhost:4000",
+            "http://localhost:19001",
+            "http://localhost",
+            "http://127.0.0.1:19001",
+            "http://127.0.0.1",
+            "https://localhost:4000",
+            "https://127.0.0.1:8443",
+        ],
+    )
+    def test_allowed_origins_match(self, origin):
+        """Localhost origins must be accepted."""
+        assert self._re().match(origin), f"Expected {origin!r} to match"
+
+    @pytest.mark.parametrize(
+        "origin",
+        [
+            "http://evil.com",
+            "file://",
+            "null",
+            "",
+            "http://localhost.evil.com",
+            "http://notlocalhost",
+            "http://127.0.0.2",
+            "http://0.0.0.0",
+        ],
+    )
+    def test_disallowed_origins_do_not_match(self, origin):
+        """Non-localhost origins must be rejected."""
+        assert not self._re().match(origin), f"Expected {origin!r} NOT to match"

@@ -72,8 +72,7 @@ app = FastAPI(title="claude-insights", version=config.VERSION, lifespan=lifespan
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["null"],  # file:// protocol
-    allow_origin_regex=config.CORS_ORIGIN_REGEX,  # localhost by default
+    allow_origin_regex=config.CORS_ORIGIN_REGEX,  # localhost only
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )

@@ -161,9 +161,10 @@ cmd_start() {
         sleep 0.5
     fi
 
-    info "Starting claude-monitor on port $PORT..."
+    HOST="${HOST:-127.0.0.1}"
+    info "Starting claude-monitor on ${HOST}:${PORT}..."
     "$VENV/bin/uvicorn" claude_monitor.main:app \
-        --host 0.0.0.0 \
+        --host "$HOST" \
         --port "$PORT" \
         >> "$LOG_FILE" 2>&1 &
 

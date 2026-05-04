@@ -128,6 +128,9 @@ async def get_pending_files(project: str = Query(...)):
 
 @router.get("/api/diff")
 async def get_diff(project: str = Query(...), file: str = Query(...)):
+    if ".." in project or project.startswith("/"):
+        return JSONResponse({"error": "invalid project name"}, status_code=400)
+
     project_path = config.PROJECTS_ROOT / project
     if not project_path.is_dir():
         return JSONResponse({"error": "project not found"}, status_code=404)
@@ -135,6 +138,11 @@ async def get_diff(project: str = Query(...), file: str = Query(...)):
     file_path = Path(file)
     if not file_path.is_absolute():
         file_path = project_path / file_path
+
+    try:
+        file_path.resolve().relative_to(project_path.resolve())
+    except ValueError:
+        return JSONResponse({"error": "path outside project"}, status_code=400)
 
     if not file_path.is_file():
         return JSONResponse({"error": "file not found", "diff": ""})

@@ -315,6 +315,41 @@ class TestParsePorcelainLine:
         assert result["label"] == "changed"
 
 
+class TestDiffPathTraversal:
+    """
+    Verify that /api/diff rejects path-traversal and absolute-path attacks.
+
+    Given: the /api/diff endpoint
+    When:  the request contains .. in project or an absolute file path outside project
+    Then:  the server returns 400 or 404 — never reads the dangerous path
+
+    Red:  fails before the sanitisation guards are added (the endpoint would
+          resolve the path and potentially read or error with a different code).
+    Green: passes after adding the guards in git_ops/router.py.
+    """
+
+    def test_diff_rejects_path_traversal_in_project(self, app_client):
+        """?project=../../../tmp must be rejected (400 or 404)."""
+        r = app_client.get("/api/diff?project=../../../tmp&file=x")
+        assert r.status_code in (400, 404), (
+            f"Expected 400 or 404 for path-traversal project, got {r.status_code}"
+        )
+
+    def test_diff_rejects_dotdot_in_project_name(self, app_client):
+        """?project=..%2F..%2Fetc must be rejected (400 or 404)."""
+        r = app_client.get("/api/diff?project=..%2F..%2Fetc&file=passwd")
+        assert r.status_code in (400, 404), (
+            f"Expected 400 or 404 for encoded path-traversal, got {r.status_code}"
+        )
+
+    def test_diff_rejects_absolute_file_outside_project(self, app_client, tmp_project):
+        """?file=/etc/passwd with a known project must return 400."""
+        r = app_client.get("/api/diff?project=my-project&file=/etc/passwd")
+        assert r.status_code == 400, (
+            f"Expected 400 for absolute file outside project, got {r.status_code}"
+        )
+
+
 class TestAsyncSubprocessSafety:
     """
     Verify subprocess.run is called via asyncio.to_thread, not directly.
