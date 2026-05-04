@@ -10,7 +10,7 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy site/ --project-name claude-insights --branch main --commit-dirty=true
