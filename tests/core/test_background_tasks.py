@@ -744,3 +744,382 @@ class TestProcessActiveProject:
             )
 
         assert len(broadcasts) == 0
+
+
+# ---------------------------------------------------------------------------
+# New helper tests — extracted from poll_loop complexity reduction
+# ---------------------------------------------------------------------------
+
+
+class TestProcessStatusChange:
+    """
+    Tests for _process_status_change.
+
+    Given project name, status path, data dict, and current timestamp,
+    handle all logic for a status.json change: agents, events, stats, broadcast.
+    """
+
+    def setup_method(self):
+        from claude_monitor.core.background import _process_status_change
+
+        self._fn = _process_status_change
+
+    def test_broadcasts_on_status_change(self, tmp_path):
+        """
+        Given a project with a fresh status.json
+        When _process_status_change is called with working data
+        Then state is updated and broadcast is emitted
+        """
+        from claude_monitor import state
+        from claude_monitor.core import broadcast as broadcast_mod
+
+        name = "psc_proj"
+        status_path = tmp_path / ".claude" / "status.json"
+        status_path.parent.mkdir(parents=True)
+        status_path.touch()
+
+        data = {"state": "working", "status": "working", "tool": "Read"}
+        state.projects[name] = {"state": "idle", "status": "idle"}
+        state._status_paths[name] = status_path
+
+        broadcasts = []
+        with (
+            patch("claude_monitor.sessions.service.persist_done_agents", return_value=[]),
+            patch("claude_monitor.sessions.service.current_session_id", return_value="sess-1"),
+            patch("claude_monitor.sessions.service.persist_and_clean_session"),
+            patch("claude_monitor.stats.service.get_project_stats", return_value={}),
+            patch.object(broadcast_mod, "broadcast", side_effect=broadcasts.append),
+        ):
+            self._fn(name, status_path, data, 12345.0)
+
+        assert len(broadcasts) == 1
+        assert broadcasts[0]["project_name"] == name
+
+        # Cleanup
+        state.projects.pop(name, None)
+        state._status_paths.pop(name, None)
+
+    def test_calls_persist_and_clean_on_stopped(self, tmp_path):
+        """
+        Given a project currently not stopped, but new data has state='stopped'
+        When _process_status_change is called
+        Then persist_and_clean_session is called and active_agents is set to []
+        """
+        from claude_monitor import state
+        from claude_monitor.core import broadcast as broadcast_mod
+
+        name = "psc_stop_proj"
+        status_path = tmp_path / ".claude" / "status.json"
+        status_path.parent.mkdir(parents=True)
+        status_path.touch()
+
+        data = {"state": "stopped", "status": "stopped"}
+        state.projects[name] = {"state": "working", "status": "working"}
+        state._status_paths[name] = status_path
+
+        persist_called = []
+
+        with (
+            patch(
+                "claude_monitor.sessions.service.persist_and_clean_session",
+                side_effect=lambda *a, **kw: persist_called.append(a),
+            ),
+            patch("claude_monitor.stats.service.get_project_stats", return_value={}),
+            patch.object(broadcast_mod, "broadcast"),
+        ):
+            self._fn(name, status_path, data, 12345.0)
+
+        assert len(persist_called) == 1
+        assert data.get("active_agents") == []
+
+        # Cleanup
+        state.projects.pop(name, None)
+        state._status_paths.pop(name, None)
+
+    def test_running_agents_force_working_state(self, tmp_path):
+        """
+        Given active_agents contains a running agent
+        When _process_status_change is called
+        Then data state is forced to 'working'
+        """
+        from claude_monitor import state
+        from claude_monitor.core import broadcast as broadcast_mod
+
+        name = "psc_agents_proj"
+        status_path = tmp_path / ".claude" / "status.json"
+        status_path.parent.mkdir(parents=True)
+        agents_dir = tmp_path / ".claude" / "agents"
+        agents_dir.mkdir(parents=True)
+        status_path.touch()
+
+        data = {"state": "idle", "status": "idle"}
+        state.projects[name] = {"state": "idle", "status": "idle"}
+        state._status_paths[name] = status_path
+
+        running_agents = [{"id": "a1", "state": "running"}]
+
+        with (
+            patch(
+                "claude_monitor.sessions.service.persist_done_agents", return_value=running_agents
+            ),
+            patch("claude_monitor.sessions.service.current_session_id", return_value="sess-1"),
+            patch("claude_monitor.sessions.service.persist_and_clean_session"),
+            patch("claude_monitor.stats.service.get_project_stats", return_value={}),
+            patch.object(broadcast_mod, "broadcast"),
+        ):
+            self._fn(name, status_path, data, 12345.0)
+
+        assert data["state"] == "working"
+        assert data["status"] == "working"
+
+        # Cleanup
+        state.projects.pop(name, None)
+        state._status_paths.pop(name, None)
+
+
+class TestCheckAgentsDirChange:
+    """
+    Tests for _check_agents_dir_change.
+
+    Given project name, status path, project path,
+    check if agents dir mtime changed and handle if so.
+    """
+
+    def setup_method(self):
+        from claude_monitor.core.background import _check_agents_dir_change
+
+        self._fn = _check_agents_dir_change
+
+    def test_calls_handle_agent_changes_when_mtime_changed(self, tmp_path):
+        """
+        Given agents_dir exists and its mtime differs from cached value
+        When _check_agents_dir_change is called
+        Then _handle_agent_changes is invoked and mtime cache is updated
+        """
+        from claude_monitor import state
+        from claude_monitor.core import background as bg
+
+        name = "cadc_proj"
+        agents_dir = tmp_path / ".claude" / "agents"
+        agents_dir.mkdir(parents=True)
+        status_path = tmp_path / ".claude" / "status.json"
+
+        # Force stale mtime
+        state._agents_dir_mtimes[name] = 0.0
+
+        called = []
+        with patch.object(
+            bg, "_handle_agent_changes", side_effect=lambda *a, **kw: called.append(a)
+        ):
+            self._fn(name, status_path, tmp_path)
+
+        assert len(called) == 1
+
+        # Cleanup
+        state._agents_dir_mtimes.pop(name, None)
+
+    def test_skips_when_agents_dir_missing(self, tmp_path):
+        """
+        Given agents_dir does not exist
+        When _check_agents_dir_change is called
+        Then nothing happens (no error)
+        """
+        from claude_monitor.core import background as bg
+
+        name = "cadc_missing_proj"
+        status_path = tmp_path / ".claude" / "status.json"
+        # No agents dir created
+
+        called = []
+        with patch.object(
+            bg, "_handle_agent_changes", side_effect=lambda *a, **kw: called.append(a)
+        ):
+            self._fn(name, status_path, tmp_path)
+
+        assert len(called) == 0
+
+    def test_skips_when_mtime_unchanged(self, tmp_path):
+        """
+        Given agents_dir exists but its mtime matches the cached value
+        When _check_agents_dir_change is called
+        Then _handle_agent_changes is NOT called
+        """
+        from claude_monitor import state
+        from claude_monitor.core import background as bg
+
+        name = "cadc_fresh_proj"
+        agents_dir = tmp_path / ".claude" / "agents"
+        agents_dir.mkdir(parents=True)
+        status_path = tmp_path / ".claude" / "status.json"
+
+        current_mtime = agents_dir.stat().st_mtime
+        state._agents_dir_mtimes[name] = current_mtime  # Already up to date
+
+        called = []
+        with patch.object(
+            bg, "_handle_agent_changes", side_effect=lambda *a, **kw: called.append(a)
+        ):
+            self._fn(name, status_path, tmp_path)
+
+        assert len(called) == 0
+
+        # Cleanup
+        state._agents_dir_mtimes.pop(name, None)
+
+
+# ---------------------------------------------------------------------------
+# New helper tests — extracted from jsonl_watcher_loop complexity reduction
+# ---------------------------------------------------------------------------
+
+
+class TestBroadcastUpdate:
+    """
+    Tests for _broadcast_update.
+
+    Given a project name and data dict, broadcast a project update event.
+    """
+
+    def setup_method(self):
+        from claude_monitor.core.background import _broadcast_update
+
+        self._fn = _broadcast_update
+
+    def test_broadcasts_with_correct_structure(self):
+        """
+        Given a project name and data dict
+        When _broadcast_update is called
+        Then broadcast is called with type='update', project_name, and data
+        """
+        from claude_monitor.core import broadcast as broadcast_mod
+
+        broadcasts = []
+        data = {"state": "idle", "status": "idle"}
+
+        with patch.object(broadcast_mod, "broadcast", side_effect=broadcasts.append):
+            self._fn("my_project", data)
+
+        assert len(broadcasts) == 1
+        assert broadcasts[0]["type"] == "update"
+        assert broadcasts[0]["project_name"] == "my_project"
+        assert broadcasts[0]["data"] is data
+
+
+class TestProcessOneProjectJsonl:
+    """
+    Tests for _process_one_project_jsonl.
+
+    Given project name, status path, project path, and now_ts,
+    process one project's JSONL watcher iteration.
+    """
+
+    def setup_method(self):
+        from claude_monitor.core.background import _process_one_project_jsonl
+
+        self._fn = _process_one_project_jsonl
+
+    def test_makes_idle_when_no_jsonl_and_project_is_working(self, tmp_path):
+        """
+        Given no JSONL found for the project and current state is 'working'
+        When _process_one_project_jsonl is called
+        Then state is set to idle and broadcast is emitted
+        """
+        import time
+
+        from claude_monitor import state
+        from claude_monitor.core import broadcast as broadcast_mod
+
+        name = "popj_idle_proj"
+        status_path = tmp_path / ".claude" / "status.json"
+        status_path.parent.mkdir(parents=True)
+        status_path.touch()
+
+        state.projects[name] = {"state": "working", "status": "working"}
+
+        broadcasts = []
+        with (
+            patch("claude_monitor.jsonl.parser.get_latest_jsonl", return_value=(None, 0.0)),
+            patch.object(broadcast_mod, "broadcast", side_effect=broadcasts.append),
+        ):
+            self._fn(name, status_path, tmp_path, time.time())
+
+        assert len(broadcasts) == 1
+        assert broadcasts[0]["data"]["state"] == "idle"
+
+        # Cleanup
+        state.projects.pop(name, None)
+
+    def test_no_broadcast_when_no_jsonl_and_project_already_idle(self, tmp_path):
+        """
+        Given no JSONL and project is already idle
+        When _process_one_project_jsonl is called
+        Then no broadcast is emitted
+        """
+        import time
+
+        from claude_monitor import state
+        from claude_monitor.core import broadcast as broadcast_mod
+
+        name = "popj_already_idle"
+        status_path = tmp_path / ".claude" / "status.json"
+        status_path.parent.mkdir(parents=True)
+        status_path.touch()
+
+        state.projects[name] = {"state": "idle", "status": "idle"}
+
+        broadcasts = []
+        with (
+            patch("claude_monitor.jsonl.parser.get_latest_jsonl", return_value=(None, 0.0)),
+            patch.object(broadcast_mod, "broadcast", side_effect=broadcasts.append),
+        ):
+            self._fn(name, status_path, tmp_path, time.time())
+
+        assert len(broadcasts) == 0
+
+        # Cleanup
+        state.projects.pop(name, None)
+
+    def test_updates_jsonl_cache_on_mtime_change(self, tmp_path):
+        """
+        Given a JSONL file with a new mtime not in cache
+        When _process_one_project_jsonl is called
+        Then the cache is updated with the parsed tool info
+        """
+        import time
+
+        from claude_monitor import state
+        from claude_monitor.core import broadcast as broadcast_mod
+
+        name = "popj_cache_update"
+        status_path = tmp_path / ".claude" / "status.json"
+        status_path.parent.mkdir(parents=True)
+        status_path.touch()
+        jsonl_file = tmp_path / "session.jsonl"
+        jsonl_file.touch()
+
+        state.projects[name] = {"state": "idle", "status": "idle"}
+        state._jsonl_cache.pop(name, None)
+
+        now_ts = time.time()
+        # JSONL is stale (older than active window) so no active processing
+        stale_mtime = now_ts - 1000.0
+
+        with (
+            patch(
+                "claude_monitor.jsonl.parser.get_latest_jsonl",
+                return_value=(jsonl_file, stale_mtime),
+            ),
+            patch(
+                "claude_monitor.jsonl.parser.parse_jsonl_tail",
+                return_value={"tool": "Write", "cwd": str(tmp_path)},
+            ),
+            patch("claude_monitor.jsonl.parser.detect_latest_thinking", return_value=None),
+            patch("claude_monitor.stats.service.get_project_stats", return_value={}),
+            patch.object(broadcast_mod, "broadcast"),
+        ):
+            self._fn(name, status_path, tmp_path, now_ts)
+
+        assert state._jsonl_cache.get(name, {}).get("tool") == "Write"
+
+        # Cleanup
+        state.projects.pop(name, None)
+        state._jsonl_cache.pop(name, None)

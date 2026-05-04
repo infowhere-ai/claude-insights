@@ -12,13 +12,15 @@ from claude_monitor.projects import service as project_service
 from claude_monitor.sessions import service as session_service
 from claude_monitor.stats import service as stats_service
 
+_CLAUDE_DIR = ".claude"
+
 
 # ---------------------------------------------------------------------------
 # Private helpers — extracted from poll_loop
 # ---------------------------------------------------------------------------
 
 
-def _should_override_with_jsonl(data: dict, jsonl_info: dict, now_ts: float, mtime: float) -> bool:
+def _should_override_with_jsonl(_data: dict, jsonl_info: dict, now_ts: float, mtime: float) -> bool:
     """Return True if JSONL is newer and active, so it should override status."""
     jsonl_mtime = jsonl_info.get("mtime", 0.0)
     if not jsonl_mtime:
@@ -37,11 +39,7 @@ def _apply_jsonl_state(data: dict, jsonl_info: dict) -> None:
         "waiting",
         "notification",
     )
-    if cur_data_state == "compacting":
-        pass
-    elif notification_active:
-        pass
-    else:
+    if cur_data_state != "compacting" and not notification_active:
         data["state"] = "working"
         data["status"] = "working"
         data["notification"] = None
@@ -71,12 +69,12 @@ def _build_event(data: dict) -> dict:
     }
 
 
-def _handle_agent_changes(name: str, path: Path, project_path: Path, now_ts: float) -> None:
+def _handle_agent_changes(name: str, _path: Path, project_path: Path, now_ts: float) -> None:
     """Handle agents dir mtime change — persist done agents and broadcast if changed."""
     current = state.projects.get(name)
     if current is None:
         return
-    agents_dir = project_path / ".claude" / "agents"
+    agents_dir = project_path / _CLAUDE_DIR / "agents"
     active_agents = session_service.persist_done_agents(
         agents_dir,
         name,
@@ -97,6 +95,86 @@ def _handle_agent_changes(name: str, path: Path, project_path: Path, now_ts: flo
                 "pending_projects": state._pending_projects,
             }
         )
+
+
+def _broadcast_update(name: str, data: dict) -> None:
+    """Broadcast a project update event."""
+    _broadcast_mod.broadcast(
+        {
+            "type": "update",
+            "project_name": name,
+            "data": data,
+            "pending_projects": state._pending_projects,
+        }
+    )
+
+
+def _resolve_active_agents(
+    name: str,
+    data: dict,
+    project_path: Path,
+    now_ts: float,
+) -> list:
+    """Resolve active agents for a status change: persist done agents or clean session."""
+    new_state = data.get("state") or data.get("status", "idle")
+    prev = state.projects.get(name) or {}
+    prev_state = prev.get("state") or prev.get("status", "idle")
+    agents_dir = project_path / _CLAUDE_DIR / "agents"
+    if new_state == "stopped" and prev_state != "stopped":
+        session_service.persist_and_clean_session(
+            name, data, agents_dir if agents_dir.is_dir() else None
+        )
+        return []
+    if agents_dir.is_dir():
+        return session_service.persist_done_agents(
+            agents_dir, name, session_service.current_session_id(name), now_ts
+        )
+    return []
+
+
+def _process_status_change(
+    name: str,
+    path: Path,
+    data: dict,
+    now_ts: float,
+) -> None:
+    """Handle a status.json change: update agents, build event, update stats, broadcast."""
+    project_path = state._status_paths[name].parents[1]
+    active_agents = _resolve_active_agents(name, data, project_path, now_ts)
+    data["active_agents"] = active_agents
+
+    if any(a.get("state") == "running" for a in active_agents):
+        data["state"] = "working"
+        data["status"] = "working"
+        data["notification"] = None
+
+    event = _build_event(data)
+    events = state._project_events.setdefault(name, [])
+    events.append(event)
+    if len(events) > 500:
+        events[:] = events[-500:]
+    data["events"] = list(events)
+
+    hook_stats = data.get("stats") or {}
+    jsonl_stats = stats_service.get_project_stats(project_path, name)
+    data["stats"] = {**jsonl_stats, **hook_stats}
+
+    state.projects[name] = data
+    _broadcast_update(name, data)
+
+
+def _check_agents_dir_change(name: str, path: Path, project_path: Path) -> None:
+    """Check if agents dir mtime changed and handle if so."""
+    agents_dir = project_path / _CLAUDE_DIR / "agents"
+    if not agents_dir.is_dir():
+        return
+    try:
+        agents_dir_mtime = agents_dir.stat().st_mtime
+    except OSError:
+        agents_dir_mtime = 0.0
+    if state._agents_dir_mtimes.get(name) != agents_dir_mtime:
+        state._agents_dir_mtimes[name] = agents_dir_mtime
+        _handle_agent_changes(name, path, project_path, time.time())
 
 
 # ---------------------------------------------------------------------------
@@ -145,11 +223,11 @@ def _merge_stats(
 
 def _process_active_project(
     name: str,
-    sp: Path,
+    _sp: Path,
     cached: dict,
     current: dict,
     project_path: Path,
-    now_ts: float,
+    _now_ts: float,
     latest_jsonl: Path,
     latest_mtime: float,
 ) -> None:
@@ -168,11 +246,7 @@ def _process_active_project(
         "waiting",
         "notification",
     )
-    if cur_state == "compacting":
-        pass
-    elif notification_active:
-        pass
-    else:
+    if cur_state != "compacting" and not notification_active:
         updated["state"] = "working"
         updated["status"] = "working"
         updated["notification"] = None
@@ -188,14 +262,143 @@ def _process_active_project(
         _merge_stats(updated, project_path, name, latest_jsonl, latest_mtime)
         state._jsonl_mtimes[str(latest_jsonl)] = latest_mtime
     state.projects[name] = updated
+    _broadcast_update(name, updated)
+
+
+def _update_jsonl_cache(
+    name: str,
+    latest_jsonl: Path,
+    latest_mtime: float,
+) -> dict:
+    """Parse JSONL tail and update cache; broadcast thinking if changed. Returns cached entry."""
+    cached = state._jsonl_cache.get(name, {})
+    if cached.get("mtime") == latest_mtime:
+        return cached
+    parsed = parser.parse_jsonl_tail(latest_jsonl)
+    state._jsonl_cache[name] = {
+        "mtime": latest_mtime,
+        "tool": parsed.get("tool"),
+        "jsonl_path": str(latest_jsonl),
+    }
+    cached = state._jsonl_cache[name]
+    _maybe_broadcast_thinking(name, latest_jsonl, latest_mtime)
+    return cached
+
+
+def _maybe_broadcast_thinking(name: str, latest_jsonl: Path, latest_mtime: float) -> None:
+    """Detect latest thinking block and broadcast if it changed."""
+    thinking = parser.detect_latest_thinking(latest_jsonl)
+    if not thinking:
+        return
+    prev = state._thinking_cache.get(name, {})
+    if prev.get("block_id") == thinking["block_id"] and prev.get("text") == thinking["text"]:
+        return
+    state._thinking_cache[name] = {
+        "block_id": thinking["block_id"],
+        "text": thinking["text"],
+        "mtime": latest_mtime,
+    }
     _broadcast_mod.broadcast(
         {
-            "type": "update",
-            "project_name": name,
-            "data": updated,
-            "pending_projects": state._pending_projects,
+            "type": "thinking",
+            "project": name,
+            "block_id": thinking["block_id"],
+            "text": thinking["text"],
+            "word_count": thinking["word_count"],
+            "timestamp": thinking["timestamp"],
         }
     )
+
+
+def _handle_stale_project(
+    name: str,
+    current: dict,
+    project_path: Path,
+    latest_jsonl: Path,
+    latest_mtime: float,
+) -> None:
+    """Handle a project whose JSONL is stale (not active)."""
+    cur_state = current.get("state") or current.get("status", "idle")
+    if cur_state != "working":
+        return
+    has_running_agents = any(a.get("state") == "running" for a in current.get("active_agents", []))
+    if not has_running_agents:
+        stale = _make_idle_update(current)
+        state.projects[name] = stale
+        _broadcast_update(name, stale)
+    else:
+        updated = dict(current)
+        _merge_stats(updated, project_path, name, latest_jsonl, latest_mtime)
+        updated["ts"] = _now_iso()
+        state.projects[name] = updated
+        _broadcast_update(name, updated)
+
+
+def _process_one_project_jsonl(
+    name: str,
+    sp: Path,
+    project_path: Path,
+    now_ts: float,
+) -> None:
+    """Process one project's JSONL watcher iteration."""
+    latest_jsonl, latest_mtime = parser.get_latest_jsonl(project_path)
+    if latest_jsonl is None:
+        current = state.projects.get(name, {})
+        cur_state = current.get("state") or current.get("status", "idle")
+        if cur_state == "working":
+            stale = _make_idle_update(current)
+            state.projects[name] = stale
+            _broadcast_update(name, stale)
+        return
+
+    cached = _update_jsonl_cache(name, latest_jsonl, latest_mtime)
+
+    age = now_ts - latest_mtime
+    current = state.projects.get(name, {})
+
+    status_mtime = 0.0
+    try:
+        status_mtime = sp.stat().st_mtime
+    except OSError:
+        pass
+
+    if age <= config.JSONL_ACTIVE_SECONDS and latest_mtime > status_mtime:
+        _process_active_project(
+            name, sp, cached, current, project_path, now_ts, latest_jsonl, latest_mtime
+        )
+    else:
+        _handle_stale_project(name, current, project_path, latest_jsonl, latest_mtime)
+
+
+def _scan_untracked_projects(now_ts: float) -> None:
+    """Scan Claude projects dir for active untracked projects and trigger discovery."""
+    if not config.CLAUDE_PROJECTS_DIR.is_dir():
+        return
+    tracked_paths = {str(sp.parents[1]) for sp in state._status_paths.values()}
+    try:
+        for encoded_dir in config.CLAUDE_PROJECTS_DIR.iterdir():
+            if not encoded_dir.is_dir():
+                continue
+            try:
+                jsonl_files = list(encoded_dir.glob("*.jsonl"))
+                if not jsonl_files:
+                    continue
+                latest = max(jsonl_files, key=lambda p: p.stat().st_mtime)
+                if now_ts - latest.stat().st_mtime > config.JSONL_ACTIVE_SECONDS:
+                    continue
+                parsed = parser.parse_jsonl_tail(latest)
+                cwd = parsed.get("cwd")
+                if not cwd or cwd in tracked_paths:
+                    continue
+                all_roots = [config.PROJECTS_ROOT] + list(state._extra_roots)
+                for root in all_roots:
+                    if cwd.startswith(str(root)):
+                        project_service.discover()
+                        break
+            except OSError:
+                continue
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +416,7 @@ async def poll_loop() -> None:  # pragma: no cover
     await asyncio.sleep(2)
     while True:
         now_ts = time.time()
-        for name, path in list(state._status_paths.items()):
+        for name, path in tuple(state._status_paths.items()):
             try:
                 mtime = path.stat().st_mtime
             except OSError:
@@ -226,63 +429,9 @@ async def poll_loop() -> None:  # pragma: no cover
                     jsonl_info = state._jsonl_cache.get(name, {})
                     if _should_override_with_jsonl(data, jsonl_info, now_ts, mtime):
                         _apply_jsonl_state(data, jsonl_info)
-
-                    project_path = path.parents[1]
-                    agents_dir = project_path / ".claude" / "agents"
-                    new_state = data.get("state") or data.get("status", "idle")
-                    prev_state = (state.projects.get(name) or {}).get("state") or (
-                        state.projects.get(name) or {}
-                    ).get("status", "idle")
-                    if new_state == "stopped" and prev_state != "stopped":
-                        session_service.persist_and_clean_session(
-                            name, data, agents_dir if agents_dir.is_dir() else None
-                        )
-                        active_agents = []
-                    elif agents_dir.is_dir():
-                        active_agents = session_service.persist_done_agents(
-                            agents_dir, name, session_service.current_session_id(name), now_ts
-                        )
-                    else:
-                        active_agents = []
-                    data["active_agents"] = active_agents
-
-                    if any(a.get("state") == "running" for a in active_agents):
-                        data["state"] = "working"
-                        data["status"] = "working"
-                        data["notification"] = None
-
-                    event = _build_event(data)
-                    events = state._project_events.setdefault(name, [])
-                    events.append(event)
-                    if len(events) > 500:
-                        events[:] = events[-500:]
-                    data["events"] = list(events)
-
-                    project_path = state._status_paths[name].parents[1]
-                    hook_stats = data.get("stats") or {}
-                    jsonl_stats = stats_service.get_project_stats(project_path, name)
-                    data["stats"] = {**jsonl_stats, **hook_stats}
-
-                    state.projects[name] = data
-                    _broadcast_mod.broadcast(
-                        {
-                            "type": "update",
-                            "project_name": name,
-                            "data": data,
-                            "pending_projects": state._pending_projects,
-                        }
-                    )
+                    _process_status_change(name, path, data, now_ts)
             else:
-                project_path = path.parents[1]
-                agents_dir = project_path / ".claude" / "agents"
-                if agents_dir.is_dir():
-                    try:
-                        agents_dir_mtime = agents_dir.stat().st_mtime
-                    except OSError:
-                        agents_dir_mtime = 0.0
-                    if state._agents_dir_mtimes.get(name) != agents_dir_mtime:
-                        state._agents_dir_mtimes[name] = agents_dir_mtime
-                        _handle_agent_changes(name, path, project_path, time.time())
+                _check_agents_dir_change(name, path, path.parents[1])
 
         await asyncio.sleep(config.POLL_INTERVAL)
 
@@ -292,128 +441,9 @@ async def jsonl_watcher_loop() -> None:  # pragma: no cover
     while True:
         try:
             now_ts = time.time()
-
-            for name, sp in list(state._status_paths.items()):
-                project_path = sp.parents[1]
-                latest_jsonl, latest_mtime = parser.get_latest_jsonl(project_path)
-                if latest_jsonl is None:
-                    current = state.projects.get(name, {})
-                    cur_state = current.get("state") or current.get("status", "idle")
-                    if cur_state == "working":
-                        stale = _make_idle_update(current)
-                        state.projects[name] = stale
-                        _broadcast_mod.broadcast(
-                            {
-                                "type": "update",
-                                "project_name": name,
-                                "data": stale,
-                                "pending_projects": state._pending_projects,
-                            }
-                        )
-                    continue
-
-                cached = state._jsonl_cache.get(name, {})
-                if cached.get("mtime") != latest_mtime:
-                    parsed = parser.parse_jsonl_tail(latest_jsonl)
-                    state._jsonl_cache[name] = {
-                        "mtime": latest_mtime,
-                        "tool": parsed.get("tool"),
-                        "jsonl_path": str(latest_jsonl),
-                    }
-                    cached = state._jsonl_cache[name]
-
-                    thinking = parser.detect_latest_thinking(latest_jsonl)
-                    if thinking:
-                        prev = state._thinking_cache.get(name, {})
-                        if (
-                            prev.get("block_id") != thinking["block_id"]
-                            or prev.get("text") != thinking["text"]
-                        ):
-                            state._thinking_cache[name] = {
-                                "block_id": thinking["block_id"],
-                                "text": thinking["text"],
-                                "mtime": latest_mtime,
-                            }
-                            _broadcast_mod.broadcast(
-                                {
-                                    "type": "thinking",
-                                    "project": name,
-                                    "block_id": thinking["block_id"],
-                                    "text": thinking["text"],
-                                    "word_count": thinking["word_count"],
-                                    "timestamp": thinking["timestamp"],
-                                }
-                            )
-
-                age = now_ts - latest_mtime
-                current = state.projects.get(name, {})
-                cur_state = current.get("state") or current.get("status", "idle")
-
-                status_mtime = 0.0
-                try:
-                    status_mtime = sp.stat().st_mtime
-                except OSError:
-                    pass
-
-                if age <= config.JSONL_ACTIVE_SECONDS and latest_mtime > status_mtime:
-                    _process_active_project(
-                        name, sp, cached, current, project_path, now_ts, latest_jsonl, latest_mtime
-                    )
-                else:
-                    has_running_agents = any(
-                        a.get("state") == "running" for a in current.get("active_agents", [])
-                    )
-                    if cur_state == "working" and not has_running_agents:
-                        stale = _make_idle_update(current)
-                        state.projects[name] = stale
-                        _broadcast_mod.broadcast(
-                            {
-                                "type": "update",
-                                "project_name": name,
-                                "data": stale,
-                                "pending_projects": state._pending_projects,
-                            }
-                        )
-                    elif cur_state == "working" and has_running_agents:
-                        updated = dict(current)
-                        _merge_stats(updated, project_path, name, latest_jsonl, latest_mtime)
-                        updated["ts"] = _now_iso()
-                        state.projects[name] = updated
-                        _broadcast_mod.broadcast(
-                            {
-                                "type": "update",
-                                "project_name": name,
-                                "data": updated,
-                                "pending_projects": state._pending_projects,
-                            }
-                        )
-
-            if config.CLAUDE_PROJECTS_DIR.is_dir():
-                tracked_paths = {str(sp.parents[1]) for sp in state._status_paths.values()}
-                try:
-                    for encoded_dir in config.CLAUDE_PROJECTS_DIR.iterdir():
-                        if not encoded_dir.is_dir():
-                            continue
-                        try:
-                            jsonl_files = list(encoded_dir.glob("*.jsonl"))
-                            if not jsonl_files:
-                                continue
-                            latest = max(jsonl_files, key=lambda p: p.stat().st_mtime)
-                            if now_ts - latest.stat().st_mtime > config.JSONL_ACTIVE_SECONDS:
-                                continue
-                            parsed = parser.parse_jsonl_tail(latest)
-                            cwd = parsed.get("cwd")
-                            if not cwd or cwd in tracked_paths:
-                                continue
-                            all_roots = [config.PROJECTS_ROOT] + list(state._extra_roots)
-                            for root in all_roots:
-                                if cwd.startswith(str(root)):
-                                    project_service.discover()
-                                    break
-                        except OSError:
-                            continue
-                except OSError:
-                    pass
+            for name, sp in tuple(state._status_paths.items()):
+                _process_one_project_jsonl(name, sp, sp.parents[1], now_ts)
+            _scan_untracked_projects(now_ts)
         except Exception:
             pass
         await asyncio.sleep(2.0)
